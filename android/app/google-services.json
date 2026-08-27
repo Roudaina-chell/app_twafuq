@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "927146446452",
+    "project_id": "tawafuq-609e9",
+    "storage_bucket": "tawafuq-609e9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:927146446452:android:9265b0cd6d056643168b21",
+        "android_client_info": {
+          "package_name": "com.example.tawafuq"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBBtPUUDalXCRFlpaKtSGOLUdfBbRAKDPk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
