@@ -45,5 +45,7 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+<string>نحتاج إلى موقعك للتحقق من توفر التطبيق في ولايتك.</string>
 </dict>
 </plist>
