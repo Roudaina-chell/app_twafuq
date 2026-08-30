@@ -2,7 +2,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import '../home/home_screen.dart';
+import 'avatar_selection.dart';
 
 class FormulaireInfo extends StatefulWidget {
   const FormulaireInfo({super.key});
@@ -98,7 +98,7 @@ class _FormulaireInfoState extends State<FormulaireInfo> {
       if (mounted) {
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(builder: (_) => const AvatarSelectionScreen()),
           (route) => false,
         );
       }
@@ -166,14 +166,16 @@ class _FormulaireInfoState extends State<FormulaireInfo> {
                       letterSpacing: 1,
                     ),
                   ),
-                  const Spacer(),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: 0.5,
-                      minHeight: 6,
-                      backgroundColor: Colors.grey.shade300,
-                      valueColor: const AlwaysStoppedAnimation<Color>(gold),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: 0.5,
+                        minHeight: 6,
+                        backgroundColor: Colors.grey.shade300,
+                        valueColor: const AlwaysStoppedAnimation<Color>(gold),
+                      ),
                     ),
                   ),
                 ],

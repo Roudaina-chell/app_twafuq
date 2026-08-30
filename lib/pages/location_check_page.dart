@@ -1,3 +1,4 @@
+
 // pages/location_check_page.dart
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -28,24 +29,35 @@ class _LocationCheckPageState extends State<LocationCheckPage> {
 
     if (!mounted) return;
 
+    if (result == null) {
+      setState(() {
+        _loading = false;
+        _errorMessage =
+            'ماقدرناش نوصلو لموقعك. تأكد من تفعيل GPS ومنح الإذن للتطبيق من إعدادات الهاتف.';
+      });
+      return;
+    }
+
+    final bool allowed = await LocationService.isLocationAllowed(
+      result.latitude,
+      result.longitude,
+    );
+
+    if (!mounted) return;
+
     setState(() {
       _loading = false;
     });
 
-    if (result != null) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const GenderSelectionScreen()),
-      );
-    } else {
+    if (!allowed) {
       setState(() {
         _errorMessage =
-            'ماقدرناش نوصلو لموقعك. تأكد من تفعيل GPS ومنح الإذن للتطبيق من إعدادات الهاتف.';
+            'عذراً، التطبيق متاح حالياً فقط في الجزائر العاصمة، البليدة، وقسنطينة. سيتم إضافة ولايات أخرى قريباً إن شاء الله.';
       });
+      return;
     }
-  }
 
-  void _skip() {
+    if (!mounted) return;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const GenderSelectionScreen()),
@@ -90,7 +102,11 @@ class _LocationCheckPageState extends State<LocationCheckPage> {
               const Text(
                 'نحتاج إلى الوصول لموقعك لعرض أقرب المتوافقين إليك في منطقتك',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 15, color: Colors.grey, height: 1.6),
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.grey,
+                  height: 1.6,
+                ),
               ),
               if (_errorMessage != null) ...[
                 const SizedBox(height: 20),
@@ -109,7 +125,9 @@ class _LocationCheckPageState extends State<LocationCheckPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: darkGreen,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+
+
+borderRadius: BorderRadius.circular(14),
                     ),
                   ),
                   child: _loading
@@ -118,14 +136,6 @@ class _LocationCheckPageState extends State<LocationCheckPage> {
                           'منح الإذن الآن',
                           style: TextStyle(fontSize: 16, color: Colors.white),
                         ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: _loading ? null : _skip,
-                child: const Text(
-                  'تخطي الآن',
-                  style: TextStyle(color: Colors.grey),
                 ),
               ),
             ],

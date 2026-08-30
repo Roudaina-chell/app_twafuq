@@ -1,32 +1,72 @@
 // services/location_service.dart
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 
 class LocationService {
   static Future<Position?> getCurrentLocation() async {
-    // 1. نتأكدوا بلي GPS تاع الهاتف خدام
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return null;
 
-    if (!serviceEnabled) {
-      return null;
-    }
-
-    // 2. نشوفو Permission
     LocationPermission permission = await Geolocator.checkPermission();
-
-    // 3. إذا ما عطاش permission، نطلبوه
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
     }
 
-    // 4. إذا رفض permission
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) {
       return null;
     }
 
-    // 5. نجيب الموقع
     return await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+      ),
     );
+  }
+
+  // ============================================================
+  // ✅ الولايات المسموحة (بالأسماء اللي كترجع بيها الخرائط)
+  // ============================================================
+  static const List<String> _allowedWilayas = [
+    'Alger',
+    'Algiers',
+    'Blida',
+    'Constantine',
+  ];
+
+  // ============================================================
+  // ✅ دالة جديدة: كتاخد الإحداثيات وترجع اسم الولاية عن طريق
+  // reverse geocoding، وتتحقق واش هي من الولايات المسموحة
+  // ============================================================
+  static Future<bool> isLocationAllowed(
+    double latitude,
+    double longitude,
+  ) async {
+    try {
+      final placemarks = await placemarkFromCoordinates(
+        latitude,
+        longitude,
+      );
+
+      if (placemarks.isEmpty) return false;
+
+      final placemark = placemarks.first;
+
+      final String? adminArea = placemark.administrativeArea;
+      final String? subAdminArea = placemark.subAdministrativeArea;
+
+      for (final wilaya in _allowedWilayas) {
+        if ((adminArea != null &&
+                adminArea.toLowerCase().contains(wilaya.toLowerCase())) ||
+            (subAdminArea != null &&
+                subAdminArea.toLowerCase().contains(wilaya.toLowerCase()))) {
+          return true;
+        }
+      }
+
+      return false;
+    } catch (e) {
+      return false;
+    }
   }
 }

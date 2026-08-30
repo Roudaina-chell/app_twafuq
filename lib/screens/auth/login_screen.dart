@@ -1,9 +1,11 @@
 // screens/auth/login_screen.dart
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'register_screen.dart';
 import '../../pages/location_check_page.dart';
+import '../../services/device_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -78,6 +80,22 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  // ============================================================
+  // ✅ دالة جديدة: تتحقق واش الجهاز مربوط بحساب آخر (users/deviceId)
+  // كتستعمل نفس المنطق تاع register_screen.dart
+  // ترجع uid تاع الحساب الآخر، ولا null إلا الجهاز فاضي
+  // ============================================================
+  Future<String?> _findExistingUidForDevice(String deviceId) async {
+    final result = await FirebaseFirestore.instance
+        .collection('users')
+        .where('deviceId', isEqualTo: deviceId)
+        .limit(1)
+        .get();
+
+    if (result.docs.isEmpty) return null;
+    return result.docs.first.data()['uid'] as String?;
+  }
+
   Future<void> _loginWithGoogle() async {
     if (!_googleInitialized) {
       setState(() {
@@ -113,7 +131,52 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final credential = GoogleAuthProvider.credential(idToken: idToken);
 
-      await FirebaseAuth.instance.signInWithCredential(credential);
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(
+        credential,
+      );
+
+      final user = userCredential.user!;
+      final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
+
+      // ============================================================
+      // ✅ التحقق من الجهاز - هنا كان الخلل قبل
+      // ============================================================
+      final deviceId = await DeviceService.getDeviceId();
+      final existingUid = await _findExistingUidForDevice(deviceId);
+
+      if (existingUid != null && existingUid != user.uid) {
+        // الجهاز مربوط بحساب آخر (غير هذا) → منع
+        await FirebaseAuth.instance.signOut();
+        await _googleSignIn.signOut();
+
+        // إلا Google خلق حساب جديد دابا، خاصنا نمسحوه باش ما يبقاش يتيم
+        if (isNewUser) {
+          try {
+            await user.delete();
+          } catch (_) {
+            // إلا فشل المسح (نادر)، السيشن ديجا خرجنا منها فوق
+          }
+        }
+
+        if (!mounted) return;
+        setState(() {
+          _errorMessage =
+              'هذا الهاتف مرتبط بحساب موجود من قبل، لا يمكن استخدام حساب Google آخر.';
+        });
+        return;
+      }
+
+      // إلا كان حساب Google جديد (أول مرة) وما كاينش تضارب → سجلو فـ users
+      if (isNewUser) {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'uid': user.uid,
+          'name': user.displayName ?? '',
+          'email': user.email ?? '',
+          'deviceId': deviceId,
+          'method': 'google',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
 
       if (mounted) {
         Navigator.pushAndRemoveUntil(
@@ -197,6 +260,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
+
                 children: const [
                   Icon(Icons.language, color: darkGreen, size: 20),
                   SizedBox(width: 6),
