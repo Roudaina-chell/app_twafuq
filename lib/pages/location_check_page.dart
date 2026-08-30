@@ -1,6 +1,8 @@
+// pages/location_check_page.dart
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/location_service.dart';
+import '../screens/profile/gender_selection_screen.dart';
 
 class LocationCheckPage extends StatefulWidget {
   const LocationCheckPage({super.key});
@@ -10,60 +12,120 @@ class LocationCheckPage extends StatefulWidget {
 }
 
 class _LocationCheckPageState extends State<LocationCheckPage> {
-  Position? position;
-  bool loading = false;
-  String message = 'اضغط على الزر للحصول على موقعك';
+  static const Color darkGreen = Color(0xFF0F3D2E);
+  static const Color gold = Color(0xFFC9A24B);
 
-  Future<void> checkLocation() async {
+  bool _loading = false;
+  String? _errorMessage;
+
+  Future<void> _requestLocation() async {
     setState(() {
-      loading = true;
-      message = 'جاري تحديد موقعك...';
+      _loading = true;
+      _errorMessage = null;
     });
 
-    final result = await LocationService.getCurrentLocation();
+    final Position? result = await LocationService.getCurrentLocation();
+
+    if (!mounted) return;
 
     setState(() {
-      loading = false;
-
-      if (result != null) {
-        position = result;
-        message = 'تم تحديد موقعك ✅';
-      } else {
-        message = 'لم نتمكن من الحصول على موقعك ❌';
-      }
+      _loading = false;
     });
+
+    if (result != null) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const GenderSelectionScreen()),
+      );
+    } else {
+      setState(() {
+        _errorMessage =
+            'ماقدرناش نوصلو لموقعك. تأكد من تفعيل GPS ومنح الإذن للتطبيق من إعدادات الهاتف.';
+      });
+    }
+  }
+
+  void _skip() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const GenderSelectionScreen()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Location Check'),
-      ),
-      body: Center(
+      backgroundColor: const Color(0xFFFAF7F2),
+      body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                message,
-                textAlign: TextAlign.center,
+              Container(
+                width: 110,
+                height: 110,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: darkGreen.withValues(alpha: 0.08),
+                  border: Border.all(color: gold, width: 2),
+                ),
+                child: const Icon(
+                  Icons.location_on,
+                  color: darkGreen,
+                  size: 52,
+                ),
               ),
-
-              const SizedBox(height: 20),
-
-              if (position != null) ...[
-                Text('Latitude: ${position!.latitude}'),
-                Text('Longitude: ${position!.longitude}'),
+              const SizedBox(height: 28),
+              const Text(
+                'الموقع الجغرافي',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: darkGreen,
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'نحتاج إلى الوصول لموقعك لعرض أقرب المتوافقين إليك في منطقتك',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 15, color: Colors.grey, height: 1.6),
+              ),
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 20),
+                Text(
+                  _errorMessage!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.red),
+                ),
               ],
-
-              const SizedBox(height: 30),
-
-              ElevatedButton(
-                onPressed: loading ? null : checkLocation,
-                child: Text(
-                  loading ? 'جاري التحقق...' : 'تحقق من موقعي',
+              const SizedBox(height: 36),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _loading ? null : _requestLocation,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: darkGreen,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: _loading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          'منح الإذن الآن',
+                          style: TextStyle(fontSize: 16, color: Colors.white),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: _loading ? null : _skip,
+                child: const Text(
+                  'تخطي الآن',
+                  style: TextStyle(color: Colors.grey),
                 ),
               ),
             ],

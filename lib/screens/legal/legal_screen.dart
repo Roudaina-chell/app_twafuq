@@ -1,7 +1,7 @@
-Roudaina Chelloug, [28/08/2026 06:52]
+// screens/legal/legal_screen.dart
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../pages/location_check_page.dart';
+import '../auth/login_screen.dart';
 
 class LegalScreen extends StatefulWidget {
   const LegalScreen({super.key});
@@ -28,7 +28,7 @@ class _LegalScreenState extends State<LegalScreen> {
     if (!mounted) return;
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const LocationCheckPage()),
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
     );
   }
 
@@ -134,9 +134,7 @@ class _LegalScreenState extends State<LegalScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 28),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-
-Roudaina Chelloug, [28/08/2026 06:52]
-children: [
+        children: [
           Container(
             width: 110,
             height: 110,
@@ -144,8 +142,11 @@ children: [
               color: darkGreen.withOpacity(0.08),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.check_circle_outline,
-                size: 48, color: darkGreen),
+            child: const Icon(
+              Icons.check_circle_outline,
+              size: 48,
+              color: darkGreen,
+            ),
           ),
           const SizedBox(height: 28),
           const Text(
@@ -220,9 +221,7 @@ children: [
                   width: _currentPage == index ? 22 : 8,
                   height: 8,
                   decoration: BoxDecoration(
-                    color: _currentPage == index
-                        ? gold
-                        : Colors.grey.shade300,
+                    color: _currentPage == index ? gold : Colors.grey.shade300,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -247,9 +246,7 @@ children: [
                       setState(() => _acceptedTerms = val ?? false);
                     },
                     checkboxLabel: 'أوافق على الشروط والأحكام',
-
-Roudaina Chelloug, [28/08/2026 06:52]
-buttonLabel: 'متابعة',
+                    buttonLabel: 'متابعة',
                   ),
                   _buildPage(
                     icon: Icons.shield_outlined,

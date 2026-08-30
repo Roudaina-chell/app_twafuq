@@ -1,6 +1,9 @@
-Roudaina Chelloug, [28/08/2026 06:55]
+// screens/auth/login_screen.dart
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'register_screen.dart';
+import '../../pages/location_check_page.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,17 +22,166 @@ class _LoginScreenState extends State<LoginScreen> {
   static const Color darkGreen = Color(0xFF0F3D2E);
   static const Color gold = Color(0xFFC9A24B);
 
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  bool _googleInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initGoogleSignIn();
+  }
+
+  Future<void> _initGoogleSignIn() async {
+    try {
+      await _googleSignIn.initialize(
+        serverClientId:
+            '927146446452-gb1h8lobf21rlqe9thfsoejcethou26e.apps.googleusercontent.com',
+      );
+      if (mounted) {
+        setState(() {
+          _googleInitialized = true;
+        });
+      }
+    } catch (e) {
+      // فشل تهيئة Google Sign-In - زر Google غادي يبقى معطل
+    }
+  }
+
   Future<void> _login() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
-    // هنا غادي نزيدو منطق Firebase Authentication (تسجيل الدخول)
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const LocationCheckPage()),
+          (route) => false,
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        _errorMessage = friendlyAuthError(e.code);
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loginWithGoogle() async {
+    if (!_googleInitialized) {
+      setState(() {
+        _errorMessage = 'تسجيل الدخول بـ Google لسا كيتهيأ، عاودي المحاولة';
+      });
+      return;
+    }
 
     setState(() {
-      _isLoading = false;
+      _isLoading = true;
+      _errorMessage = null;
     });
+
+    try {
+      if (!_googleSignIn.supportsAuthenticate()) {
+        setState(() {
+          _errorMessage =
+              'تسجيل الدخول بـ Google غير مدعوم مباشرة فـ هاذ المتصفح حالياً';
+        });
+        return;
+      }
+
+      final GoogleSignInAccount googleUser = await _googleSignIn.authenticate();
+
+      final idToken = googleUser.authentication.idToken;
+
+      if (idToken == null) {
+        setState(() {
+          _errorMessage = 'ماقدرناش نجيبو معلومات الحساب من Google';
+        });
+        return;
+      }
+
+      final credential = GoogleAuthProvider.credential(idToken: idToken);
+
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const LocationCheckPage()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'خطأ فـ تسجيل الدخول بـ Google: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _sendPasswordReset() async {
+    final controller = TextEditingController(
+      text: _emailController.text.trim(),
+    );
+    final email = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('استرجاع كلمة المرور'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.emailAddress,
+          textAlign: TextAlign.right,
+          decoration: const InputDecoration(hintText: 'البريد الإلكتروني'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('إرسال'),
+          ),
+        ],
+      ),
+    );
+
+    if (email == null || email.isEmpty) return;
+
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'تصيفط ليك رابط إعادة تعيين كلمة المرور على بريدك الإلكتروني',
+            ),
+          ),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(friendlyAuthError(e.code))));
+      }
+    }
   }
 
   @override
@@ -48,9 +200,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: const [
                   Icon(Icons.language, color: darkGreen, size: 20),
                   SizedBox(width: 6),
-                  Text('العربية',
-                      style: TextStyle(
-                          color: darkGreen, fontWeight: FontWeight.w600)),
+                  Text(
+                    'العربية',
+                    style: TextStyle(
+                      color: darkGreen,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   Icon(Icons.keyboard_arrow_down, color: darkGreen),
                 ],
               ),
@@ -65,32 +221,45 @@ class _LoginScreenState extends State<LoginScreen> {
                         shape: BoxShape.circle,
                         border: Border.all(color: gold, width: 2),
                       ),
-                      child: const Icon(Icons.favorite,
-                          color: darkGreen, size: 40),
+                      child: const Icon(
+                        Icons.favorite,
+                        color: darkGreen,
+                        size: 40,
+                      ),
                     ),
                     const SizedBox(height: 12),
-                    const Text('TAWAFUQ',
-                        style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: darkGreen,
-                            letterSpacing: 2)),
+                    const Text(
+                      'TAWAFUQ',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: darkGreen,
+                        letterSpacing: 2,
+                      ),
+                    ),
                     const SizedBox(height: 4),
-                    const Text('توافقك الحقيقي',
-                        style: TextStyle(
-                            color: gold, fontWeight: FontWeight.w600)),
+                    const Text(
+                      'توافقك الحقيقي',
+                      style: TextStyle(
+                        color: gold,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
                 ),
               ),
               const SizedBox(height: 30),
-              const Text('مرحباً بك',
-                  textAlign: TextAlign.center,
-                  style:
-                      TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+              const Text(
+                'مرحباً بك',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 6),
-              const Text('سجل دخولك للمتابعة',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey)),
+              const Text(
+                'سجل دخولك للمتابعة',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
               const SizedBox(height: 30),
               TextField(
                 controller: _emailController,
@@ -104,9 +273,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide(color: Colors.grey.shade300),
-
-Roudaina Chelloug, [28/08/2026 06:55]
-),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -118,9 +285,11 @@ Roudaina Chelloug, [28/08/2026 06:55]
                   hintText: 'كلمة المرور',
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
-                    icon: Icon(_obscurePassword
-                        ? Icons.visibility_off
-                        : Icons.visibility),
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                    ),
                     onPressed: () {
                       setState(() => _obscurePassword = !_obscurePassword);
                     },
@@ -137,16 +306,20 @@ Roudaina Chelloug, [28/08/2026 06:55]
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton(
-                  onPressed: () {},
-                  child: const Text('هل نسيت كلمة المرور؟',
-                      style: TextStyle(color: darkGreen)),
+                  onPressed: _sendPasswordReset,
+                  child: const Text(
+                    'هل نسيت كلمة المرور؟',
+                    style: TextStyle(color: darkGreen),
+                  ),
                 ),
               ),
               if (_errorMessage != null) ...[
                 const SizedBox(height: 6),
-                Text(_errorMessage!,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.red)),
+                Text(
+                  _errorMessage!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.red),
+                ),
               ],
               const SizedBox(height: 10),
               SizedBox(
@@ -156,13 +329,15 @@ Roudaina Chelloug, [28/08/2026 06:55]
                   style: ElevatedButton.styleFrom(
                     backgroundColor: darkGreen,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('تسجيل الدخول',
-                          style:
-                              TextStyle(fontSize: 16, color: Colors.white)),
+                      : const Text(
+                          'تسجيل الدخول',
+                          style: TextStyle(fontSize: 16, color: Colors.white),
+                        ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -180,16 +355,22 @@ Roudaina Chelloug, [28/08/2026 06:55]
               SizedBox(
                 height: 52,
                 child: OutlinedButton.icon(
-                  onPressed: () {},
+                  onPressed: _isLoading ? null : _loginWithGoogle,
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(color: Colors.grey.shade300),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
-                  icon: const Icon(Icons.g_mobiledata,
-                      color: Colors.red, size: 28),
-                  label: const Text('تسجيل الدخول باستخدام Google',
-                      style: TextStyle(color: Colors.black87)),
+                  icon: const Icon(
+                    Icons.g_mobiledata,
+                    color: Colors.red,
+                    size: 28,
+                  ),
+                  label: const Text(
+                    'تسجيل الدخول باستخدام Google',
+                    style: TextStyle(color: Colors.black87),
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -198,20 +379,22 @@ Roudaina Chelloug, [28/08/2026 06:55]
                 children: [
                   const Text('ليس لديك حساب؟ '),
                   GestureDetector(
-
-Roudaina Chelloug, [28/08/2026 06:55]
-onTap: () {
+                    onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) => const RegisterScreen()),
+                          builder: (_) => const RegisterScreen(),
+                        ),
                       );
                     },
-                    child: const Text('إنشاء حساب جديد',
-                        style: TextStyle(
-                            color: darkGreen,
-                            fontWeight: FontWeight.bold,
-                            decoration: TextDecoration.underline)),
+                    child: const Text(
+                      'إنشاء حساب جديد',
+                      style: TextStyle(
+                        color: darkGreen,
+                        fontWeight: FontWeight.bold,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
                   ),
                 ],
               ),
