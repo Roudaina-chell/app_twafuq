@@ -29,6 +29,22 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.3
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/images/logo_tawafuq.png
+
+# ============================================================
+# ✅ إعدادات flutter_launcher_icons - باش يبدل أيقونة Flutter
+# الافتراضية بلوغو TAWAFUQ على Android و iOS
+# ============================================================
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/logo_tawafuq.png"
+  # لون الخلفية على أندرويد (استعملت لون التطبيق الفاتح، بدلها إذا حبيت)
+  adaptive_icon_background: "#FAF7F2"
+  adaptive_icon_foreground: "assets/images/logo_tawafuq.png"

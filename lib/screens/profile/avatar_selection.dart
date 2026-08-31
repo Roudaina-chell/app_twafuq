@@ -2,7 +2,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import '../home/home_screen.dart';
+import 'about_you_screen.dart';
+import 'preferences_screen.dart';
 
 class AvatarSelectionScreen extends StatefulWidget {
   // Optional: نقدر نمررو الجنس مباشرة من formulaire_info/gender_selection
@@ -25,23 +26,71 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen> {
   bool _isSubmitting = false;
   String? _errorMessage;
 
-  // مجموعة أفاتارات جاهزة (أيقونة + لون خلفية) لكل جنس
+  // مجموعة أفاتارات إيموجي عصرية لكل جنس، بألوان متدرجة أنيقة
   final List<_AvatarOption> _femaleAvatars = const [
-    _AvatarOption(id: 'f_1', icon: Icons.face_3, color: Color(0xFFEBC9D2)),
-    _AvatarOption(id: 'f_2', icon: Icons.face_4, color: Color(0xFFE3D2C3)),
-    _AvatarOption(id: 'f_3', icon: Icons.face_6, color: Color(0xFFD9C9E8)),
-    _AvatarOption(id: 'f_4', icon: Icons.face_2, color: Color(0xFFC9E1D2)),
-    _AvatarOption(id: 'f_5', icon: Icons.face, color: Color(0xFFF0D9B5)),
-    _AvatarOption(id: 'f_6', icon: Icons.face_3, color: Color(0xFFC9D8E8)),
+    _AvatarOption(
+      id: 'f_1',
+      emoji: '👩',
+      colors: [Color(0xFFFCE4EC), Color(0xFFF8BBD0)],
+    ),
+    _AvatarOption(
+      id: 'f_2',
+      emoji: '👱‍♀️',
+      colors: [Color(0xFFFFF3E0), Color(0xFFFFE0B2)],
+    ),
+    _AvatarOption(
+      id: 'f_3',
+      emoji: '👩‍🦱',
+      colors: [Color(0xFFF3E5F5), Color(0xFFE1BEE7)],
+    ),
+    _AvatarOption(
+      id: 'f_4',
+      emoji: '👩‍🦰',
+      colors: [Color(0xFFE8F5E9), Color(0xFFC8E6C9)],
+    ),
+    _AvatarOption(
+      id: 'f_5',
+      emoji: '🧕',
+      colors: [Color(0xFFE0F7FA), Color(0xFFB2EBF2)],
+    ),
+    _AvatarOption(
+      id: 'f_6',
+      emoji: '👩‍🦳',
+      colors: [Color(0xFFFFF8E1), Color(0xFFFFECB3)],
+    ),
   ];
 
   final List<_AvatarOption> _maleAvatars = const [
-    _AvatarOption(id: 'm_1', icon: Icons.face, color: Color(0xFFC9D8E8)),
-    _AvatarOption(id: 'm_2', icon: Icons.face_6, color: Color(0xFFD2C9E8)),
-    _AvatarOption(id: 'm_3', icon: Icons.face_4, color: Color(0xFFC9E8DC)),
-    _AvatarOption(id: 'm_4', icon: Icons.face_2, color: Color(0xFFE8D9C9)),
-    _AvatarOption(id: 'm_5', icon: Icons.face_3, color: Color(0xFFE8C9C9)),
-    _AvatarOption(id: 'm_6', icon: Icons.face, color: Color(0xFFC9E8E3)),
+    _AvatarOption(
+      id: 'm_1',
+      emoji: '👨',
+      colors: [Color(0xFFE3F2FD), Color(0xFFBBDEFB)],
+    ),
+    _AvatarOption(
+      id: 'm_2',
+      emoji: '👱‍♂️',
+      colors: [Color(0xFFFFF3E0), Color(0xFFFFE0B2)],
+    ),
+    _AvatarOption(
+      id: 'm_3',
+      emoji: '👨‍🦱',
+      colors: [Color(0xFFEDE7F6), Color(0xFFD1C4E9)],
+    ),
+    _AvatarOption(
+      id: 'm_4',
+      emoji: '👨‍🦰',
+      colors: [Color(0xFFE8F5E9), Color(0xFFC8E6C9)],
+    ),
+    _AvatarOption(
+      id: 'm_5',
+      emoji: '🧔',
+      colors: [Color(0xFFEFEBE9), Color(0xFFD7CCC8)],
+    ),
+    _AvatarOption(
+      id: 'm_6',
+      emoji: '👨‍🦳',
+      colors: [Color(0xFFECEFF1), Color(0xFFCFD8DC)],
+    ),
   ];
 
   @override
@@ -113,11 +162,21 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen> {
       }, SetOptions(merge: true));
 
       if (mounted) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-          (route) => false,
-        );
+        if (_gender == 'male') {
+          // الرجال: أفاتار -> تفضيلات -> نبذة عنك -> Home
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const PreferencesScreen()),
+            (route) => false,
+          );
+        } else {
+          // النساء: أفاتار -> نبذة عنك -> Home
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const AboutYouScreen()),
+            (route) => false,
+          );
+        }
       }
     } catch (e) {
       setState(() {
@@ -214,8 +273,8 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen> {
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 3,
-                            mainAxisSpacing: 18,
-                            crossAxisSpacing: 18,
+                            mainAxisSpacing: 22,
+                            crossAxisSpacing: 22,
                             childAspectRatio: 1,
                           ),
                       itemBuilder: (context, index) {
@@ -229,28 +288,59 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen> {
                             });
                           },
                           child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 180),
+                            duration: const Duration(milliseconds: 200),
+                            curve: Curves.easeOut,
+                            transform: selected
+                                ? (Matrix4.identity()..scale(1.06))
+                                : Matrix4.identity(),
+                            transformAlignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: avatar.color,
                               shape: BoxShape.circle,
-                              border: Border.all(
-                                color: selected ? gold : Colors.transparent,
-                                width: 3,
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: avatar.colors,
                               ),
-                              boxShadow: selected
-                                  ? [
-                                      BoxShadow(
-                                        color: gold.withValues(alpha: 0.4),
-                                        blurRadius: 8,
-                                        spreadRadius: 1,
-                                      ),
-                                    ]
-                                  : [],
+                              border: Border.all(
+                                color: selected ? gold : Colors.white,
+                                width: selected ? 3 : 2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: selected
+                                      ? gold.withValues(alpha: 0.45)
+                                      : Colors.black.withValues(alpha: 0.08),
+                                  blurRadius: selected ? 14 : 6,
+                                  spreadRadius: selected ? 1 : 0,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
                             ),
-                            child: Icon(
-                              avatar.icon,
-                              size: 36,
-                              color: darkGreen,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Text(
+                                  avatar.emoji,
+                                  style: const TextStyle(fontSize: 38),
+                                ),
+                                if (selected)
+                                  Positioned(
+                                    bottom: 2,
+                                    right: 2,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(3),
+                                      decoration: const BoxDecoration(
+                                        color: darkGreen,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.check,
+                                        size: 12,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
                         );
@@ -317,12 +407,12 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen> {
 
 class _AvatarOption {
   final String id;
-  final IconData icon;
-  final Color color;
+  final String emoji;
+  final List<Color> colors;
 
   const _AvatarOption({
     required this.id,
-    required this.icon,
-    required this.color,
+    required this.emoji,
+    required this.colors,
   });
 }

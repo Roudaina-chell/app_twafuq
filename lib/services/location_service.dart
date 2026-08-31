@@ -18,9 +18,7 @@ class LocationService {
     }
 
     return await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-      ),
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
     );
   }
 
@@ -32,6 +30,7 @@ class LocationService {
     'Algiers',
     'Blida',
     'Constantine',
+    'Guelma',
   ];
 
   // ============================================================
@@ -43,10 +42,7 @@ class LocationService {
     double longitude,
   ) async {
     try {
-      final placemarks = await placemarkFromCoordinates(
-        latitude,
-        longitude,
-      );
+      final placemarks = await placemarkFromCoordinates(latitude, longitude);
 
       if (placemarks.isEmpty) return false;
 

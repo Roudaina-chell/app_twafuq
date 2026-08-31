@@ -1,4 +1,3 @@
-
 // pages/location_check_page.dart
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -52,7 +51,7 @@ class _LocationCheckPageState extends State<LocationCheckPage> {
     if (!allowed) {
       setState(() {
         _errorMessage =
-            'عذراً، التطبيق متاح حالياً فقط في الجزائر العاصمة، البليدة، وقسنطينة. سيتم إضافة ولايات أخرى قريباً إن شاء الله.';
+            'عذراً، التطبيق متاح حالياً فقط في الجزائر العاصمة، البليدة، قسنطينة، وقالمة. سيتم إضافة ولايات أخرى قريباً إن شاء الله.';
       });
       return;
     }
@@ -102,11 +101,7 @@ class _LocationCheckPageState extends State<LocationCheckPage> {
               const Text(
                 'نحتاج إلى الوصول لموقعك لعرض أقرب المتوافقين إليك في منطقتك',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: Colors.grey,
-                  height: 1.6,
-                ),
+                style: TextStyle(fontSize: 15, color: Colors.grey, height: 1.6),
               ),
               if (_errorMessage != null) ...[
                 const SizedBox(height: 20),
@@ -125,9 +120,7 @@ class _LocationCheckPageState extends State<LocationCheckPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: darkGreen,
                     shape: RoundedRectangleBorder(
-
-
-borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                   ),
                   child: _loading
