@@ -29,69 +29,82 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
+  // أفاتارات مرسومة (DiceBear - Avataaars) بدل الإيموجي
   final List<_AvatarOption> _femaleAvatars = const [
     _AvatarOption(
       id: 'f_1',
-      emoji: '👩',
-      colors: [Color(0xFFFCE4EC), Color(0xFFF8BBD0)],
+      imageUrl:
+          'https://api.dicebear.com/9.x/avataaars/png?seed=Lina&top=longHairStraight&facialHairProbability=0&backgroundColor=fce4ec',
+      bgColors: [Color(0xFFFCE4EC), Color(0xFFF8BBD0)],
     ),
     _AvatarOption(
       id: 'f_2',
-      emoji: '👱‍♀️',
-      colors: [Color(0xFFFFF3E0), Color(0xFFFFE0B2)],
+      imageUrl:
+          'https://api.dicebear.com/9.x/avataaars/png?seed=Amira&top=longHairCurly&facialHairProbability=0&backgroundColor=fff3e0',
+      bgColors: [Color(0xFFFFF3E0), Color(0xFFFFE0B2)],
     ),
     _AvatarOption(
       id: 'f_3',
-      emoji: '👩‍🦱',
-      colors: [Color(0xFFF3E5F5), Color(0xFFE1BEE7)],
+      imageUrl:
+          'https://api.dicebear.com/9.x/avataaars/png?seed=Sarah&top=longHairBun&facialHairProbability=0&backgroundColor=f3e5f5',
+      bgColors: [Color(0xFFF3E5F5), Color(0xFFE1BEE7)],
     ),
     _AvatarOption(
       id: 'f_4',
-      emoji: '👩‍🦰',
-      colors: [Color(0xFFE8F5E9), Color(0xFFC8E6C9)],
+      imageUrl:
+          'https://api.dicebear.com/9.x/avataaars/png?seed=Nour&top=hijab&facialHairProbability=0&backgroundColor=e0f7fa',
+      bgColors: [Color(0xFFE8F5E9), Color(0xFFC8E6C9)],
     ),
     _AvatarOption(
       id: 'f_5',
-      emoji: '🧕',
-      colors: [Color(0xFFE0F7FA), Color(0xFFB2EBF2)],
+      imageUrl:
+          'https://api.dicebear.com/9.x/avataaars/png?seed=Meriem&top=longHairFro&facialHairProbability=0&backgroundColor=e8f5e9',
+      bgColors: [Color(0xFFE0F7FA), Color(0xFFB2EBF2)],
     ),
     _AvatarOption(
       id: 'f_6',
-      emoji: '👩‍🦳',
-      colors: [Color(0xFFFFF8E1), Color(0xFFFFECB3)],
+      imageUrl:
+          'https://api.dicebear.com/9.x/avataaars/png?seed=Rania&top=longHairMiaWallace&facialHairProbability=0&backgroundColor=fff8e1',
+      bgColors: [Color(0xFFFFF8E1), Color(0xFFFFECB3)],
     ),
   ];
 
   final List<_AvatarOption> _maleAvatars = const [
     _AvatarOption(
       id: 'm_1',
-      emoji: '👨',
-      colors: [Color(0xFFE3F2FD), Color(0xFFBBDEFB)],
+      imageUrl:
+          'https://api.dicebear.com/9.x/avataaars/png?seed=Liam&top=shortHair&facialHairProbability=60&backgroundColor=b6e3f4',
+      bgColors: [Color(0xFFE3F2FD), Color(0xFFBBDEFB)],
     ),
     _AvatarOption(
       id: 'm_2',
-      emoji: '👱‍♂️',
-      colors: [Color(0xFFFFF3E0), Color(0xFFFFE0B2)],
+      imageUrl:
+          'https://api.dicebear.com/9.x/avataaars/png?seed=Noah&top=shortHairShortFlat&facialHairProbability=80&backgroundColor=ffdfbf',
+      bgColors: [Color(0xFFFFF3E0), Color(0xFFFFE0B2)],
     ),
     _AvatarOption(
       id: 'm_3',
-      emoji: '👨‍🦱',
-      colors: [Color(0xFFEDE7F6), Color(0xFFD1C4E9)],
+      imageUrl:
+          'https://api.dicebear.com/9.x/avataaars/png?seed=Adam&top=shortHairShortCurly&facialHairProbability=50&backgroundColor=d1d4f9',
+      bgColors: [Color(0xFFEDE7F6), Color(0xFFD1C4E9)],
     ),
     _AvatarOption(
       id: 'm_4',
-      emoji: '👨‍🦰',
-      colors: [Color(0xFFE8F5E9), Color(0xFFC8E6C9)],
+      imageUrl:
+          'https://api.dicebear.com/9.x/avataaars/png?seed=Karim&top=shortHairShortWaved&facialHairProbability=70&backgroundColor=c0aede',
+      bgColors: [Color(0xFFE8F5E9), Color(0xFFC8E6C9)],
     ),
     _AvatarOption(
       id: 'm_5',
-      emoji: '🧔',
-      colors: [Color(0xFFEFEBE9), Color(0xFFD7CCC8)],
+      imageUrl:
+          'https://api.dicebear.com/9.x/avataaars/png?seed=Yacine&top=shortHairDreads01&facialHairProbability=90&backgroundColor=ffd5dc',
+      bgColors: [Color(0xFFEFEBE9), Color(0xFFD7CCC8)],
     ),
     _AvatarOption(
       id: 'm_6',
-      emoji: '👨‍🦳',
-      colors: [Color(0xFFECEFF1), Color(0xFFCFD8DC)],
+      imageUrl:
+          'https://api.dicebear.com/9.x/avataaars/png?seed=Sami&top=shortHairSides&facialHairProbability=40&backgroundColor=e0f7fa',
+      bgColors: [Color(0xFFECEFF1), Color(0xFFCFD8DC)],
     ),
   ];
 
@@ -176,6 +189,7 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
 
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'avatarId': selected.id,
+        'avatarUrl': selected.imageUrl,
       }, SetOptions(merge: true));
 
       if (mounted) {
@@ -225,7 +239,10 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                         children: [
                           IconButton(
                             onPressed: () => Navigator.maybePop(context),
-                            icon: const Icon(Icons.arrow_back, color: darkGreen),
+                            icon: const Icon(
+                              Icons.arrow_back,
+                              color: darkGreen,
+                            ),
                           ),
                           const Text(
                             'TAWAFUQ',
@@ -268,7 +285,9 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                                 gold.withValues(alpha: 0.12),
                               ],
                             ),
-                            border: Border.all(color: gold.withValues(alpha: 0.3)),
+                            border: Border.all(
+                              color: gold.withValues(alpha: 0.3),
+                            ),
                           ),
                           child: const Icon(
                             Icons.emoji_emotions_outlined,
@@ -295,17 +314,18 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                       ),
                       const SizedBox(height: 28),
 
-                      // شبكة الأفاتارات مع تحسينات
+                      // شبكة الأفاتارات
                       GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: _avatars.length,
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          mainAxisSpacing: 20,
-                          crossAxisSpacing: 20,
-                          childAspectRatio: 1,
-                        ),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              mainAxisSpacing: 20,
+                              crossAxisSpacing: 20,
+                              childAspectRatio: 1,
+                            ),
                         itemBuilder: (context, index) {
                           final avatar = _avatars[index];
                           final bool selected = _selectedIndex == index;
@@ -328,7 +348,7 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                                 gradient: LinearGradient(
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
-                                  colors: avatar.colors,
+                                  colors: avatar.bgColors,
                                 ),
                                 border: Border.all(
                                   color: selected ? gold : Colors.white,
@@ -348,9 +368,38 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                               child: Stack(
                                 alignment: Alignment.center,
                                 children: [
-                                  Text(
-                                    avatar.emoji,
-                                    style: const TextStyle(fontSize: 40),
+                                  Padding(
+                                    padding: const EdgeInsets.all(4),
+                                    child: ClipOval(
+                                      child: Image.network(
+                                        avatar.imageUrl,
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                        height: double.infinity,
+                                        loadingBuilder:
+                                            (context, child, progress) {
+                                              if (progress == null)
+                                                return child;
+                                              return const Center(
+                                                child: SizedBox(
+                                                  width: 20,
+                                                  height: 20,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        color: darkGreen,
+                                                      ),
+                                                ),
+                                              );
+                                            },
+                                        errorBuilder: (context, error, stack) =>
+                                            const Icon(
+                                              Icons.person,
+                                              size: 36,
+                                              color: darkGreen,
+                                            ),
+                                      ),
+                                    ),
                                   ),
                                   if (selected)
                                     Positioned(
@@ -453,7 +502,10 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                             child: Text(
                               'تقدري تبدلي الأفاتار فـ أي وقت من إعدادات الملف الشخصي',
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.grey, fontSize: 11),
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 11,
+                              ),
                             ),
                           ),
                         ],
@@ -469,12 +521,12 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
 
 class _AvatarOption {
   final String id;
-  final String emoji;
-  final List<Color> colors;
+  final String imageUrl;
+  final List<Color> bgColors;
 
   const _AvatarOption({
     required this.id,
-    required this.emoji,
-    required this.colors,
+    required this.imageUrl,
+    required this.bgColors,
   });
 }

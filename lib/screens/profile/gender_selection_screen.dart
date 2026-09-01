@@ -38,8 +38,13 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen>
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
 
-    _slideAnimation = Tween<Offset>(begin: const Offset(0.2, 0), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0.2, 0), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
 
     _animationController.forward();
   }
@@ -104,110 +109,126 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen>
     }
   }
 
+  // ============================================================
+  // بطاقة اختيار الجنس (تصميم عمودي، أفتار بدل الإيموجي)
+  // ============================================================
   Widget _genderCard({
     required String value,
-    required String emoji,
+    required IconData avatarIcon,
     required String label,
     required String description,
   }) {
     final bool selected = _selectedGender == value;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _selectedGender = value;
-            _errorMessage = null;
-          });
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-          height: 180,
-          margin: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            gradient: selected
-                ? const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [darkGreen, Color(0xFF1A6B4A)],
-                  )
-                : const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Colors.white, Colors.white],
-                  ),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: selected ? gold : Colors.grey.shade300,
-              width: selected ? 2.5 : 1.5,
-            ),
-            boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: darkGreen.withValues(alpha: 0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ]
-                : [
-                    BoxShadow(
-                      color: Colors.grey.withValues(alpha: 0.08),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedGender = value;
+          _errorMessage = null;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        decoration: BoxDecoration(
+          color: selected ? darkGreen.withValues(alpha: 0.06) : Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: selected ? darkGreen : Colors.grey.shade300,
+            width: selected ? 2 : 1.2,
           ),
-          child: Stack(
-            children: [
-              // المحتوى الرئيسي
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    emoji,
-                    style: const TextStyle(fontSize: 48),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: darkGreen.withValues(alpha: 0.15),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
                   ),
-                  const SizedBox(height: 10),
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.grey.withValues(alpha: 0.06),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+        ),
+        child: Row(
+          textDirection: TextDirection.rtl,
+          children: [
+            // ============ الأفتار الدائري ============
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: selected
+                    ? darkGreen.withValues(alpha: 0.12)
+                    : Colors.grey.shade100,
+                border: Border.all(
+                  color: selected ? gold : Colors.grey.shade300,
+                  width: selected ? 2 : 1,
+                ),
+              ),
+              child: Icon(
+                avatarIcon,
+                size: 34,
+                color: selected ? darkGreen : Colors.grey.shade500,
+              ),
+            ),
+            const SizedBox(width: 16),
+
+            // ============ النص ============
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
                   Text(
                     label,
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: selected ? Colors.white : darkGreen,
+                      color: selected ? darkGreen : Colors.black87,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
                     description,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 13,
                       color: selected
-                          ? Colors.white.withValues(alpha: 0.8)
-                          : Colors.grey.shade600,
+                          ? darkGreen.withValues(alpha: 0.7)
+                          : Colors.grey.shade500,
                     ),
                   ),
                 ],
               ),
-              // علامة الصح عند التحديد
-              if (selected)
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check_rounded,
-                      color: darkGreen,
-                      size: 16,
-                    ),
-                  ),
+            ),
+
+            // ============ علامة الاختيار ============
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: selected ? gold : Colors.transparent,
+                border: Border.all(
+                  color: selected ? gold : Colors.grey.shade400,
+                  width: 1.5,
                 ),
-            ],
-          ),
+              ),
+              child: selected
+                  ? const Icon(
+                      Icons.check_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    )
+                  : null,
+            ),
+          ],
         ),
       ),
     );
@@ -235,7 +256,10 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen>
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: darkGreen.withValues(alpha: 0.08),
-                      border: Border.all(color: gold.withValues(alpha: 0.3), width: 2),
+                      border: Border.all(
+                        color: gold.withValues(alpha: 0.3),
+                        width: 2,
+                      ),
                     ),
                     child: const Icon(
                       Icons.emoji_emotions_outlined,
@@ -249,7 +273,7 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen>
                   // العنوان والوصف
                   // ============================================================
                   const Text(
-                    'اختر جنسك',
+                    'اختر نوع حسابك',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 26,
@@ -259,7 +283,7 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen>
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'حدد جنسك حتى نقترح لك التوافقات المناسبة',
+                    'اختر نوع الحساب المناسب لك',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 15,
@@ -270,30 +294,26 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen>
                   const SizedBox(height: 32),
 
                   // ============================================================
-                  // بطاقتا الاختيار
+                  // بطاقتا الاختيار (تصميم عمودي)
                   // ============================================================
-                  Row(
-                    children: [
-                      _genderCard(
-                        value: 'female',
-                        emoji: '👩',
-                        label: 'أنثى',
-                        description: 'نساء',
-                      ),
-                      _genderCard(
-                        value: 'male',
-                        emoji: '👨',
-                        label: 'ذكر',
-                        description: 'رجال',
-                      ),
-                    ],
+                  _genderCard(
+                    value: 'female',
+                    avatarIcon: Icons.face_3_rounded,
+                    label: 'أنا امرأة',
+                    description: 'حساب مخصص للنساء',
+                  ),
+                  _genderCard(
+                    value: 'male',
+                    avatarIcon: Icons.face_6_rounded,
+                    label: 'أنا رجل',
+                    description: 'حساب مخصص للرجال',
                   ),
 
                   // ============================================================
                   // عرض الخطأ إن وجد
                   // ============================================================
                   if (_errorMessage != null) ...[
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -308,7 +328,7 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen>
                     ),
                   ],
 
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 20),
 
                   // ============================================================
                   // زر متابعة مع شريط تقدم

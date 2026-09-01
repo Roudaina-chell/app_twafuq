@@ -321,7 +321,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
               ),
-             
+
               const SizedBox(height: 28),
 
               TextField(
@@ -427,11 +427,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  // ====== هنا التغيير: استعمال الصورة ======
-                  icon: Image.asset(
-                    'assets/images/google_logo.png',
+                  // ====== الشعار: صورة من الإنترنت مع بديل احتياطي ======
+                  icon: Image.network(
+                    'https://developers.google.com/identity/images/g-logo.png',
                     width: 20,
                     height: 20,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.g_mobiledata,
+                      size: 24,
+                      color: Colors.blue,
+                    ),
                   ),
                   label: const Text(
                     'تسجيل الدخول باستخدام Google',

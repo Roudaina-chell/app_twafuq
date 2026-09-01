@@ -26,8 +26,10 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
   String _job = '';
   String _city = '';
   String _educationLevel = '';
+  String _bio = '';
   int? _ageMin;
   int? _ageMax;
+  String _prefCity = '';
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -71,13 +73,20 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
       final preferences = (data['preferences'] as Map<String, dynamic>?) ?? {};
 
       setState(() {
-        _name = (data['fullName'] as String?) ?? (data['name'] as String?) ?? '';
+        _name =
+            (data['fullName'] as String?) ?? (data['name'] as String?) ?? '';
         _age = data['age'] as int?;
-        _job = (data['occupation'] as String?) ?? (data['job'] as String?) ?? '';
+        _job =
+            (data['occupation'] as String?) ?? (data['job'] as String?) ?? '';
         _city = (data['city'] as String?) ?? '';
         _educationLevel = (data['educationLevel'] as String?) ?? '';
+        _bio = (data['bio'] as String?) ?? (data['about'] as String?) ?? '';
         _ageMin = preferences['ageMin'] as int?;
         _ageMax = preferences['ageMax'] as int?;
+        _prefCity =
+            (preferences['city'] as String?) ??
+            (preferences['wilaya'] as String?) ??
+            _city;
         _isLoading = false;
       });
     } catch (e) {
@@ -145,17 +154,12 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
                         children: [
                           IconButton(
                             onPressed: () => Navigator.maybePop(context),
-                            icon: const Icon(Icons.arrow_back, color: darkGreen),
-                          ),
-                          const Text(
-                            'TAWAFUQ',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
+                            icon: const Icon(
+                              Icons.arrow_back,
                               color: darkGreen,
-                              letterSpacing: 1,
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 4),
                           Expanded(
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(4),
@@ -173,37 +177,22 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
                       ),
                       const SizedBox(height: 20),
 
-                      Center(
-                        child: Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                darkGreen.withValues(alpha: 0.08),
-                                gold.withValues(alpha: 0.12),
-                              ],
-                            ),
-                            border: Border.all(color: gold.withValues(alpha: 0.3)),
-                          ),
-                          child: const Icon(
-                            Icons.person_outline,
-                            color: darkGreen,
-                            size: 36,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
                       const Text(
-                        'المعاينة النهائية',
+                        'معاينة ملفك',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
                           color: darkGreen,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'تأكد من معلوماتك قبل الحفظ',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -223,94 +212,144 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
                         ),
                         child: Column(
                           children: [
-                            // رأس البطاقة
+                            // رأس البطاقة - بالصورة والاسم
                             Container(
                               padding: const EdgeInsets.all(18),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    darkGreen.withValues(alpha: 0.04),
-                                    gold.withValues(alpha: 0.06),
-                                  ],
-                                ),
-                                borderRadius: const BorderRadius.only(
+                              decoration: const BoxDecoration(
+                                color: darkGreen,
+                                borderRadius: BorderRadius.only(
                                   topLeft: Radius.circular(20),
                                   topRight: Radius.circular(20),
                                 ),
                               ),
-                              child: Row(
+                              child: Stack(
                                 children: [
-                                  Container(
-                                    width: 56,
-                                    height: 56,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                        colors: [
-                                          darkGreen,
-                                          const Color(0xFF1A6B4A),
-                                        ],
-                                      ),
-                                    ),
-                                    child: const Icon(
-                                      Icons.person,
-                                      color: Colors.white,
-                                      size: 28,
+                                  Align(
+                                    alignment: Alignment.topRight,
+                                    child: Icon(
+                                      Icons.verified,
+                                      color: gold,
+                                      size: 20,
                                     ),
                                   ),
-                                  const SizedBox(width: 14),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                  Row(
                                     children: [
-                                      Text(
-                                        _age != null ? '$_name، $_age' : _name,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 17,
-                                          color: Colors.black87,
+                                      Container(
+                                        width: 64,
+                                        height: 64,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Colors.white.withValues(
+                                            alpha: 0.12,
+                                          ),
+                                          border: Border.all(
+                                            color: gold.withValues(alpha: 0.6),
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          Icons.person,
+                                          color: Colors.white,
+                                          size: 34,
                                         ),
                                       ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        '$_job - $_city',
-                                        style: TextStyle(
-                                          color: Colors.grey.shade600,
-                                          fontSize: 13,
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              _age != null
+                                                  ? '$_name، $_age'
+                                                  : _name,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 18,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              _job,
+                                              style: TextStyle(
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.85,
+                                                ),
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              _city,
+                                              style: TextStyle(
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.7,
+                                                ),
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ],
-                                  ),
-                                  const Spacer(),
-                                  const Icon(
-                                    Icons.verified,
-                                    color: gold,
-                                    size: 20,
                                   ),
                                 ],
                               ),
                             ),
 
-                            // تفاصيل إضافية
+                            // حول
+                            if (_bio.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  18,
+                                  18,
+                                  18,
+                                  0,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const _SectionLabel(
+                                      icon: Icons.info_outline,
+                                      label: 'حول',
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      _bio,
+                                      style: TextStyle(
+                                        color: Colors.grey.shade700,
+                                        fontSize: 14,
+                                        height: 1.6,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                            // التفضيلات
                             Padding(
                               padding: const EdgeInsets.all(18),
                               child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _InfoRow(
-                                    label: 'المستوى التعليمي',
-                                    value: _educationLevel,
+                                  const _SectionLabel(
+                                    icon: Icons.tune,
+                                    label: 'التفضيلات',
                                   ),
                                   const SizedBox(height: 10),
-                                  _InfoRow(label: 'المدينة', value: _city),
-                                  const SizedBox(height: 10),
                                   _InfoRow(
-                                    label: 'العمر المفضل',
+                                    label: 'العمر',
                                     value: (_ageMin != null && _ageMax != null)
                                         ? '$_ageMin - $_ageMax سنة'
                                         : '${_age ?? ''}',
+                                  ),
+                                  const SizedBox(height: 10),
+                                  _InfoRow(label: 'الولاية', value: _prefCity),
+                                  const SizedBox(height: 10),
+                                  _InfoRow(
+                                    label: 'المستوى التعليمي',
+                                    value: _educationLevel,
                                   ),
                                 ],
                               ),
@@ -358,7 +397,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
                                       color: Colors.white,
                                     )
                                   : const Text(
-                                      'تأكيد الملف',
+                                      'حفظ الملف',
                                       style: TextStyle(
                                         fontSize: 17,
                                         fontWeight: FontWeight.w700,
@@ -378,6 +417,31 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
   }
 }
 
+class _SectionLabel extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _SectionLabel({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: _ProfilePreviewScreenState.gold),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: _ProfilePreviewScreenState.darkGreen,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
@@ -390,12 +454,12 @@ class _InfoRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
-          value,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-        ),
-        Text(
           label,
           style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+        ),
+        Text(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
         ),
       ],
     );
