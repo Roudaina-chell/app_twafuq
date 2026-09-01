@@ -1,33 +1,27 @@
 // screens/auth/register_screen.dart
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-
 import 'login_screen.dart';
 import '../../services/device_service.dart';
 
+// نفس دالة friendlyAuthError موجودة أعلاه، نستخدمها من login_screen.dart أو نعيد تعريفها هنا.
+// لتجنب التكرار، يمكن استيرادها من login_screen.dart، لكننا سنعيد تعريفها هنا للاستقلالية.
 String friendlyAuthError(String code) {
   switch (code) {
     case 'email-already-in-use':
       return 'هاذ البريد الإلكتروني مستعمل من قبل، جربي تسجيل الدخول';
-
     case 'invalid-email':
       return 'صيغة البريد الإلكتروني غير صحيحة';
-
     case 'weak-password':
       return 'كلمة المرور ضعيفة، خاصها 6 حروف/أرقام على الأقل';
-
     case 'user-not-found':
       return 'ماكاين حتى حساب بهاذ البريد الإلكتروني';
-
     case 'wrong-password':
     case 'invalid-credential':
       return 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
-
     case 'network-request-failed':
       return 'تأكدي من الاتصال بالإنترنت وعاودي المحاولة';
-
     default:
       return 'وقع خطأ، عاودي المحاولة ($code)';
   }
@@ -59,14 +53,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
-
   String? _errorMessage;
 
   static const Color darkGreen = Color(0xFF0F3D2E);
   static const Color gold = Color(0xFFC9A24B);
+  static const Color bg = Color(0xFFFAF7F2);
 
   Future<void> _register() async {
-    // 1️⃣ Vérification des champs
     if (_nameController.text.trim().isEmpty ||
         _emailController.text.trim().isEmpty ||
         _passwordController.text.isEmpty ||
@@ -77,7 +70,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    // 2️⃣ Vérification password
     if (_passwordController.text != _confirmPasswordController.text) {
       setState(() {
         _errorMessage = 'كلمتا المرور غير متطابقتين';
@@ -91,14 +83,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      // 3️⃣ الحصول على Device ID
       final deviceId = await DeviceService.getDeviceId();
 
       if (deviceId.isEmpty) {
         throw Exception('Device ID غير متوفر');
       }
 
-      // 4️⃣ التحقق هل الجهاز مسجل من قبل
       final alreadyRegistered = await isDeviceAlreadyRegistered(deviceId);
 
       if (alreadyRegistered) {
@@ -112,17 +102,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return;
       }
 
-      // 5️⃣ إنشاء حساب Firebase بالإيميل
       final credential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
             email: _emailController.text.trim(),
             password: _passwordController.text,
           );
 
-      // 6️⃣ إضافة الاسم لحساب Firebase
       await credential.user?.updateDisplayName(_nameController.text.trim());
 
-      // 7️⃣ حفظ بيانات المستخدم + Device ID في Firestore
       await FirebaseFirestore.instance
           .collection('users')
           .doc(credential.user!.uid)
@@ -134,7 +121,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             'createdAt': FieldValue.serverTimestamp(),
           });
 
-      // 8️⃣ الانتقال إلى Login
       if (!mounted) return;
 
       Navigator.pushReplacement(
@@ -171,55 +157,64 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
+  InputDecoration _fieldDecoration({
+    required String hint,
+    required IconData icon,
+    Widget? suffixIcon,
+  }) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyle(color: Colors.grey.shade400),
+      prefixIcon: Icon(icon, color: darkGreen.withValues(alpha: 0.7)),
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: Colors.grey.shade200),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: Colors.grey.shade200),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: gold, width: 1.5),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF7F2),
-
+      backgroundColor: bg,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24),
-
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-
             children: [
-              const SizedBox(height: 10),
-
+              const SizedBox(height: 6),
               Align(
                 alignment: Alignment.centerRight,
-
                 child: IconButton(
                   icon: const Icon(Icons.arrow_back, color: darkGreen),
-
                   onPressed: () => Navigator.pop(context),
                 ),
               ),
-
               Center(
                 child: Column(
                   children: [
-                    Container(
-                      width: 90,
-                      height: 90,
-
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: gold, width: 2),
-                      ),
-
-                      child: const Icon(
-                        Icons.favorite,
-                        color: darkGreen,
-                        size: 40,
-                      ),
+                    // ========== الشعار الحقيقي ==========
+                    Image.asset(
+                      'assets/images/logo_tawafuq.png',
+                      width: 88,
+                      height: 88,
                     ),
-
-                    const SizedBox(height: 12),
-
+                    const SizedBox(height: 14),
                     const Text(
-                      'TAWAFUQ',
-
+                      'PactWed',
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -227,12 +222,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         letterSpacing: 2,
                       ),
                     ),
-
                     const SizedBox(height: 4),
-
                     const Text(
-                      'توافقك الحقيقي',
-
+                      'ميثاق الزواج',
                       style: TextStyle(
                         color: gold,
                         fontWeight: FontWeight.w600,
@@ -241,211 +233,142 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ],
                 ),
               ),
-
-              const SizedBox(height: 24),
-
+              const SizedBox(height: 26),
               const Text(
                 'إنشاء حساب جديد',
-
                 textAlign: TextAlign.center,
-
                 style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
               ),
-
               const SizedBox(height: 6),
-
               const Text(
                 'املأ بياناتك للانضمام إلينا',
-
                 textAlign: TextAlign.center,
-
                 style: TextStyle(color: Colors.grey),
               ),
+              const SizedBox(height: 28),
 
-              const SizedBox(height: 30),
-
-              // NAME
               TextField(
                 controller: _nameController,
-
                 textAlign: TextAlign.right,
-
-                decoration: InputDecoration(
-                  hintText: 'الاسم الكامل',
-
-                  prefixIcon: const Icon(Icons.person_outline),
-
-                  filled: true,
-                  fillColor: Colors.white,
-
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
+                decoration: _fieldDecoration(
+                  hint: 'الاسم الكامل',
+                  icon: Icons.person_outline,
                 ),
               ),
+              const SizedBox(height: 14),
 
-              const SizedBox(height: 16),
-
-              // EMAIL
               TextField(
                 controller: _emailController,
-
                 keyboardType: TextInputType.emailAddress,
-
                 textAlign: TextAlign.right,
-
-                decoration: InputDecoration(
-                  hintText: 'البريد الإلكتروني',
-
-                  prefixIcon: const Icon(Icons.email_outlined),
-
-                  filled: true,
-                  fillColor: Colors.white,
-
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
+                decoration: _fieldDecoration(
+                  hint: 'البريد الإلكتروني',
+                  icon: Icons.email_outlined,
                 ),
               ),
+              const SizedBox(height: 14),
 
-              const SizedBox(height: 16),
-
-              // PASSWORD
               TextField(
                 controller: _passwordController,
-
                 obscureText: _obscurePassword,
-
                 textAlign: TextAlign.right,
-
-                decoration: InputDecoration(
-                  hintText: 'كلمة المرور',
-
-                  prefixIcon: const Icon(Icons.lock_outline),
-
+                decoration: _fieldDecoration(
+                  hint: 'كلمة المرور',
+                  icon: Icons.lock_outline,
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword
                           ? Icons.visibility_off
                           : Icons.visibility,
+                      color: Colors.grey,
                     ),
-
                     onPressed: () {
                       setState(() {
                         _obscurePassword = !_obscurePassword;
                       });
                     },
                   ),
-
-                  filled: true,
-                  fillColor: Colors.white,
-
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
                 ),
               ),
+              const SizedBox(height: 14),
 
-              const SizedBox(height: 16),
-
-              // CONFIRM PASSWORD
               TextField(
                 controller: _confirmPasswordController,
-
                 obscureText: _obscureConfirmPassword,
-
                 textAlign: TextAlign.right,
-
-                decoration: InputDecoration(
-                  hintText: 'تأكيد كلمة المرور',
-
-                  prefixIcon: const Icon(Icons.lock_outline),
-
+                decoration: _fieldDecoration(
+                  hint: 'تأكيد كلمة المرور',
+                  icon: Icons.lock_outline,
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscureConfirmPassword
                           ? Icons.visibility_off
                           : Icons.visibility,
+                      color: Colors.grey,
                     ),
-
                     onPressed: () {
                       setState(() {
                         _obscureConfirmPassword = !_obscureConfirmPassword;
                       });
                     },
                   ),
-
-                  filled: true,
-                  fillColor: Colors.white,
-
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
                 ),
               ),
 
               if (_errorMessage != null) ...[
-                const SizedBox(height: 10),
-
-                Text(
-                  _errorMessage!,
-
-                  textAlign: TextAlign.center,
-
-                  style: const TextStyle(color: Colors.red),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    _errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.red, fontSize: 13),
+                  ),
                 ),
               ],
 
-              const SizedBox(height: 20),
-
+              const SizedBox(height: 22),
               SizedBox(
-                height: 52,
-
+                height: 54,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _register,
-
                   style: ElevatedButton.styleFrom(
                     backgroundColor: darkGreen,
-
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
                           'إنشاء الحساب',
-
-                          style: TextStyle(fontSize: 16, color: Colors.white),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
                         ),
                 ),
               ),
-
               const SizedBox(height: 24),
-
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-
                 children: [
                   const Text('لديك حساب بالفعل؟ '),
-
                   GestureDetector(
                     onTap: () {
                       Navigator.pushReplacement(
                         context,
-
                         MaterialPageRoute(builder: (_) => const LoginScreen()),
                       );
                     },
-
                     child: const Text(
                       'تسجيل الدخول',
-
                       style: TextStyle(
                         color: darkGreen,
                         fontWeight: FontWeight.bold,
@@ -455,7 +378,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 30),
             ],
           ),

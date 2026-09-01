@@ -23,6 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   static const Color darkGreen = Color(0xFF0F3D2E);
   static const Color gold = Color(0xFFC9A24B);
+  static const Color bg = Color(0xFFFAF7F2);
 
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
   bool _googleInitialized = false;
@@ -45,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       }
     } catch (e) {
-      // فشل تهيئة Google Sign-In - زر Google غادي يبقى معطل
+      // فشل التهيئة – الزر يبقى معطل
     }
   }
 
@@ -80,11 +81,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // ============================================================
-  // ✅ دالة جديدة: تتحقق واش الجهاز مربوط بحساب آخر (users/deviceId)
-  // كتستعمل نفس المنطق تاع register_screen.dart
-  // ترجع uid تاع الحساب الآخر، ولا null إلا الجهاز فاضي
-  // ============================================================
   Future<String?> _findExistingUidForDevice(String deviceId) async {
     final result = await FirebaseFirestore.instance
         .collection('users')
@@ -138,24 +134,17 @@ class _LoginScreenState extends State<LoginScreen> {
       final user = userCredential.user!;
       final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
 
-      // ============================================================
-      // ✅ التحقق من الجهاز - هنا كان الخلل قبل
-      // ============================================================
       final deviceId = await DeviceService.getDeviceId();
       final existingUid = await _findExistingUidForDevice(deviceId);
 
       if (existingUid != null && existingUid != user.uid) {
-        // الجهاز مربوط بحساب آخر (غير هذا) → منع
         await FirebaseAuth.instance.signOut();
         await _googleSignIn.signOut();
 
-        // إلا Google خلق حساب جديد دابا، خاصنا نمسحوه باش ما يبقاش يتيم
         if (isNewUser) {
           try {
             await user.delete();
-          } catch (_) {
-            // إلا فشل المسح (نادر)، السيشن ديجا خرجنا منها فوق
-          }
+          } catch (_) {}
         }
 
         if (!mounted) return;
@@ -166,7 +155,6 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      // إلا كان حساب Google جديد (أول مرة) وما كاينش تضارب → سجلو فـ users
       if (isNewUser) {
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
           'uid': user.uid,
@@ -205,6 +193,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('استرجاع كلمة المرور'),
         content: TextField(
           controller: controller,
@@ -247,20 +236,47 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  InputDecoration _fieldDecoration({
+    required String hint,
+    required IconData icon,
+    Widget? suffixIcon,
+  }) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyle(color: Colors.grey.shade400),
+      prefixIcon: Icon(icon, color: darkGreen.withValues(alpha: 0.7)),
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: Colors.grey.shade200),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: Colors.grey.shade200),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: gold, width: 1.5),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF7F2),
+      backgroundColor: bg,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 10),
+              const SizedBox(height: 6),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
-
                 children: const [
                   Icon(Icons.language, color: darkGreen, size: 20),
                   SizedBox(width: 6),
@@ -274,26 +290,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   Icon(Icons.keyboard_arrow_down, color: darkGreen),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 6),
               Center(
                 child: Column(
                   children: [
-                    Container(
-                      width: 90,
-                      height: 90,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: gold, width: 2),
-                      ),
-                      child: const Icon(
-                        Icons.favorite,
-                        color: darkGreen,
-                        size: 40,
-                      ),
+                    // ========== الشعار الحقيقي ==========
+                    Image.asset(
+                      'assets/images/logo_tawafuq.png',
+                      width: 88,
+                      height: 88,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     const Text(
-                      'TAWAFUQ',
+                      'PactWed',
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -303,7 +312,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'توافقك الحقيقي',
+                      'ميثاق الزواج',
                       style: TextStyle(
                         color: gold,
                         fontWeight: FontWeight.w600,
@@ -312,61 +321,41 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 30),
-              const Text(
-                'مرحباً بك',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'سجل دخولك للمتابعة',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 30),
+             
+              const SizedBox(height: 28),
+
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 textAlign: TextAlign.right,
-                decoration: InputDecoration(
-                  hintText: 'البريد الإلكتروني',
-                  prefixIcon: const Icon(Icons.email_outlined),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
+                decoration: _fieldDecoration(
+                  hint: 'البريد الإلكتروني',
+                  icon: Icons.email_outlined,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
+
               TextField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
                 textAlign: TextAlign.right,
-                decoration: InputDecoration(
-                  hintText: 'كلمة المرور',
-                  prefixIcon: const Icon(Icons.lock_outline),
+                decoration: _fieldDecoration(
+                  hint: 'كلمة المرور',
+                  icon: Icons.lock_outline,
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword
                           ? Icons.visibility_off
                           : Icons.visibility,
+                      color: Colors.grey,
                     ),
                     onPressed: () {
                       setState(() => _obscurePassword = !_obscurePassword);
                     },
                   ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 6),
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton(
@@ -378,29 +367,41 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               if (_errorMessage != null) ...[
-                const SizedBox(height: 6),
-                Text(
-                  _errorMessage!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.red),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    _errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.red, fontSize: 13),
+                  ),
                 ),
               ],
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               SizedBox(
-                height: 52,
+                height: 54,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _login,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: darkGreen,
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
                           'تسجيل الدخول',
-                          style: TextStyle(fontSize: 16, color: Colors.white),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
                         ),
                 ),
               ),
@@ -417,19 +418,20 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 20),
               SizedBox(
-                height: 52,
+                height: 54,
                 child: OutlinedButton.icon(
                   onPressed: _isLoading ? null : _loginWithGoogle,
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(color: Colors.grey.shade300),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  icon: const Icon(
-                    Icons.g_mobiledata,
-                    color: Colors.red,
-                    size: 28,
+                  // ====== هنا التغيير: استعمال الصورة ======
+                  icon: Image.asset(
+                    'assets/images/google_logo.png',
+                    width: 20,
+                    height: 20,
                   ),
                   label: const Text(
                     'تسجيل الدخول باستخدام Google',
@@ -468,5 +470,26 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+}
+
+// دالة مساعدة موجودة في register_screen.dart، نضيفها هنا لتجنب الأخطاء
+String friendlyAuthError(String code) {
+  switch (code) {
+    case 'email-already-in-use':
+      return 'هاذ البريد الإلكتروني مستعمل من قبل، جربي تسجيل الدخول';
+    case 'invalid-email':
+      return 'صيغة البريد الإلكتروني غير صحيحة';
+    case 'weak-password':
+      return 'كلمة المرور ضعيفة، خاصها 6 حروف/أرقام على الأقل';
+    case 'user-not-found':
+      return 'ماكاين حتى حساب بهاذ البريد الإلكتروني';
+    case 'wrong-password':
+    case 'invalid-credential':
+      return 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+    case 'network-request-failed':
+      return 'تأكدي من الاتصال بالإنترنت وعاودي المحاولة';
+    default:
+      return 'وقع خطأ، عاودي المحاولة ($code)';
   }
 }

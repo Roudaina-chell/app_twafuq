@@ -6,8 +6,6 @@ import 'about_you_screen.dart';
 import 'preferences_screen.dart';
 
 class AvatarSelectionScreen extends StatefulWidget {
-  // Optional: نقدر نمررو الجنس مباشرة من formulaire_info/gender_selection
-  // باش ما نديرش قراية زايدة من Firestore. إذا ماجاش، نجيبوه حنا.
   final String? gender;
 
   const AvatarSelectionScreen({super.key, this.gender});
@@ -16,9 +14,11 @@ class AvatarSelectionScreen extends StatefulWidget {
   State<AvatarSelectionScreen> createState() => _AvatarSelectionScreenState();
 }
 
-class _AvatarSelectionScreenState extends State<AvatarSelectionScreen> {
+class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
+    with SingleTickerProviderStateMixin {
   static const Color darkGreen = Color(0xFF0F3D2E);
   static const Color gold = Color(0xFFC9A24B);
+  static const Color bg = Color(0xFFFAF7F2);
 
   String? _gender;
   bool _isLoadingGender = true;
@@ -26,7 +26,9 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen> {
   bool _isSubmitting = false;
   String? _errorMessage;
 
-  // مجموعة أفاتارات إيموجي عصرية لكل جنس، بألوان متدرجة أنيقة
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+
   final List<_AvatarOption> _femaleAvatars = const [
     _AvatarOption(
       id: 'f_1',
@@ -96,12 +98,27 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen> {
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
+    );
+    _animationController.forward();
+
     if (widget.gender != null) {
       _gender = widget.gender;
       _isLoadingGender = false;
     } else {
       _loadGenderFromFirestore();
     }
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadGenderFromFirestore() async {
@@ -163,14 +180,12 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen> {
 
       if (mounted) {
         if (_gender == 'male') {
-          // الرجال: أفاتار -> تفضيلات -> نبذة عنك -> Home
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (_) => const PreferencesScreen()),
             (route) => false,
           );
         } else {
-          // النساء: أفاتار -> نبذة عنك -> Home
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (_) => const AboutYouScreen()),
@@ -194,210 +209,257 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF7F2),
+      backgroundColor: bg,
       body: SafeArea(
         child: _isLoadingGender
             ? const Center(child: CircularProgressIndicator(color: darkGreen))
             : SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        IconButton(
-                          onPressed: () => Navigator.maybePop(context),
-                          icon: const Icon(Icons.arrow_back, color: darkGreen),
-                        ),
-                        const Text(
-                          'TAWAFUQ',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: darkGreen,
-                            letterSpacing: 1,
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Header مع شريط التقدم
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: () => Navigator.maybePop(context),
+                            icon: const Icon(Icons.arrow_back, color: darkGreen),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: 0.75,
-                              minHeight: 6,
-                              backgroundColor: Colors.grey.shade300,
-                              valueColor: const AlwaysStoppedAnimation<Color>(
-                                gold,
+                          const Text(
+                            'TAWAFUQ',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: darkGreen,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(
+                                value: 0.75,
+                                minHeight: 6,
+                                backgroundColor: Colors.grey.shade300,
+                                valueColor: const AlwaysStoppedAnimation<Color>(
+                                  gold,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    Center(
-                      child: Container(
-                        width: 64,
-                        height: 64,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: darkGreen.withValues(alpha: 0.08),
-                        ),
-                        child: const Icon(
-                          Icons.emoji_emotions_outlined,
-                          color: darkGreen,
-                          size: 32,
-                        ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'اختاري الأفاتار متاعك',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: darkGreen,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'هاذ الأفاتار غادي يبان فـ ملفك الشخصي',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey, fontSize: 13),
-                    ),
-                    const SizedBox(height: 28),
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _avatars.length,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            mainAxisSpacing: 22,
-                            crossAxisSpacing: 22,
-                            childAspectRatio: 1,
-                          ),
-                      itemBuilder: (context, index) {
-                        final avatar = _avatars[index];
-                        final bool selected = _selectedIndex == index;
-                        return GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _selectedIndex = index;
-                              _errorMessage = null;
-                            });
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            curve: Curves.easeOut,
-                            transform: selected
-                                ? (Matrix4.identity()..scale(1.06))
-                                : Matrix4.identity(),
-                            transformAlignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: avatar.colors,
-                              ),
-                              border: Border.all(
-                                color: selected ? gold : Colors.white,
-                                width: selected ? 3 : 2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: selected
-                                      ? gold.withValues(alpha: 0.45)
-                                      : Colors.black.withValues(alpha: 0.08),
-                                  blurRadius: selected ? 14 : 6,
-                                  spreadRadius: selected ? 1 : 0,
-                                  offset: const Offset(0, 3),
-                                ),
+                      const SizedBox(height: 20),
+
+                      // أيقونة كبيرة في المنتصف
+                      Center(
+                        child: Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                darkGreen.withValues(alpha: 0.08),
+                                gold.withValues(alpha: 0.12),
                               ],
                             ),
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                Text(
-                                  avatar.emoji,
-                                  style: const TextStyle(fontSize: 38),
+                            border: Border.all(color: gold.withValues(alpha: 0.3)),
+                          ),
+                          child: const Icon(
+                            Icons.emoji_emotions_outlined,
+                            color: darkGreen,
+                            size: 36,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'اختاري الأفاتار متاعك',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: darkGreen,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'هاذ الأفاتار غادي يبان فـ ملفك الشخصي',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey, fontSize: 13),
+                      ),
+                      const SizedBox(height: 28),
+
+                      // شبكة الأفاتارات مع تحسينات
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _avatars.length,
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          mainAxisSpacing: 20,
+                          crossAxisSpacing: 20,
+                          childAspectRatio: 1,
+                        ),
+                        itemBuilder: (context, index) {
+                          final avatar = _avatars[index];
+                          final bool selected = _selectedIndex == index;
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _selectedIndex = index;
+                                _errorMessage = null;
+                              });
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.elasticOut,
+                              transform: selected
+                                  ? (Matrix4.identity()..scale(1.08))
+                                  : Matrix4.identity(),
+                              transformAlignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: avatar.colors,
                                 ),
-                                if (selected)
-                                  Positioned(
-                                    bottom: 2,
-                                    right: 2,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(3),
-                                      decoration: const BoxDecoration(
-                                        color: darkGreen,
-                                        shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: selected ? gold : Colors.white,
+                                  width: selected ? 3 : 2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: selected
+                                        ? gold.withValues(alpha: 0.5)
+                                        : Colors.black.withValues(alpha: 0.06),
+                                    blurRadius: selected ? 16 : 6,
+                                    spreadRadius: selected ? 2 : 0,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Text(
+                                    avatar.emoji,
+                                    style: const TextStyle(fontSize: 40),
+                                  ),
+                                  if (selected)
+                                    Positioned(
+                                      bottom: 4,
+                                      right: 4,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          color: darkGreen,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: Colors.white,
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          Icons.check,
+                                          size: 12,
+                                          color: Colors.white,
+                                        ),
                                       ),
-                                      child: const Icon(
-                                        Icons.check,
-                                        size: 12,
+                                    ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+
+                      if (_errorMessage != null) ...[
+                        const SizedBox(height: 16),
+                        Text(
+                          _errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ],
+                      const SizedBox(height: 28),
+
+                      // زر متدرج
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        height: 54,
+                        decoration: BoxDecoration(
+                          gradient: _selectedIndex != null
+                              ? const LinearGradient(
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  colors: [darkGreen, Color(0xFF1A6B4A)],
+                                )
+                              : const LinearGradient(
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  colors: [Colors.grey, Colors.grey],
+                                ),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: _selectedIndex != null
+                              ? [
+                                  BoxShadow(
+                                    color: darkGreen.withValues(alpha: 0.35),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ]
+                              : [],
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: _isSubmitting ? null : _submit,
+                            borderRadius: BorderRadius.circular(16),
+                            child: Center(
+                              child: _isSubmitting
+                                  ? const CircularProgressIndicator(
+                                      color: Colors.white,
+                                    )
+                                  : const Text(
+                                      'متابعة',
+                                      style: TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w700,
                                         color: Colors.white,
                                       ),
                                     ),
-                                  ),
-                              ],
                             ),
                           ),
-                        );
-                      },
-                    ),
-                    if (_errorMessage != null) ...[
-                      const SizedBox(height: 20),
-                      Text(
-                        _errorMessage!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.red),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.shield_outlined,
+                            size: 14,
+                            color: darkGreen,
+                          ),
+                          const SizedBox(width: 6),
+                          const Expanded(
+                            child: Text(
+                              'تقدري تبدلي الأفاتار فـ أي وقت من إعدادات الملف الشخصي',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.grey, fontSize: 11),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
-                    const SizedBox(height: 28),
-                    SizedBox(
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: _isSubmitting ? null : _submit,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: darkGreen,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        child: _isSubmitting
-                            ? const CircularProgressIndicator(
-                                color: Colors.white,
-                              )
-                            : const Text(
-                                'متابعة',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                ),
-                              ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.shield_outlined,
-                          size: 14,
-                          color: darkGreen,
-                        ),
-                        const SizedBox(width: 6),
-                        const Expanded(
-                          child: Text(
-                            'تقدري تبدلي الأفاتار فـ أي وقت من إعدادات الملف الشخصي',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.grey, fontSize: 11),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
               ),
       ),

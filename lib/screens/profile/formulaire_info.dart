@@ -11,9 +11,11 @@ class FormulaireInfo extends StatefulWidget {
   State<FormulaireInfo> createState() => _FormulaireInfoState();
 }
 
-class _FormulaireInfoState extends State<FormulaireInfo> {
+class _FormulaireInfoState extends State<FormulaireInfo>
+    with SingleTickerProviderStateMixin {
   static const Color darkGreen = Color(0xFF0F3D2E);
   static const Color gold = Color(0xFFC9A24B);
+  static const Color bg = Color(0xFFFAF7F2);
 
   final _nameController = TextEditingController();
   final _occupationController = TextEditingController();
@@ -25,6 +27,10 @@ class _FormulaireInfoState extends State<FormulaireInfo> {
 
   bool _isLoading = false;
   String? _errorMessage;
+
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
   final List<String> _educationLevels = [
     'ثانوي',
@@ -46,6 +52,32 @@ class _FormulaireInfoState extends State<FormulaireInfo> {
 
   final List<String> _maritalStatuses = ['أعزب', 'مطلق', 'أرمل'];
 
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
+    );
+
+    _slideAnimation = Tween<Offset>(begin: const Offset(0.2, 0), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic));
+
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _nameController.dispose();
+    _occupationController.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickBirthDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -53,6 +85,20 @@ class _FormulaireInfoState extends State<FormulaireInfo> {
       initialDate: DateTime(now.year - 25),
       firstDate: DateTime(now.year - 80),
       lastDate: DateTime(now.year - 18),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: darkGreen,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Colors.black87,
+            ),
+            dialogBackgroundColor: Colors.white,
+          ),
+          child: child!,
+        );
+      },
     );
     if (picked != null) {
       setState(() => _birthDate = picked);
@@ -115,28 +161,48 @@ class _FormulaireInfoState extends State<FormulaireInfo> {
     }
   }
 
-  InputDecoration _decoration(String hint, IconData icon) {
+  InputDecoration _buildDecoration({
+    required String hint,
+    required IconData icon,
+    Widget? suffix,
+  }) {
     return InputDecoration(
       hintText: hint,
-      suffixIcon: Icon(icon, color: darkGreen, size: 20),
+      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+      prefixIcon: Icon(icon, color: darkGreen, size: 20),
+      suffixIcon: suffix,
       filled: true,
-      fillColor: Colors.white,
+      fillColor: Colors.grey.shade50,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: Colors.grey.shade200),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: Colors.grey.shade200),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: darkGreen, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.red, width: 1.5),
       ),
     );
   }
 
-  Widget _label(String text) {
+  Widget _buildLabel(String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6, top: 16),
-      child: Align(
-        alignment: Alignment.centerRight,
-        child: Text(
-          text,
-          style: const TextStyle(color: Colors.grey, fontSize: 13),
+      padding: const EdgeInsets.only(bottom: 6, top: 14),
+      child: Text(
+        text,
+        textAlign: TextAlign.right,
+        style: TextStyle(
+          color: darkGreen,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -145,202 +211,363 @@ class _FormulaireInfoState extends State<FormulaireInfo> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF7F2),
+      backgroundColor: bg,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: SlideTransition(
+            position: _slideAnimation,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  IconButton(
-                    onPressed: () => Navigator.maybePop(context),
-                    icon: const Icon(Icons.arrow_back, color: darkGreen),
+                  // HEADER مع شريط التقدم
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => Navigator.maybePop(context),
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                            color: darkGreen, size: 20),
+                      ),
+                      const Text(
+                        'TAWAFUQ',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: darkGreen,
+                          letterSpacing: 1.5,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: LinearProgressIndicator(
+                            value: 0.4,
+                            minHeight: 6,
+                            backgroundColor: Colors.grey.shade200,
+                            valueColor:
+                                const AlwaysStoppedAnimation<Color>(gold),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: gold,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          '2/5',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const Text(
-                    'TAWAFUQ',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: darkGreen,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: 0.5,
-                        minHeight: 6,
-                        backgroundColor: Colors.grey.shade300,
-                        valueColor: const AlwaysStoppedAnimation<Color>(gold),
+                  const SizedBox(height: 20),
+
+                  // أيقونة كبيرة
+                  Center(
+                    child: Container(
+                      width: 70,
+                      height: 70,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            darkGreen.withValues(alpha: 0.08),
+                            gold.withValues(alpha: 0.12),
+                          ],
+                        ),
+                        border: Border.all(color: gold.withValues(alpha: 0.3), width: 2),
+                      ),
+                      child: const Icon(
+                        Icons.person_outline_rounded,
+                        color: darkGreen,
+                        size: 34,
                       ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Center(
-                child: Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: darkGreen.withValues(alpha: 0.08),
-                  ),
-                  child: const Icon(
-                    Icons.person_outline,
-                    color: darkGreen,
-                    size: 32,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'معلومات أساسية',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: darkGreen,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'نحتاج بعض المعلومات لبناء ملفك الشخصي',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey, fontSize: 13),
-              ),
-              _label('الاسم الكامل'),
-              TextField(
-                controller: _nameController,
-                textAlign: TextAlign.right,
-                decoration: _decoration('الاسم الكامل', Icons.person_outline),
-              ),
-              _label('تاريخ الميلاد'),
-              GestureDetector(
-                onTap: _pickBirthDate,
-                child: AbsorbPointer(
-                  child: TextField(
-                    textAlign: TextAlign.right,
-                    controller: TextEditingController(
-                      text: _birthDate == null
-                          ? ''
-                          : '${_birthDate!.day.toString().padLeft(2, '0')} / ${_birthDate!.month.toString().padLeft(2, '0')} / ${_birthDate!.year}',
-                    ),
-                    decoration: _decoration(
-                      'تاريخ الميلاد',
-                      Icons.calendar_today_outlined,
+                  const SizedBox(height: 16),
+
+                  // العنوان والوصف
+                  const Text(
+                    'معلومات أساسية',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: darkGreen,
                     ),
                   ),
-                ),
-              ),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
+                  const SizedBox(height: 6),
+                  const Text(
+                    'نحتاج بعض المعلومات لبناء ملفك الشخصي',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // بطاقة الحقول
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withValues(alpha: 0.08),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _label('المهنة'),
+                        // الاسم الكامل
+                        _buildLabel('الاسم الكامل'),
                         TextField(
-                          controller: _occupationController,
+                          controller: _nameController,
                           textAlign: TextAlign.right,
-                          decoration: _decoration('المهنة', Icons.work_outline),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _label('المستوى التعليمي'),
-                        DropdownButtonFormField<String>(
-                          initialValue: _educationLevel,
-                          decoration: _decoration(
-                            'اختاري',
-                            Icons.school_outlined,
+                          decoration: _buildDecoration(
+                            hint: 'أدخل اسمك الكامل',
+                            icon: Icons.person_outline_rounded,
                           ),
-                          items: _educationLevels
-                              .map(
-                                (e) =>
-                                    DropdownMenuItem(value: e, child: Text(e)),
-                              )
-                              .toList(),
-                          onChanged: (v) => setState(() => _educationLevel = v),
+                        ),
+
+                        // تاريخ الميلاد
+                        _buildLabel('تاريخ الميلاد'),
+                        GestureDetector(
+                          onTap: _pickBirthDate,
+                          child: AbsorbPointer(
+                            child: TextField(
+                              textAlign: TextAlign.right,
+                              controller: TextEditingController(
+                                text: _birthDate == null
+                                    ? ''
+                                    : '${_birthDate!.day.toString().padLeft(2, '0')} / ${_birthDate!.month.toString().padLeft(2, '0')} / ${_birthDate!.year}',
+                              ),
+                              decoration: _buildDecoration(
+                                hint: 'اختر تاريخ ميلادك',
+                                icon: Icons.calendar_today_outlined,
+                                suffix: const Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // المهنة والمستوى التعليمي
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.stretch,
+                                children: [
+                                  _buildLabel('المهنة'),
+                                  TextField(
+                                    controller: _occupationController,
+                                    textAlign: TextAlign.right,
+                                    decoration: _buildDecoration(
+                                      hint: 'المهنة',
+                                      icon: Icons.work_outline,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.stretch,
+                                children: [
+                                  _buildLabel('المستوى التعليمي'),
+                                  DropdownButtonFormField<String>(
+                                    value: _educationLevel,
+                                    isExpanded: true,
+                                    hint: Text(
+                                      'اختر',
+                                      style: TextStyle(
+                                        color: Colors.grey.shade400,
+                                      ),
+                                    ),
+                                    icon: const Icon(
+                                      Icons.keyboard_arrow_down_rounded,
+                                      color: darkGreen,
+                                    ),
+                                    decoration: _buildDecoration(
+                                      hint: 'المستوى',
+                                      icon: Icons.school_outlined,
+                                    ),
+                                    items: _educationLevels.map((e) {
+                                      return DropdownMenuItem(
+                                        value: e,
+                                        child: Text(e),
+                                      );
+                                    }).toList(),
+                                    onChanged: (v) =>
+                                        setState(() => _educationLevel = v),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        // المدينة
+                        _buildLabel('المدينة'),
+                        DropdownButtonFormField<String>(
+                          value: _city,
+                          isExpanded: true,
+                          hint: Text(
+                            'اختر مدينتك',
+                            style: TextStyle(color: Colors.grey.shade400),
+                          ),
+                          icon: const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            color: darkGreen,
+                          ),
+                          decoration: _buildDecoration(
+                            hint: 'المدينة',
+                            icon: Icons.location_city_outlined,
+                          ),
+                          items: _cities.map((c) {
+                            return DropdownMenuItem(
+                              value: c,
+                              child: Text(c),
+                            );
+                          }).toList(),
+                          onChanged: (v) => setState(() => _city = v),
+                        ),
+
+                        // الحالة العائلية
+                        _buildLabel('الحالة العائلية'),
+                        DropdownButtonFormField<String>(
+                          value: _maritalStatus,
+                          isExpanded: true,
+                          hint: Text(
+                            'اختر حالتك العائلية',
+                            style: TextStyle(color: Colors.grey.shade400),
+                          ),
+                          icon: const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            color: darkGreen,
+                          ),
+                          decoration: _buildDecoration(
+                            hint: 'الحالة العائلية',
+                            icon: Icons.people_outline,
+                          ),
+                          items: _maritalStatuses.map((m) {
+                            return DropdownMenuItem(
+                              value: m,
+                              child: Text(m),
+                            );
+                          }).toList(),
+                          onChanged: (v) => setState(() => _maritalStatus = v),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
-              _label('المدينة'),
-              DropdownButtonFormField<String>(
-                initialValue: _city,
-                decoration: _decoration(
-                  'اختاري المدينة',
-                  Icons.location_city_outlined,
-                ),
-                items: _cities
-                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                    .toList(),
-                onChanged: (v) => setState(() => _city = v),
-              ),
-              _label('الحالة العائلية'),
-              DropdownButtonFormField<String>(
-                initialValue: _maritalStatus,
-                decoration: _decoration('اختاري', Icons.people_outline),
-                items: _maritalStatuses
-                    .map((m) => DropdownMenuItem(value: m, child: Text(m)))
-                    .toList(),
-                onChanged: (v) => setState(() => _maritalStatus = v),
-              ),
-              if (_errorMessage != null) ...[
-                const SizedBox(height: 12),
-                Text(
-                  _errorMessage!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.red),
-                ),
-              ],
-              const SizedBox(height: 24),
-              SizedBox(
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: darkGreen,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+
+                  // عرض الخطأ
+                  if (_errorMessage != null) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        _errorMessage!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.red, fontSize: 13),
+                      ),
                     ),
-                  ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          'متابعة',
-                          style: TextStyle(fontSize: 16, color: Colors.white),
+                  ],
+
+                  const SizedBox(height: 20),
+
+                  // زر متابعة
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: darkGreen,
+                        elevation: 4,
+                        shadowColor: darkGreen.withValues(alpha: 0.3),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.shield_outlined, size: 14, color: darkGreen),
-                  const SizedBox(width: 6),
-                  const Expanded(
-                    child: Text(
-                      'جميع بياناتك محمية ولا تظهر للمستخدمين الآخرين',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey, fontSize: 11),
+                      ),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(
+                              color: Colors.white,
+                            )
+                          : const Text(
+                              'متابعة',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
                     ),
                   ),
+
+                  const SizedBox(height: 16),
+
+                  // ملاحظة الخصوصية
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.shield_outlined,
+                        size: 14,
+                        color: darkGreen,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'جميع بياناتك محمية ولا تظهر للمستخدمين الآخرين',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
                 ],
               ),
-            ],
+            ),
           ),
         ),
       ),

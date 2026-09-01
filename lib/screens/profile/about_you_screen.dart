@@ -11,33 +11,52 @@ class AboutYouScreen extends StatefulWidget {
   State<AboutYouScreen> createState() => _AboutYouScreenState();
 }
 
-class _AboutYouScreenState extends State<AboutYouScreen> {
+class _AboutYouScreenState extends State<AboutYouScreen>
+    with SingleTickerProviderStateMixin {
   static const Color darkGreen = Color(0xFF0F3D2E);
   static const Color gold = Color(0xFFC9A24B);
+  static const Color bg = Color(0xFFFAF7F2);
   static const int _maxLength = 250;
 
   final TextEditingController _bioController = TextEditingController();
-
   bool _isSubmitting = false;
   String? _errorMessage;
+
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
     _bioController.addListener(() {
-      // باش يتحدث العداد 0/250 مع كل حرف
       setState(() {});
     });
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
+    );
+    _animationController.forward();
   }
 
   @override
   void dispose() {
     _bioController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     final bio = _bioController.text.trim();
+
+    if (bio.isEmpty) {
+      setState(() {
+        _errorMessage = 'خاصك تكتب نبذة عنك باش تكملي';
+      });
+      return;
+    }
 
     setState(() {
       _isSubmitting = true;
@@ -82,130 +101,186 @@ class _AboutYouScreenState extends State<AboutYouScreen> {
     final int currentLength = _bioController.text.characters.length;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF7F2),
+      backgroundColor: bg,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.maybePop(context),
-                    icon: const Icon(Icons.arrow_back, color: darkGreen),
-                  ),
-                  const Text(
-                    'TAWAFUQ',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: darkGreen,
-                      letterSpacing: 1,
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.maybePop(context),
+                      icon: const Icon(Icons.arrow_back, color: darkGreen),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: 1.0,
-                        minHeight: 6,
-                        backgroundColor: Colors.grey.shade300,
-                        valueColor: const AlwaysStoppedAnimation<Color>(gold),
+                    const Text(
+                      'TAWAFUQ',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: darkGreen,
+                        letterSpacing: 1,
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // --- بطاقة "نبذة عنك" ---
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: 1.0,
+                          minHeight: 6,
+                          backgroundColor: Colors.grey.shade300,
+                          valueColor: const AlwaysStoppedAnimation<Color>(gold),
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text(
-                      'نبذة عنك',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: darkGreen,
+                const SizedBox(height: 24),
+
+                // أيقونة كبيرة في المنتصف
+                Center(
+                  child: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          darkGreen.withValues(alpha: 0.08),
+                          gold.withValues(alpha: 0.12),
+                        ],
                       ),
+                      border: Border.all(color: gold.withValues(alpha: 0.3)),
                     ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'اكتب نبذة مختصرة عنك',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey, fontSize: 13),
+                    child: const Icon(
+                      Icons.edit_note_outlined,
+                      color: darkGreen,
+                      size: 36,
                     ),
-                    const SizedBox(height: 20),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFAF7F2),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.grey.shade300),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'نبذة عنك',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: darkGreen,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'اكتب نبذة مختصرة عنك',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey, fontSize: 13),
+                ),
+                const SizedBox(height: 24),
+
+                // حقل النص مع خلفية أنيقة
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
                       ),
-                      child: TextField(
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      TextField(
                         controller: _bioController,
                         maxLength: _maxLength,
                         maxLines: 6,
                         textAlign: TextAlign.right,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           hintText: 'اكتب هنا...',
-                          hintStyle: TextStyle(color: Colors.grey),
-                          contentPadding: EdgeInsets.all(16),
+                          hintStyle: TextStyle(color: Colors.grey.shade400),
+                          contentPadding: const EdgeInsets.all(16),
                           border: InputBorder.none,
                           counterText: '',
                         ),
                         style: const TextStyle(
-                          fontSize: 14,
+                          fontSize: 15,
                           color: Colors.black87,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        '$currentLength/$_maxLength',
-                        style: TextStyle(
-                          color: Colors.grey.shade500,
-                          fontSize: 12,
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '$currentLength/$_maxLength',
+                              style: TextStyle(
+                                color: Colors.grey.shade500,
+                                fontSize: 12,
+                              ),
+                            ),
+                            if (currentLength > 0)
+                              Icon(
+                                Icons.check_circle,
+                                color: darkGreen,
+                                size: 16,
+                              ),
+                          ],
                         ),
-                      ),
-                    ),
-                    if (_errorMessage != null) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        _errorMessage!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.red),
                       ),
                     ],
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: _isSubmitting ? null : _submit,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: darkGreen,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ],
+                const SizedBox(height: 24),
+
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  height: 54,
+                  decoration: BoxDecoration(
+                    gradient: _bioController.text.trim().isNotEmpty
+                        ? const LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: [darkGreen, Color(0xFF1A6B4A)],
+                          )
+                        : const LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: [Colors.grey, Colors.grey],
                           ),
-                        ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: _bioController.text.trim().isNotEmpty
+                        ? [
+                            BoxShadow(
+                              color: darkGreen.withValues(alpha: 0.35),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
+                            ),
+                          ]
+                        : [],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _isSubmitting ? null : _submit,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Center(
                         child: _isSubmitting
                             ? const CircularProgressIndicator(
                                 color: Colors.white,
@@ -213,32 +288,32 @@ class _AboutYouScreenState extends State<AboutYouScreen> {
                             : const Text(
                                 'حفظ ومتابعة',
                                 style: TextStyle(
-                                  fontSize: 16,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
                                   color: Colors.white,
                                 ),
                               ),
                       ),
                     ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.shield_outlined, size: 14, color: darkGreen),
+                    const SizedBox(width: 6),
+                    const Expanded(
+                      child: Text(
+                        'تقدر تبدل النبذة فـ أي وقت من إعدادات الملف الشخصي',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey, fontSize: 11),
+                      ),
+                    ),
                   ],
                 ),
-              ),
-
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.shield_outlined, size: 14, color: darkGreen),
-                  const SizedBox(width: 6),
-                  const Expanded(
-                    child: Text(
-                      'تقدر تبدل النبذة فـ أي وقت من إعدادات الملف الشخصي',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey, fontSize: 11),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
