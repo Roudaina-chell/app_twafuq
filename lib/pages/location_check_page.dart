@@ -45,10 +45,33 @@ class _LocationCheckPageState extends State<LocationCheckPage> {
       return;
     }
 
-    final bool allowed = await LocationService.isLocationAllowed(
+    // 🔍 DEBUG: on affiche la position exacte reçue du GPS
+    // ignore: avoid_print
+    print(
+      '📍 Position reçue: lat=${result.latitude}, lng=${result.longitude}, accuracy=${result.accuracy}m',
+    );
+
+    // ✅ حساب مباشر بالإحداثيات، بلا reverse geocoding
+    final bool allowed = LocationService.isLocationAllowed(
       result.latitude,
       result.longitude,
     );
+
+    // 🔍 DEBUG: on affiche le résultat du matching + la distance à chaque wilaya
+    // ignore: avoid_print
+    print('📍 Autorisé: $allowed');
+    for (final zone in LocationService.allowedWilayas) {
+      final double d = Geolocator.distanceBetween(
+        result.latitude,
+        result.longitude,
+        zone.lat,
+        zone.lng,
+      );
+      // ignore: avoid_print
+      print(
+        '   → ${zone.name}: distance=${d.toStringAsFixed(0)}m (limite=${zone.radiusMeters}m)',
+      );
+    }
 
     if (!mounted) return;
 
@@ -75,19 +98,14 @@ class _LocationCheckPageState extends State<LocationCheckPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
             Icon(Icons.help_outline, color: darkGreen),
             const SizedBox(width: 10),
             const Text(
               'لماذا نطلب الموقع؟',
-              style: TextStyle(
-                color: darkGreen,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(color: darkGreen, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -98,9 +116,7 @@ class _LocationCheckPageState extends State<LocationCheckPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            style: TextButton.styleFrom(
-              foregroundColor: darkGreen,
-            ),
+            style: TextButton.styleFrom(foregroundColor: darkGreen),
             child: const Text('فهمت'),
           ),
         ],
@@ -118,122 +134,11 @@ class _LocationCheckPageState extends State<LocationCheckPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // ========== أيقونة الخريطة المتطورة ==========
-              Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: darkGreen.withValues(alpha: 0.25),
-                      blurRadius: 25,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // الخلفية الدائرية (الخريطة)
-                    Container(
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Color(0xFF2E7D5E), // أخضر فاتح
-                            Color(0xFF0F3D2E), // أخضر غامق
-                          ],
-                        ),
-                      ),
-                    ),
-                    // نقاط صغيرة تحاكي المدن
-                    Positioned(
-                      top: 18,
-                      left: 25,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.6),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.white.withValues(alpha: 0.3),
-                              blurRadius: 4,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 20,
-                      right: 22,
-                      child: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.6),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.white.withValues(alpha: 0.3),
-                              blurRadius: 4,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 35,
-                      right: 28,
-                      child: Container(
-                        width: 5,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.5),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 35,
-                      left: 28,
-                      child: Container(
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.5),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 55,
-                      left: 45,
-                      child: Container(
-                        width: 4,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.4),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                    // أيقونة الدبوس (Pin) في الوسط
-                    const Icon(
-                      Icons.location_on_rounded,
-                      color: Colors.white,
-                      size: 50,
-                    ),
-                  ],
-                ),
-              ),
+              // ============================================================
+              // ✅ ويدجت الخريطة الجديد (Pin + خريطة مزيفة + نبض)
+              // ============================================================
+              const _MapPinWidget(),
               const SizedBox(height: 28),
-
-              // العنوان
               const Text(
                 'تأكيد موقعك',
                 textAlign: TextAlign.center,
@@ -244,20 +149,12 @@ class _LocationCheckPageState extends State<LocationCheckPage> {
                 ),
               ),
               const SizedBox(height: 12),
-
-              // النص التوضيحي
               const Text(
                 'تحتاج للتأكد من وجودك في إحدى الولايات المدعومة للخدمة.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: Colors.grey,
-                  height: 1.6,
-                ),
+                style: TextStyle(fontSize: 15, color: Colors.grey, height: 1.6),
               ),
               const SizedBox(height: 24),
-
-              // الولايات المدعومة (Chips)
               Wrap(
                 alignment: WrapAlignment.center,
                 spacing: 10,
@@ -285,8 +182,6 @@ class _LocationCheckPageState extends State<LocationCheckPage> {
                 }).toList(),
               ),
               const SizedBox(height: 32),
-
-              // عرض الخطأ إن وجد
               if (_errorMessage != null) ...[
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -302,8 +197,6 @@ class _LocationCheckPageState extends State<LocationCheckPage> {
                 ),
                 const SizedBox(height: 16),
               ],
-
-              // زر تأكيد الموقع
               SizedBox(
                 width: double.infinity,
                 height: 54,
@@ -329,8 +222,6 @@ class _LocationCheckPageState extends State<LocationCheckPage> {
                 ),
               ),
               const SizedBox(height: 16),
-
-              // رابط "لماذا نطلب الموقع؟"
               TextButton(
                 onPressed: _showWhyDialog,
                 child: const Text(
@@ -343,8 +234,6 @@ class _LocationCheckPageState extends State<LocationCheckPage> {
                 ),
               ),
               const SizedBox(height: 20),
-
-              // نقاط التقدم
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(4, (index) {
@@ -366,4 +255,204 @@ class _LocationCheckPageState extends State<LocationCheckPage> {
       ),
     );
   }
+}
+
+// ============================================================
+// ✅ ويدجت الخريطة + الدبوس (Modern Map Pin Widget)
+// ============================================================
+class _MapPinWidget extends StatefulWidget {
+  const _MapPinWidget();
+
+  @override
+  State<_MapPinWidget> createState() => _MapPinWidgetState();
+}
+
+class _MapPinWidgetState extends State<_MapPinWidget>
+    with SingleTickerProviderStateMixin {
+  static const Color darkGreen = Color(0xFF0F3D2E);
+  static const Color gold = Color(0xFFC9A24B);
+
+  late AnimationController _pulseController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 200,
+      height: 140,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // ===== خلفية "الخريطة" المزيفة (خطوط طرق) =====
+          ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Container(
+              width: 200,
+              height: 140,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Colors.grey.shade100, Colors.grey.shade200],
+                ),
+              ),
+              child: CustomPaint(
+                size: const Size(200, 140),
+                painter: _FakeMapPainter(),
+              ),
+            ),
+          ),
+
+          // ===== دوائر النبض (Pulse rings) =====
+          AnimatedBuilder(
+            animation: _pulseController,
+            builder: (context, child) {
+              final double t = _pulseController.value;
+              return Container(
+                width: 40 + (t * 70),
+                height: 40 + (t * 70),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: darkGreen.withValues(alpha: (1 - t) * 0.15),
+                  border: Border.all(
+                    color: darkGreen.withValues(alpha: (1 - t) * 0.4),
+                    width: 1.5,
+                  ),
+                ),
+              );
+            },
+          ),
+
+          // ===== دائرة النطاق الثابتة =====
+          Container(
+            width: 90,
+            height: 90,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: darkGreen.withValues(alpha: 0.10),
+              border: Border.all(
+                color: darkGreen.withValues(alpha: 0.25),
+                width: 1,
+              ),
+            ),
+          ),
+
+          // ===== الدبوس (Pin) =====
+          Positioned(
+            bottom: 68,
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: darkGreen.withValues(alpha: 0.35),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF2E7D5E), darkGreen],
+                  ),
+                  border: Border.all(color: Colors.white, width: 3),
+                ),
+                child: const Icon(
+                  Icons.location_on_rounded,
+                  color: Colors.white,
+                  size: 26,
+                ),
+              ),
+            ),
+          ),
+
+          // ===== نقطة صغيرة تحت الدبوس (مركز الموقع) =====
+          Positioned(
+            bottom: 66,
+            child: Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: gold,
+                boxShadow: [
+                  BoxShadow(color: gold.withValues(alpha: 0.6), blurRadius: 6),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================
+// رسم خطوط طرق بسيطة لمحاكاة الخريطة (خلفية زخرفية فقط)
+// ============================================================
+class _FakeMapPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint roadPaint = Paint()
+      ..color = Colors.grey.shade300
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+
+    final Paint thinRoadPaint = Paint()
+      ..color = Colors.grey.shade300.withValues(alpha: 0.6)
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke;
+
+    // خطوط أفقية غير منتظمة
+    canvas.drawLine(
+      Offset(0, size.height * 0.25),
+      Offset(size.width, size.height * 0.2),
+      thinRoadPaint,
+    );
+    canvas.drawLine(
+      Offset(0, size.height * 0.75),
+      Offset(size.width, size.height * 0.8),
+      roadPaint,
+    );
+
+    // خطوط عمودية/مائلة
+    canvas.drawLine(
+      Offset(size.width * 0.2, 0),
+      Offset(size.width * 0.15, size.height),
+      thinRoadPaint,
+    );
+    canvas.drawLine(
+      Offset(size.width * 0.7, 0),
+      Offset(size.width * 0.78, size.height),
+      roadPaint,
+    );
+    canvas.drawLine(
+      Offset(size.width * 0.45, 0),
+      Offset(size.width * 0.5, size.height),
+      thinRoadPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

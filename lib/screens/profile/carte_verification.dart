@@ -46,8 +46,13 @@ class _CarteVerificationState extends State<CarteVerification>
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
 
-    _slideAnimation = Tween<Offset>(begin: const Offset(0.2, 0), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0.2, 0), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
 
     _animationController.forward();
   }
@@ -167,6 +172,28 @@ class _CarteVerificationState extends State<CarteVerification>
     }
   }
 
+  // ============================================================
+  // ✅ تخطي هذه الخطوة (Skip)
+  // ============================================================
+  Future<void> _skip() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(uid).set({
+          'verificationStatus': 'skipped',
+        }, SetOptions(merge: true));
+      } catch (_) {}
+    }
+
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const FormulaireInfo()),
+        (route) => false,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -189,8 +216,11 @@ class _CarteVerificationState extends State<CarteVerification>
                     children: [
                       IconButton(
                         onPressed: () => Navigator.maybePop(context),
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                            color: darkGreen, size: 20),
+                        icon: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          color: darkGreen,
+                          size: 20,
+                        ),
                       ),
                       const Text(
                         'TAWAFUQ',
@@ -209,8 +239,9 @@ class _CarteVerificationState extends State<CarteVerification>
                             value: 0.2,
                             minHeight: 6,
                             backgroundColor: Colors.grey.shade200,
-                            valueColor:
-                                const AlwaysStoppedAnimation<Color>(gold),
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              gold,
+                            ),
                           ),
                         ),
                       ),
@@ -254,7 +285,10 @@ class _CarteVerificationState extends State<CarteVerification>
                             gold.withValues(alpha: 0.12),
                           ],
                         ),
-                        border: Border.all(color: gold.withValues(alpha: 0.3), width: 2),
+                        border: Border.all(
+                          color: gold.withValues(alpha: 0.3),
+                          width: 2,
+                        ),
                       ),
                       child: const Icon(
                         Icons.credit_card_outlined,
@@ -337,7 +371,9 @@ class _CarteVerificationState extends State<CarteVerification>
                               height: 100 + (value * 20),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: gold.withValues(alpha: 0.08 * (1 - value * 0.6)),
+                                color: gold.withValues(
+                                  alpha: 0.08 * (1 - value * 0.6),
+                                ),
                               ),
                             );
                           },
@@ -421,8 +457,11 @@ class _CarteVerificationState extends State<CarteVerification>
                         ),
                         backgroundColor: Colors.white,
                       ),
-                      icon: const Icon(Icons.photo_library_outlined,
-                          color: darkGreen, size: 22),
+                      icon: const Icon(
+                        Icons.photo_library_outlined,
+                        color: darkGreen,
+                        size: 22,
+                      ),
                       label: const Text(
                         'اختيار صورة من المعرض',
                         style: TextStyle(
@@ -472,9 +511,7 @@ class _CarteVerificationState extends State<CarteVerification>
                         ),
                       ),
                       child: _isUploading
-                          ? const CircularProgressIndicator(
-                              color: Colors.white,
-                            )
+                          ? const CircularProgressIndicator(color: Colors.white)
                           : const Text(
                               'متابعة',
                               style: TextStyle(
@@ -483,6 +520,26 @@ class _CarteVerificationState extends State<CarteVerification>
                                 color: Colors.white,
                               ),
                             ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // ============================================================
+                  // زر التخطي (Skip)
+                  // ============================================================
+                  Center(
+                    child: TextButton(
+                      onPressed: _isUploading ? null : _skip,
+                      child: Text(
+                        'تخطي هذه الخطوة',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
                     ),
                   ),
 
@@ -563,10 +620,7 @@ class _CarteVerificationState extends State<CarteVerification>
           const SizedBox(height: 12),
           Text(
             'لم يتم اختيار صورة بعد',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade500,
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
           ),
           const SizedBox(height: 4),
           Text(
