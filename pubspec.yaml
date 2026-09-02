@@ -1,8 +1,7 @@
 name: tawafuq
 description: "A new Flutter project."
-# The following line prevents the package from being accidentally published to
-# pub.dev using flutter pub publish. This is preferred for private packages.
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+publish_to: 'none'
 
 version: 1.0.0+1
 
@@ -36,18 +35,24 @@ flutter:
   uses-material-design: true
 
   assets:
-
+    # Images
     - assets/images/logo_tawafuq.png
     - assets/images/google_logo.png.webp
 
+    # Avatars
+    - assets/avatars/female/
+    - assets/avatars/male/
+
 # ============================================================
-# ✅ إعدادات flutter_launcher_icons - باش يبدل أيقونة Flutter
-# الافتراضية بلوغو TAWAFUQ على Android و iOS
+# Flutter Launcher Icons
 # ============================================================
+
 flutter_launcher_icons:
   android: true
   ios: true
+
   image_path: "assets/images/logo_tawafuq.png"
-  # لون الخلفية على أندرويد (استعملت لون التطبيق الفاتح، بدلها إذا حبيت)
+
   adaptive_icon_background: "#FAF7F2"
+
   adaptive_icon_foreground: "assets/images/logo_tawafuq.png"
