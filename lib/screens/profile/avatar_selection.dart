@@ -1,5 +1,3 @@
-// screens/profile/avatar_selection.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -43,50 +41,32 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
     _AvatarOption(
       id: 'f_1',
       assetPath: 'assets/avatars/female/female_1.png',
-      bgColors: [
-        Color(0xFFFCE4EC),
-        Color(0xFFF8BBD0),
-      ],
+      bgColor: Color(0xFFFCE4EC),
     ),
     _AvatarOption(
       id: 'f_2',
       assetPath: 'assets/avatars/female/female_2.png',
-      bgColors: [
-        Color(0xFFFFF3E0),
-        Color(0xFFFFE0B2),
-      ],
+      bgColor: Color(0xFFFFF3E0),
     ),
     _AvatarOption(
       id: 'f_3',
       assetPath: 'assets/avatars/female/female_3.png',
-      bgColors: [
-        Color(0xFFF3E5F5),
-        Color(0xFFE1BEE7),
-      ],
+      bgColor: Color(0xFFF3E5F5),
     ),
     _AvatarOption(
       id: 'f_4',
       assetPath: 'assets/avatars/female/female_4.png',
-      bgColors: [
-        Color(0xFFE8F5E9),
-        Color(0xFFC8E6C9),
-      ],
+      bgColor: Color(0xFFE8F5E9),
     ),
     _AvatarOption(
       id: 'f_5',
       assetPath: 'assets/avatars/female/female_5.png',
-      bgColors: [
-        Color(0xFFE0F7FA),
-        Color(0xFFB2EBF2),
-      ],
+      bgColor: Color(0xFFE0F7FA),
     ),
     _AvatarOption(
       id: 'f_6',
       assetPath: 'assets/avatars/female/female_6.png',
-      bgColors: [
-        Color(0xFFFFF8E1),
-        Color(0xFFFFECB3),
-      ],
+      bgColor: Color(0xFFFFF8E1),
     ),
   ];
 
@@ -98,50 +78,32 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
     _AvatarOption(
       id: 'm_1',
       assetPath: 'assets/avatars/male/male_1.png',
-      bgColors: [
-        Color(0xFFE3F2FD),
-        Color(0xFFBBDEFB),
-      ],
+      bgColor: Color(0xFFE3F2FD),
     ),
     _AvatarOption(
       id: 'm_2',
       assetPath: 'assets/avatars/male/male_2.png',
-      bgColors: [
-        Color(0xFFFFF3E0),
-        Color(0xFFFFE0B2),
-      ],
+      bgColor: Color(0xFFFFF3E0),
     ),
     _AvatarOption(
       id: 'm_3',
       assetPath: 'assets/avatars/male/male_3.png',
-      bgColors: [
-        Color(0xFFEDE7F6),
-        Color(0xFFD1C4E9),
-      ],
+      bgColor: Color(0xFFEDE7F6),
     ),
     _AvatarOption(
       id: 'm_4',
       assetPath: 'assets/avatars/male/male_4.png',
-      bgColors: [
-        Color(0xFFE8F5E9),
-        Color(0xFFC8E6C9),
-      ],
+      bgColor: Color(0xFFE8F5E9),
     ),
     _AvatarOption(
       id: 'm_5',
       assetPath: 'assets/avatars/male/male_5.png',
-      bgColors: [
-        Color(0xFFEFEBE9),
-        Color(0xFFD7CCC8),
-      ],
+      bgColor: Color(0xFFEFEBE9),
     ),
     _AvatarOption(
       id: 'm_6',
       assetPath: 'assets/avatars/male/male_6.png',
-      bgColors: [
-        Color(0xFFECEFF1),
-        Color(0xFFCFD8DC),
-      ],
+      bgColor: Color(0xFFECEFF1),
     ),
   ];
 
@@ -185,7 +147,7 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
   }
 
   // ============================================================
-  // LOAD GENDER FROM FIREBASE
+  // LOAD GENDER
   // ============================================================
 
   Future<void> _loadGenderFromFirestore() async {
@@ -196,8 +158,7 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
         if (!mounted) return;
 
         setState(() {
-          _errorMessage =
-              'خطأ: ماكاين حتى مستخدم مسجل الدخول';
+          _errorMessage = 'خطأ: ماكاين حتى مستخدم مسجل الدخول';
           _isLoadingGender = false;
         });
 
@@ -218,7 +179,6 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
         _isLoadingGender = false;
       });
 
-      // إذا ماكانش gender
       if (_gender != 'male' && _gender != 'female') {
         setState(() {
           _errorMessage = 'ما قدرناش نحددو الجنس تاع الحساب';
@@ -228,15 +188,14 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
       if (!mounted) return;
 
       setState(() {
-        _errorMessage =
-            'وقع خطأ فـ تحميل المعلومات';
+        _errorMessage = 'وقع خطأ فـ تحميل المعلومات';
         _isLoadingGender = false;
       });
     }
   }
 
   // ============================================================
-  // GET AVATARS BASED ON GENDER
+  // AVATARS
   // ============================================================
 
   List<_AvatarOption> get _avatars {
@@ -254,8 +213,7 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
   Future<void> _submit() async {
     if (_selectedIndex == null) {
       setState(() {
-        _errorMessage =
-            'خاصك تختاري أفاتار باش تكملي';
+        _errorMessage = 'خاصك تختاري أفاتار باش تكملي';
       });
 
       return;
@@ -273,8 +231,7 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
         if (!mounted) return;
 
         setState(() {
-          _errorMessage =
-              'خطأ: ماكاين حتى مستخدم مسجل الدخول';
+          _errorMessage = 'خطأ: ماكاين حتى مستخدم مسجل الدخول';
           _isSubmitting = false;
         });
 
@@ -283,7 +240,6 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
 
       final selected = _avatars[_selectedIndex!];
 
-      // حفظ الـ Avatar في Firestore
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -296,10 +252,6 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
       );
 
       if (!mounted) return;
-
-      // ========================================================
-      // NAVIGATION
-      // ========================================================
 
       if (_gender == 'male') {
         Navigator.pushAndRemoveUntil(
@@ -322,8 +274,7 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
       if (!mounted) return;
 
       setState(() {
-        _errorMessage =
-            'وقع خطأ، عاودي المحاولة';
+        _errorMessage = 'وقع خطأ، عاودي المحاولة';
       });
     } finally {
       if (mounted) {
@@ -342,6 +293,7 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bg,
+
       body: SafeArea(
         child: _isLoadingGender
             ? const Center(
@@ -350,13 +302,20 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                 ),
               )
             : SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+
                 child: FadeTransition(
                   opacity: _fadeAnimation,
+
                   child: Column(
                     crossAxisAlignment:
                         CrossAxisAlignment.stretch,
+
                     children: [
+
                       // ==================================================
                       // HEADER
                       // ==================================================
@@ -364,8 +323,10 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                       Row(
                         children: [
                           IconButton(
-                            onPressed: () =>
-                                Navigator.maybePop(context),
+                            onPressed: () {
+                              Navigator.maybePop(context);
+                            },
+
                             icon: const Icon(
                               Icons.arrow_back,
                               color: darkGreen,
@@ -387,14 +348,18 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                             child: ClipRRect(
                               borderRadius:
                                   BorderRadius.circular(4),
+
                               child:
                                   const LinearProgressIndicator(
                                 value: 0.75,
                                 minHeight: 6,
+
                                 backgroundColor:
                                     Color(0xFFE0E0E0),
+
                                 valueColor:
-                                    AlwaysStoppedAnimation<Color>(
+                                    AlwaysStoppedAnimation<
+                                        Color>(
                                   gold,
                                 ),
                               ),
@@ -413,11 +378,18 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                         child: Container(
                           width: 80,
                           height: 80,
-                          decoration: BoxDecoration(
+
+                          decoration:
+                              BoxDecoration(
                             shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
+
+                            gradient:
+                                LinearGradient(
+                              begin:
+                                  Alignment.topLeft,
+                              end:
+                                  Alignment.bottomRight,
+
                               colors: [
                                 darkGreen.withValues(
                                   alpha: 0.08,
@@ -427,14 +399,18 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                                 ),
                               ],
                             ),
+
                             border: Border.all(
-                              color: gold.withValues(
+                              color:
+                                  gold.withValues(
                                 alpha: 0.3,
                               ),
                             ),
                           ),
+
                           child: const Icon(
-                            Icons.emoji_emotions_outlined,
+                            Icons
+                                .emoji_emotions_outlined,
                             color: darkGreen,
                             size: 36,
                           ),
@@ -449,10 +425,14 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
 
                       const Text(
                         'اختاري الأفاتار متاعك',
-                        textAlign: TextAlign.center,
+
+                        textAlign:
+                            TextAlign.center,
+
                         style: TextStyle(
                           fontSize: 22,
-                          fontWeight: FontWeight.bold,
+                          fontWeight:
+                              FontWeight.bold,
                           color: darkGreen,
                         ),
                       ),
@@ -461,198 +441,219 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
 
                       const Text(
                         'هاذ الأفاتار غادي يبان فـ ملفك الشخصي',
-                        textAlign: TextAlign.center,
+
+                        textAlign:
+                            TextAlign.center,
+
                         style: TextStyle(
                           color: Colors.grey,
                           fontSize: 13,
                         ),
                       ),
 
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 30),
 
                       // ==================================================
-                      // AVATARS GRID
+                      // CIRCULAR AVATARS
+                      // NO SQUARE CARDS
                       // ==================================================
 
                       GridView.builder(
                         shrinkWrap: true,
+
                         physics:
                             const NeverScrollableScrollPhysics(),
+
                         itemCount: _avatars.length,
+
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          mainAxisSpacing: 20,
-                          crossAxisSpacing: 20,
+                          crossAxisCount: 2,
+
+                          mainAxisSpacing: 22,
+
+                          crossAxisSpacing: 22,
+
                           childAspectRatio: 1,
                         ),
+
                         itemBuilder:
                             (context, index) {
                           final avatar =
                               _avatars[index];
 
                           final bool selected =
-                              _selectedIndex == index;
+                              _selectedIndex ==
+                                  index;
 
                           return GestureDetector(
                             onTap: () {
                               setState(() {
                                 _selectedIndex =
                                     index;
-                                _errorMessage = null;
+
+                                _errorMessage =
+                                    null;
                               });
                             },
+
                             child:
-                                AnimatedContainer(
+                                AnimatedScale(
+                              scale: selected
+                                  ? 1.05
+                                  : 1.0,
+
                               duration:
                                   const Duration(
                                 milliseconds: 250,
                               ),
+
                               curve:
-                                  Curves.elasticOut,
+                                  Curves.easeOutBack,
 
-                              transform: selected
-                                  ? (Matrix4.identity()
-                                    ..scale(1.08))
-                                  : Matrix4.identity(),
+                              child: Center(
+                                child: Stack(
+                                  alignment:
+                                      Alignment.center,
 
-                              transformAlignment:
-                                  Alignment.center,
+                                  children: [
 
-                              decoration:
-                                  BoxDecoration(
-                                shape:
-                                    BoxShape.circle,
+                                    // ==================================================
+                                    // AVATAR CIRCLE
+                                    // ==================================================
 
-                                gradient:
-                                    LinearGradient(
-                                  begin:
-                                      Alignment.topLeft,
-                                  end:
-                                      Alignment.bottomRight,
-                                  colors:
-                                      avatar.bgColors,
-                                ),
+                                    AnimatedContainer(
+                                      duration:
+                                          const Duration(
+                                        milliseconds: 250,
+                                      ),
 
-                                border:
-                                    Border.all(
-                                  color: selected
-                                      ? gold
-                                      : Colors.white,
-                                  width:
-                                      selected
-                                          ? 3
-                                          : 2,
-                                ),
+                                      width: 155,
+                                      height: 155,
 
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: selected
-                                        ? gold.withValues(
-                                            alpha: 0.5,
-                                          )
-                                        : Colors.black
-                                            .withValues(
-                                            alpha: 0.06,
+                                      decoration:
+                                          BoxDecoration(
+                                        shape:
+                                            BoxShape.circle,
+
+                                        color:
+                                            avatar.bgColor,
+
+                                        border:
+                                            Border.all(
+                                          color: selected
+                                              ? gold
+                                              : Colors.white,
+
+                                          width: selected
+                                              ? 5
+                                              : 4,
+                                        ),
+
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: selected
+                                                ? gold.withValues(
+                                                    alpha: 0.40,
+                                                  )
+                                                : Colors.black
+                                                    .withValues(
+                                                    alpha: 0.10,
+                                                  ),
+
+                                            blurRadius:
+                                                selected
+                                                    ? 18
+                                                    : 10,
+
+                                            spreadRadius:
+                                                selected
+                                                    ? 2
+                                                    : 0,
+
+                                            offset:
+                                                const Offset(
+                                              0,
+                                              5,
+                                            ),
                                           ),
-                                    blurRadius:
-                                        selected
-                                            ? 16
-                                            : 6,
-                                    spreadRadius:
-                                        selected
-                                            ? 2
-                                            : 0,
-                                    offset:
-                                        const Offset(
-                                      0,
-                                      4,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                        ],
+                                      ),
 
-                              child: Stack(
-                                alignment:
-                                    Alignment.center,
-                                children: [
-                                  // ==================================================
-                                  // PNG AVATAR
-                                  // ==================================================
-
-                                  Padding(
-                                    padding:
-                                        const EdgeInsets
-                                            .all(4),
-
-                                    child: ClipOval(
                                       child:
-                                          Image.asset(
-                                        avatar.assetPath,
+                                          ClipOval(
+                                        child:
+                                            Image.asset(
+                                          avatar.assetPath,
 
-                                        fit: BoxFit
-                                            .cover,
+                                          width: 155,
+                                          height: 155,
 
-                                        width:
-                                            double.infinity,
+                                          // الصورة تتقص داخل الدائرة
+                                          fit: BoxFit.cover,
 
-                                        height:
-                                            double.infinity,
+                                          errorBuilder:
+                                              (
+                                            context,
+                                            error,
+                                            stackTrace,
+                                          ) {
+                                            return const Center(
+                                              child:
+                                                  Icon(
+                                                Icons.person,
+                                                size: 55,
+                                                color:
+                                                    darkGreen,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
 
-                                        errorBuilder:
-                                            (
-                                          context,
-                                          error,
-                                          stackTrace,
-                                        ) {
-                                          return const Icon(
-                                            Icons.person,
-                                            size: 36,
+                                    // ==================================================
+                                    // CHECK
+                                    // ==================================================
+
+                                    if (selected)
+                                      Positioned(
+                                        right: 2,
+                                        bottom: 2,
+
+                                        child:
+                                            Container(
+                                          width: 32,
+                                          height: 32,
+
+                                          decoration:
+                                              BoxDecoration(
                                             color:
                                                 darkGreen,
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  ),
 
-                                  // ==================================================
-                                  // CHECK MARK
-                                  // ==================================================
+                                            shape:
+                                                BoxShape
+                                                    .circle,
 
-                                  if (selected)
-                                    Positioned(
-                                      bottom: 4,
-                                      right: 4,
-                                      child:
-                                          Container(
-                                        padding:
-                                            const EdgeInsets
-                                                .all(4),
-                                        decoration:
-                                            BoxDecoration(
-                                          color:
-                                              darkGreen,
-                                          shape:
-                                              BoxShape
-                                                  .circle,
-                                          border:
-                                              Border.all(
+                                            border:
+                                                Border.all(
+                                              color:
+                                                  Colors.white,
+                                              width: 2,
+                                            ),
+                                          ),
+
+                                          child:
+                                              const Icon(
+                                            Icons.check,
+                                            size: 18,
                                             color:
                                                 Colors.white,
-                                            width: 1.5,
                                           ),
                                         ),
-                                        child:
-                                            const Icon(
-                                          Icons.check,
-                                          size: 12,
-                                          color: Colors
-                                              .white,
-                                        ),
                                       ),
-                                    ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           );
@@ -668,16 +669,19 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
 
                         Text(
                           _errorMessage!,
+
                           textAlign:
                               TextAlign.center,
+
                           style:
                               const TextStyle(
                             color: Colors.red,
+                            fontSize: 13,
                           ),
                         ),
                       ],
 
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 30),
 
                       // ==================================================
                       // CONTINUE BUTTON
@@ -688,6 +692,7 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                             const Duration(
                           milliseconds: 300,
                         ),
+
                         height: 54,
 
                         decoration:
@@ -701,10 +706,12 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                                       end:
                                           Alignment
                                               .centerRight,
+
                                       colors: [
                                         darkGreen,
                                         Color(
-                                            0xFF1A6B4A),
+                                          0xFF1A6B4A,
+                                        ),
                                       ],
                                     )
                                   : const LinearGradient(
@@ -728,7 +735,9 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                                                 .withValues(
                                           alpha: 0.35,
                                         ),
+
                                         blurRadius: 20,
+
                                         offset:
                                             const Offset(
                                           0,
@@ -740,7 +749,8 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                         ),
 
                         child: Material(
-                          color: Colors.transparent,
+                          color:
+                              Colors.transparent,
 
                           child: InkWell(
                             onTap: _isSubmitting
@@ -760,6 +770,7 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                                     )
                                   : const Text(
                                       'متابعة',
+
                                       style:
                                           TextStyle(
                                         fontSize: 17,
@@ -778,15 +789,17 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                       const SizedBox(height: 16),
 
                       // ==================================================
-                      // PRIVACY MESSAGE
+                      // PRIVACY
                       // ==================================================
 
                       Row(
                         mainAxisAlignment:
                             MainAxisAlignment.center,
+
                         children: [
                           const Icon(
-                            Icons.shield_outlined,
+                            Icons
+                                .shield_outlined,
                             size: 14,
                             color: darkGreen,
                           ),
@@ -796,8 +809,10 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                           const Expanded(
                             child: Text(
                               'تقدري تبدلي الأفاتار فـ أي وقت من إعدادات الملف الشخصي',
+
                               textAlign:
                                   TextAlign.center,
+
                               style: TextStyle(
                                 color: Colors.grey,
                                 fontSize: 11,
@@ -806,6 +821,8 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                           ),
                         ],
                       ),
+
+                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
@@ -822,11 +839,11 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
 class _AvatarOption {
   final String id;
   final String assetPath;
-  final List<Color> bgColors;
+  final Color bgColor;
 
   const _AvatarOption({
     required this.id,
     required this.assetPath,
-    required this.bgColors,
+    required this.bgColor,
   });
 }
