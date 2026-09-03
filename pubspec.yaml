@@ -37,8 +37,11 @@ flutter:
   assets:
     # Images
     - assets/images/logo_tawafuq.png
+    - assets/images/location_map.png 
+    - assets/images/gender_female.png
+    - assets/images/gender_male.png
     - assets/images/google_logo.png.webp
-
+     
     # Avatars
     - assets/avatars/female/
     - assets/avatars/male/

@@ -2,7 +2,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'carte_verification.dart';
 import 'formulaire_info.dart';
 
 class GenderSelectionScreen extends StatefulWidget {
@@ -82,19 +81,11 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen>
       }, SetOptions(merge: true));
 
       if (mounted) {
-        if (_selectedGender == 'male') {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (_) => const CarteVerification()),
-            (route) => false,
-          );
-        } else {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (_) => const FormulaireInfo()),
-            (route) => false,
-          );
-        }
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const FormulaireInfo()),
+          (route) => false,
+        );
       }
     } catch (e) {
       setState(() {
@@ -110,11 +101,11 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen>
   }
 
   // ============================================================
-  // بطاقة اختيار الجنس (تصميم عمودي، أفتار بدل الإيموجي)
+  // بطاقة اختيار الجنس (تصميم عمودي، صورة بدل الإيموجي/الأيقونة)
   // ============================================================
   Widget _genderCard({
     required String value,
-    required IconData avatarIcon,
+    required String avatarAsset,
     required String label,
     required String description,
   }) {
@@ -158,7 +149,7 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen>
         child: Row(
           textDirection: TextDirection.rtl,
           children: [
-            // ============ الأفتار الدائري ============
+            // ============ الصورة الدائرية ============
             Container(
               width: 64,
               height: 64,
@@ -172,10 +163,27 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen>
                   width: selected ? 2 : 1,
                 ),
               ),
-              child: Icon(
-                avatarIcon,
-                size: 34,
-                color: selected ? darkGreen : Colors.grey.shade500,
+              child: ClipOval(
+                child: Padding(
+                  padding: const EdgeInsets.all(2),
+                  child: Image.asset(
+                    avatarAsset,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                    alignment: Alignment.topCenter,
+                    errorBuilder: (context, error, stack) {
+                      debugPrint('❌ $avatarAsset load failed: $error');
+                      return Icon(
+                        value == 'male'
+                            ? Icons.face_6_rounded
+                            : Icons.face_3_rounded,
+                        size: 34,
+                        color: selected ? darkGreen : Colors.grey.shade500,
+                      );
+                    },
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 16),
@@ -298,13 +306,13 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen>
                   // ============================================================
                   _genderCard(
                     value: 'female',
-                    avatarIcon: Icons.face_3_rounded,
+                    avatarAsset: 'assets/images/gender_female.png',
                     label: 'أنا امرأة',
                     description: 'حساب مخصص للنساء',
                   ),
                   _genderCard(
                     value: 'male',
-                    avatarIcon: Icons.face_6_rounded,
+                    avatarAsset: 'assets/images/gender_male.png',
                     label: 'أنا رجل',
                     description: 'حساب مخصص للرجال',
                   ),

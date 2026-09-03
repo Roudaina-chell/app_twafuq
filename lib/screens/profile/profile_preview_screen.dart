@@ -30,6 +30,8 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
   int? _ageMin;
   int? _ageMax;
   String _prefCity = '';
+  // ✅ مسار صورة الأفاتار الحقيقية
+  String? _avatarAsset;
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -87,6 +89,8 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
             (preferences['city'] as String?) ??
             (preferences['wilaya'] as String?) ??
             _city;
+        // ✅ نجيبو مسار الأفاتار لي تسجل فـ avatar_selection.dart
+        _avatarAsset = data['avatarAsset'] as String?;
         _isLoading = false;
       });
     } catch (e) {
@@ -134,6 +138,28 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
         });
       }
     }
+  }
+
+  // ============================================================
+  // ✅ ويدجت الأفاتار الحقيقي (صورة) بدل الأيقونة الثابتة
+  // ============================================================
+  Widget _buildAvatar() {
+    if (_avatarAsset == null || _avatarAsset!.isEmpty) {
+      return const Icon(Icons.person, color: Colors.white, size: 34);
+    }
+    return ClipOval(
+      child: Image.asset(
+        _avatarAsset!,
+        width: 64,
+        height: 64,
+        fit: BoxFit.cover,
+        alignment: Alignment.topCenter,
+        errorBuilder: (context, error, stack) {
+          debugPrint('❌ Profile avatar load failed: $_avatarAsset -> $error');
+          return const Icon(Icons.person, color: Colors.white, size: 34);
+        },
+      ),
+    );
   }
 
   @override
@@ -247,11 +273,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
                                             width: 1.5,
                                           ),
                                         ),
-                                        child: const Icon(
-                                          Icons.person,
-                                          color: Colors.white,
-                                          size: 34,
-                                        ),
+                                        child: _buildAvatar(),
                                       ),
                                       const SizedBox(width: 14),
                                       Expanded(

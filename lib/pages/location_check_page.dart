@@ -135,7 +135,7 @@ class _LocationCheckPageState extends State<LocationCheckPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // ============================================================
-              // ✅ ويدجت الخريطة الجديد (Pin + خريطة مزيفة + نبض)
+              // ✅ ويدجت الخريطة الجديد (Pin + خريطة مرسومة + بيضاوي النطاق)
               // ============================================================
               const _MapPinWidget(),
               const SizedBox(height: 28),
@@ -258,201 +258,37 @@ class _LocationCheckPageState extends State<LocationCheckPage> {
 }
 
 // ============================================================
-// ✅ ويدجت الخريطة + الدبوس (Modern Map Pin Widget)
+// ✅ ويدجت الخريطة (صورة ثابتة جاهزة)
 // ============================================================
-class _MapPinWidget extends StatefulWidget {
+class _MapPinWidget extends StatelessWidget {
   const _MapPinWidget();
 
-  @override
-  State<_MapPinWidget> createState() => _MapPinWidgetState();
-}
-
-class _MapPinWidgetState extends State<_MapPinWidget>
-    with SingleTickerProviderStateMixin {
   static const Color darkGreen = Color(0xFF0F3D2E);
-  static const Color gold = Color(0xFFC9A24B);
-
-  late AnimationController _pulseController;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 200,
-      height: 140,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // ===== خلفية "الخريطة" المزيفة (خطوط طرق) =====
-          ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: Container(
-              width: 200,
-              height: 140,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Colors.grey.shade100, Colors.grey.shade200],
-                ),
+      width: 260,
+      height: 170,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Image.asset(
+          'assets/images/location_map.png',
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stack) {
+            debugPrint('❌ location_map.png load failed: $error');
+            return Container(
+              color: const Color(0xFFF2EFE9),
+              alignment: Alignment.center,
+              child: const Icon(
+                Icons.location_on_rounded,
+                color: darkGreen,
+                size: 40,
               ),
-              child: CustomPaint(
-                size: const Size(200, 140),
-                painter: _FakeMapPainter(),
-              ),
-            ),
-          ),
-
-          // ===== دوائر النبض (Pulse rings) =====
-          AnimatedBuilder(
-            animation: _pulseController,
-            builder: (context, child) {
-              final double t = _pulseController.value;
-              return Container(
-                width: 40 + (t * 70),
-                height: 40 + (t * 70),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: darkGreen.withValues(alpha: (1 - t) * 0.15),
-                  border: Border.all(
-                    color: darkGreen.withValues(alpha: (1 - t) * 0.4),
-                    width: 1.5,
-                  ),
-                ),
-              );
-            },
-          ),
-
-          // ===== دائرة النطاق الثابتة =====
-          Container(
-            width: 90,
-            height: 90,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: darkGreen.withValues(alpha: 0.10),
-              border: Border.all(
-                color: darkGreen.withValues(alpha: 0.25),
-                width: 1,
-              ),
-            ),
-          ),
-
-          // ===== الدبوس (Pin) =====
-          Positioned(
-            bottom: 68,
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: darkGreen.withValues(alpha: 0.35),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF2E7D5E), darkGreen],
-                  ),
-                  border: Border.all(color: Colors.white, width: 3),
-                ),
-                child: const Icon(
-                  Icons.location_on_rounded,
-                  color: Colors.white,
-                  size: 26,
-                ),
-              ),
-            ),
-          ),
-
-          // ===== نقطة صغيرة تحت الدبوس (مركز الموقع) =====
-          Positioned(
-            bottom: 66,
-            child: Container(
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: gold,
-                boxShadow: [
-                  BoxShadow(color: gold.withValues(alpha: 0.6), blurRadius: 6),
-                ],
-              ),
-            ),
-          ),
-        ],
+            );
+          },
+        ),
       ),
     );
   }
-}
-
-// ============================================================
-// رسم خطوط طرق بسيطة لمحاكاة الخريطة (خلفية زخرفية فقط)
-// ============================================================
-class _FakeMapPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint roadPaint = Paint()
-      ..color = Colors.grey.shade300
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
-
-    final Paint thinRoadPaint = Paint()
-      ..color = Colors.grey.shade300.withValues(alpha: 0.6)
-      ..strokeWidth = 1
-      ..style = PaintingStyle.stroke;
-
-    // خطوط أفقية غير منتظمة
-    canvas.drawLine(
-      Offset(0, size.height * 0.25),
-      Offset(size.width, size.height * 0.2),
-      thinRoadPaint,
-    );
-    canvas.drawLine(
-      Offset(0, size.height * 0.75),
-      Offset(size.width, size.height * 0.8),
-      roadPaint,
-    );
-
-    // خطوط عمودية/مائلة
-    canvas.drawLine(
-      Offset(size.width * 0.2, 0),
-      Offset(size.width * 0.15, size.height),
-      thinRoadPaint,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.7, 0),
-      Offset(size.width * 0.78, size.height),
-      roadPaint,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.45, 0),
-      Offset(size.width * 0.5, size.height),
-      thinRoadPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
