@@ -54,6 +54,9 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen>
     super.dispose();
   }
 
+  // ============================================================
+  // نفس المنطق بالضبط، بلا أي تعديل فـ backend
+  // ============================================================
   Future<void> _confirmSelection() async {
     if (_selectedGender == null) {
       setState(() {
@@ -101,7 +104,9 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen>
   }
 
   // ============================================================
-  // بطاقة اختيار الجنس (تصميم عمودي، صورة بدل الإيموجي/الأيقونة)
+  // بطاقة اختيار الجنس — الصورة دابا داخل Container مربع بنفس
+  // العرض والطول (AspectRatio 1:1) قبل ما تتقص بـ ClipOval، هذا
+  // كيضمن دائرة كاملة صحيحة بلا ما تبان الحواف المربعة للصورة
   // ============================================================
   Widget _genderCard({
     required String value,
@@ -149,10 +154,11 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen>
         child: Row(
           textDirection: TextDirection.rtl,
           children: [
-            // ============ الصورة الدائرية ============
+            // ============ الصورة الدائرية (دائرة كاملة مضمونة) ============
             Container(
-              width: 64,
-              height: 64,
+              width: 68,
+              height: 68,
+              padding: const EdgeInsets.all(2.5),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: selected
@@ -164,24 +170,26 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen>
                 ),
               ),
               child: ClipOval(
-                child: Padding(
-                  padding: const EdgeInsets.all(2),
-                  child: Image.asset(
-                    avatarAsset,
+                child: SizedBox.expand(
+                  child: FittedBox(
                     fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
-                    alignment: Alignment.topCenter,
-                    errorBuilder: (context, error, stack) {
-                      debugPrint('❌ $avatarAsset load failed: $error');
-                      return Icon(
-                        value == 'male'
-                            ? Icons.face_6_rounded
-                            : Icons.face_3_rounded,
-                        size: 34,
-                        color: selected ? darkGreen : Colors.grey.shade500,
-                      );
-                    },
+                    child: Image.asset(
+                      avatarAsset,
+                      errorBuilder: (context, error, stack) {
+                        return Container(
+                          color: selected
+                              ? darkGreen.withValues(alpha: 0.1)
+                              : Colors.grey.shade200,
+                          child: Icon(
+                            value == 'male'
+                                ? Icons.face_6_rounded
+                                : Icons.face_3_rounded,
+                            size: 32,
+                            color: selected ? darkGreen : Colors.grey.shade500,
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -257,25 +265,45 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // ============================================================
-                  // أيقونة كبيرة في الأعلى
+                  // رأس عصري: شارة نصية بدل الإيموجي القديمة
                   // ============================================================
                   Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: darkGreen.withValues(alpha: 0.08),
+                      color: gold.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(30),
                       border: Border.all(
-                        color: gold.withValues(alpha: 0.3),
-                        width: 2,
+                        color: gold.withValues(alpha: 0.4),
+                        width: 1,
                       ),
                     ),
-                    child: const Icon(
-                      Icons.emoji_emotions_outlined,
-                      color: darkGreen,
-                      size: 48,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: gold,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'الخطوة الأولى',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: darkGreen,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 22),
 
                   // ============================================================
                   // العنوان والوصف
@@ -375,7 +403,6 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen>
                         ),
                       ),
                       const SizedBox(height: 12),
-                      // شريط تقدم بسيط (مراحل الإعداد)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(5, (index) {

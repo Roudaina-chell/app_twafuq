@@ -293,7 +293,6 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bg,
-
       body: SafeArea(
         child: _isLoadingGender
             ? const Center(
@@ -306,308 +305,208 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                   horizontal: 20,
                   vertical: 10,
                 ),
-
                 child: FadeTransition(
                   opacity: _fadeAnimation,
-
                   child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.stretch,
-
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-
                       // ==================================================
                       // HEADER
                       // ==================================================
-
                       Row(
                         children: [
-                          IconButton(
-                            onPressed: () {
-                              Navigator.maybePop(context);
-                            },
-
-                            icon: const Icon(
-                              Icons.arrow_back,
-                              color: darkGreen,
+                          InkWell(
+                            onTap: () => Navigator.maybePop(context),
+                            borderRadius: BorderRadius.circular(24),
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: darkGreen.withValues(alpha: 0.06),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.arrow_back,
+                                color: darkGreen,
+                                size: 18,
+                              ),
                             ),
                           ),
-
+                          const SizedBox(width: 10),
                           const Text(
                             'TAWAFUQ',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: darkGreen,
                               letterSpacing: 1,
+                              fontSize: 13,
                             ),
                           ),
-
                           const SizedBox(width: 12),
-
                           Expanded(
                             child: ClipRRect(
-                              borderRadius:
-                                  BorderRadius.circular(4),
-
-                              child:
-                                  const LinearProgressIndicator(
+                              borderRadius: BorderRadius.circular(6),
+                              child: const LinearProgressIndicator(
                                 value: 0.75,
-                                minHeight: 6,
-
-                                backgroundColor:
-                                    Color(0xFFE0E0E0),
-
-                                valueColor:
-                                    AlwaysStoppedAnimation<
-                                        Color>(
-                                  gold,
-                                ),
+                                minHeight: 7,
+                                backgroundColor: Color(0xFFE7E2D9),
+                                valueColor: AlwaysStoppedAnimation<Color>(gold),
                               ),
                             ),
                           ),
                         ],
                       ),
 
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 24),
 
                       // ==================================================
                       // ICON
                       // ==================================================
-
                       Center(
                         child: Container(
-                          width: 80,
-                          height: 80,
-
-                          decoration:
-                              BoxDecoration(
+                          width: 76,
+                          height: 76,
+                          decoration: BoxDecoration(
                             shape: BoxShape.circle,
-
-                            gradient:
-                                LinearGradient(
-                              begin:
-                                  Alignment.topLeft,
-                              end:
-                                  Alignment.bottomRight,
-
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                               colors: [
-                                darkGreen.withValues(
-                                  alpha: 0.08,
-                                ),
-                                gold.withValues(
-                                  alpha: 0.12,
-                                ),
+                                darkGreen.withValues(alpha: 0.08),
+                                gold.withValues(alpha: 0.14),
                               ],
                             ),
-
                             border: Border.all(
-                              color:
-                                  gold.withValues(
-                                alpha: 0.3,
-                              ),
+                              color: gold.withValues(alpha: 0.3),
                             ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: darkGreen.withValues(alpha: 0.08),
+                                blurRadius: 16,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
                           ),
-
                           child: const Icon(
-                            Icons
-                                .emoji_emotions_outlined,
+                            Icons.emoji_emotions_outlined,
                             color: darkGreen,
-                            size: 36,
+                            size: 34,
                           ),
                         ),
                       ),
 
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 18),
 
                       // ==================================================
                       // TITLE
                       // ==================================================
-
                       const Text(
                         'اختاري الأفاتار متاعك',
-
-                        textAlign:
-                            TextAlign.center,
-
+                        textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 22,
-                          fontWeight:
-                              FontWeight.bold,
+                          fontSize: 23,
+                          fontWeight: FontWeight.w800,
                           color: darkGreen,
                         ),
                       ),
-
-                      const SizedBox(height: 6),
-
+                      const SizedBox(height: 8),
                       const Text(
                         'هاذ الأفاتار غادي يبان فـ ملفك الشخصي',
-
-                        textAlign:
-                            TextAlign.center,
-
+                        textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: Colors.grey,
-                          fontSize: 13,
+                          color: Colors.black45,
+                          fontSize: 13.5,
+                          height: 1.5,
                         ),
                       ),
 
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 28),
 
                       // ==================================================
-                      // CIRCULAR AVATARS
-                      // NO SQUARE CARDS
+                      // CIRCULAR AVATARS — متقاربين من بعض، fit مضبوط
                       // ==================================================
-
                       GridView.builder(
                         shrinkWrap: true,
-
-                        physics:
-                            const NeverScrollableScrollPhysics(),
-
+                        physics: const NeverScrollableScrollPhysics(),
                         itemCount: _avatars.length,
-
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-
-                          mainAxisSpacing: 22,
-
-                          crossAxisSpacing: 22,
-
-                          childAspectRatio: 1,
+                          crossAxisCount: 3,
+                          mainAxisSpacing: 14,
+                          crossAxisSpacing: 6,
+                          childAspectRatio: 0.85,
                         ),
-
-                        itemBuilder:
-                            (context, index) {
-                          final avatar =
-                              _avatars[index];
-
-                          final bool selected =
-                              _selectedIndex ==
-                                  index;
+                        itemBuilder: (context, index) {
+                          final avatar = _avatars[index];
+                          final bool selected = _selectedIndex == index;
 
                           return GestureDetector(
                             onTap: () {
                               setState(() {
-                                _selectedIndex =
-                                    index;
-
-                                _errorMessage =
-                                    null;
+                                _selectedIndex = index;
+                                _errorMessage = null;
                               });
                             },
-
-                            child:
-                                AnimatedScale(
-                              scale: selected
-                                  ? 1.05
-                                  : 1.0,
-
-                              duration:
-                                  const Duration(
-                                milliseconds: 250,
-                              ),
-
-                              curve:
-                                  Curves.easeOutBack,
-
+                            child: AnimatedScale(
+                              scale: selected ? 1.06 : 1.0,
+                              duration: const Duration(milliseconds: 220),
+                              curve: Curves.easeOutBack,
                               child: Center(
                                 child: Stack(
-                                  alignment:
-                                      Alignment.center,
-
+                                  clipBehavior: Clip.none,
+                                  alignment: Alignment.center,
                                   children: [
-
                                     // ==================================================
                                     // AVATAR CIRCLE
                                     // ==================================================
-
                                     AnimatedContainer(
-                                      duration:
-                                          const Duration(
-                                        milliseconds: 250,
-                                      ),
-
-                                      width: 155,
-                                      height: 155,
-
-                                      decoration:
-                                          BoxDecoration(
-                                        shape:
-                                            BoxShape.circle,
-
-                                        color:
-                                            avatar.bgColor,
-
-                                        border:
-                                            Border.all(
-                                          color: selected
-                                              ? gold
-                                              : Colors.white,
-
-                                          width: selected
-                                              ? 5
-                                              : 4,
+                                      duration: const Duration(milliseconds: 220),
+                                      width: 88,
+                                      height: 88,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: avatar.bgColor,
+                                        border: Border.all(
+                                          color: selected ? gold : Colors.white,
+                                          width: selected ? 4 : 3,
                                         ),
-
                                         boxShadow: [
                                           BoxShadow(
                                             color: selected
-                                                ? gold.withValues(
-                                                    alpha: 0.40,
-                                                  )
-                                                : Colors.black
-                                                    .withValues(
-                                                    alpha: 0.10,
-                                                  ),
-
-                                            blurRadius:
-                                                selected
-                                                    ? 18
-                                                    : 10,
-
-                                            spreadRadius:
-                                                selected
-                                                    ? 2
-                                                    : 0,
-
-                                            offset:
-                                                const Offset(
-                                              0,
-                                              5,
-                                            ),
+                                                ? gold.withValues(alpha: 0.40)
+                                                : Colors.black.withValues(alpha: 0.08),
+                                            blurRadius: selected ? 16 : 8,
+                                            spreadRadius: selected ? 1.5 : 0,
+                                            offset: const Offset(0, 4),
                                           ),
                                         ],
                                       ),
-
-                                      child:
-                                          ClipOval(
-                                        child:
-                                            Image.asset(
-                                          avatar.assetPath,
-
-                                          width: 155,
-                                          height: 155,
-
-                                          // الصورة تتقص داخل الدائرة
-                                          fit: BoxFit.cover,
-
-                                          errorBuilder:
-                                              (
-                                            context,
-                                            error,
-                                            stackTrace,
-                                          ) {
-                                            return const Center(
-                                              child:
-                                                  Icon(
-                                                Icons.person,
-                                                size: 55,
-                                                color:
-                                                    darkGreen,
-                                              ),
-                                            );
-                                          },
+                                      // ✅ الصورة تاخد بالضبط قياس الدائرة (بلا oversize)
+                                      // بش ما يوقعش قص خاطئ حسب أبعاد كل صورة (مثال: avatar 6)
+                                      child: ClipOval(
+                                        child: SizedBox.expand(
+                                          child: Image.asset(
+                                            avatar.assetPath,
+                                            fit: BoxFit.cover,
+                                            alignment: Alignment.topCenter,
+                                            errorBuilder: (context, error, stackTrace) {
+                                              return Container(
+                                                color: avatar.bgColor,
+                                                alignment: Alignment.center,
+                                                child: const Icon(
+                                                  Icons.person,
+                                                  size: 40,
+                                                  color: darkGreen,
+                                                ),
+                                              );
+                                            },
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -615,40 +514,25 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                                     // ==================================================
                                     // CHECK
                                     // ==================================================
-
                                     if (selected)
                                       Positioned(
-                                        right: 2,
-                                        bottom: 2,
-
-                                        child:
-                                            Container(
-                                          width: 32,
-                                          height: 32,
-
-                                          decoration:
-                                              BoxDecoration(
-                                            color:
-                                                darkGreen,
-
-                                            shape:
-                                                BoxShape
-                                                    .circle,
-
-                                            border:
-                                                Border.all(
-                                              color:
-                                                  Colors.white,
+                                        right: -2,
+                                        bottom: -2,
+                                        child: Container(
+                                          width: 26,
+                                          height: 26,
+                                          decoration: BoxDecoration(
+                                            color: darkGreen,
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: Colors.white,
                                               width: 2,
                                             ),
                                           ),
-
-                                          child:
-                                              const Icon(
+                                          child: const Icon(
                                             Icons.check,
-                                            size: 18,
-                                            color:
-                                                Colors.white,
+                                            size: 15,
+                                            color: Colors.white,
                                           ),
                                         ),
                                       ),
@@ -663,123 +547,109 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                       // ==================================================
                       // ERROR
                       // ==================================================
-
                       if (_errorMessage != null) ...[
-                        const SizedBox(height: 16),
-
-                        Text(
-                          _errorMessage!,
-
-                          textAlign:
-                              TextAlign.center,
-
-                          style:
-                              const TextStyle(
-                            color: Colors.red,
-                            fontSize: 13,
+                        const SizedBox(height: 14),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFDE3B40).withValues(alpha: 0.07),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: const Color(0xFFDE3B40).withValues(alpha: 0.18),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.error_outline_rounded,
+                                color: Color(0xFFDE3B40),
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _errorMessage!,
+                                  textAlign: TextAlign.right,
+                                  style: const TextStyle(
+                                    color: Color(0xFFDE3B40),
+                                    fontSize: 12.5,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
 
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 26),
 
                       // ==================================================
                       // CONTINUE BUTTON
                       // ==================================================
-
                       AnimatedContainer(
-                        duration:
-                            const Duration(
-                          milliseconds: 300,
+                        duration: const Duration(milliseconds: 300),
+                        height: 56,
+                        decoration: BoxDecoration(
+                          gradient: _selectedIndex != null
+                              ? const LinearGradient(
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  colors: [darkGreen, Color(0xFF1A6B4A)],
+                                )
+                              : LinearGradient(
+                                  colors: [Colors.grey.shade300, Colors.grey.shade300],
+                                ),
+                          borderRadius: BorderRadius.circular(18),
+                          boxShadow: _selectedIndex != null
+                              ? [
+                                  BoxShadow(
+                                    color: darkGreen.withValues(alpha: 0.35),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ]
+                              : [],
                         ),
-
-                        height: 54,
-
-                        decoration:
-                            BoxDecoration(
-                          gradient:
-                              _selectedIndex != null
-                                  ? const LinearGradient(
-                                      begin:
-                                          Alignment
-                                              .centerLeft,
-                                      end:
-                                          Alignment
-                                              .centerRight,
-
-                                      colors: [
-                                        darkGreen,
-                                        Color(
-                                          0xFF1A6B4A,
-                                        ),
-                                      ],
-                                    )
-                                  : const LinearGradient(
-                                      colors: [
-                                        Colors.grey,
-                                        Colors.grey,
-                                      ],
-                                    ),
-
-                          borderRadius:
-                              BorderRadius.circular(
-                            16,
-                          ),
-
-                          boxShadow:
-                              _selectedIndex != null
-                                  ? [
-                                      BoxShadow(
-                                        color:
-                                            darkGreen
-                                                .withValues(
-                                          alpha: 0.35,
-                                        ),
-
-                                        blurRadius: 20,
-
-                                        offset:
-                                            const Offset(
-                                          0,
-                                          8,
-                                        ),
-                                      ),
-                                    ]
-                                  : [],
-                        ),
-
                         child: Material(
-                          color:
-                              Colors.transparent,
-
+                          color: Colors.transparent,
                           child: InkWell(
-                            onTap: _isSubmitting
-                                ? null
-                                : _submit,
-
-                            borderRadius:
-                                BorderRadius.circular(
-                              16,
-                            ),
-
+                            onTap: _isSubmitting ? null : _submit,
+                            borderRadius: BorderRadius.circular(18),
                             child: Center(
                               child: _isSubmitting
-                                  ? const CircularProgressIndicator(
-                                      color:
-                                          Colors.white,
-                                    )
-                                  : const Text(
-                                      'متابعة',
-
-                                      style:
-                                          TextStyle(
-                                        fontSize: 17,
-                                        fontWeight:
-                                            FontWeight
-                                                .w700,
-                                        color: Colors
-                                            .white,
+                                  ? const SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2.4,
                                       ),
+                                    )
+                                  : Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          'متابعة',
+                                          style: TextStyle(
+                                            fontSize: 16.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: _selectedIndex != null
+                                                ? Colors.white
+                                                : Colors.grey.shade600,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Icon(
+                                          Icons.arrow_back_ios_new_rounded,
+                                          size: 14,
+                                          color: _selectedIndex != null
+                                              ? Colors.white
+                                              : Colors.grey.shade600,
+                                        ),
+                                      ],
                                     ),
                             ),
                           ),
@@ -791,28 +661,19 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                       // ==================================================
                       // PRIVACY
                       // ==================================================
-
                       Row(
-                        mainAxisAlignment:
-                            MainAxisAlignment.center,
-
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const Icon(
-                            Icons
-                                .shield_outlined,
-                            size: 14,
+                            Icons.shield_outlined,
+                            size: 13,
                             color: darkGreen,
                           ),
-
                           const SizedBox(width: 6),
-
                           const Expanded(
                             child: Text(
                               'تقدري تبدلي الأفاتار فـ أي وقت من إعدادات الملف الشخصي',
-
-                              textAlign:
-                                  TextAlign.center,
-
+                              textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: Colors.grey,
                                 fontSize: 11,

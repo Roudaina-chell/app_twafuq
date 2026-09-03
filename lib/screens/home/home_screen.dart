@@ -289,23 +289,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ============================================================
-  // ✅ الأفاتار الحقيقي (صورة PNG/JPG) بدل الإيموجي
+  // ✅ الأفاتار الحقيقي — دابا ياخد بالضبط قياس الدائرة (SizedBox.expand)
+  // بش ما توقعش صور مقصوصة غلط بحال ما كان يصرا مع بعض الأفاتارات
   // ============================================================
   Widget _buildAvatarImage({required double size}) {
     if (_avatarAsset == null || _avatarAsset!.isEmpty) {
       return Icon(Icons.person, size: size * 0.6, color: darkGreen);
     }
     return ClipOval(
-      child: Image.asset(
-        _avatarAsset!,
+      child: SizedBox(
         width: size,
         height: size,
-        fit: BoxFit.cover,
-        alignment: Alignment.topCenter,
-        errorBuilder: (context, error, stack) {
-          debugPrint('❌ Home avatar load failed: $_avatarAsset -> $error');
-          return Icon(Icons.person, size: size * 0.6, color: darkGreen);
-        },
+        child: Image.asset(
+          _avatarAsset!,
+          fit: BoxFit.cover,
+          alignment: Alignment.topCenter,
+          errorBuilder: (context, error, stack) {
+            debugPrint('❌ Home avatar load failed: $_avatarAsset -> $error');
+            return Icon(Icons.person, size: size * 0.6, color: darkGreen);
+          },
+        ),
       ),
     );
   }
@@ -350,23 +353,51 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return Scaffold(
         backgroundColor: bg,
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 48),
-              const SizedBox(height: 16),
-              Text(
-                _errorMessage!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.red),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _loadUserData,
-                style: ElevatedButton.styleFrom(backgroundColor: darkGreen),
-                child: const Text('إعادة المحاولة'),
-              ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDE3B40).withValues(alpha: 0.08),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.error_outline_rounded,
+                    color: Color(0xFFDE3B40),
+                    size: 40,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  _errorMessage!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Color(0xFFDE3B40), fontSize: 14),
+                ),
+                const SizedBox(height: 22),
+                SizedBox(
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    onPressed: _loadUserData,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: darkGreen,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                    ),
+                    icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                    label: const Text(
+                      'إعادة المحاولة',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -402,71 +433,79 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // محتوى تبويب "الرئيسية"
   // ============================================================
   Widget _buildHomeTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 12),
-          _buildHeader(),
-          const SizedBox(height: 24),
-          _buildStatsCard(),
-          const SizedBox(height: 28),
-          const Text(
-            'الخيارات السريعة',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: darkGreen,
-            ),
-          ),
-          const SizedBox(height: 14),
-          _buildQuickActionsGrid(),
-          const SizedBox(height: 28),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'أحدث التوصيات',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: darkGreen,
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  // TODO: عرض الكل
-                },
-                style: TextButton.styleFrom(foregroundColor: gold),
-                child: const Text('عرض الكل'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _buildNearbyList(),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: OutlinedButton.icon(
-              onPressed: () => _logout(context),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: darkGreen.withValues(alpha: 0.2)),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                backgroundColor: Colors.white,
-              ),
-              icon: Icon(Icons.logout_rounded, color: darkGreen, size: 20),
-              label: const Text(
-                'تسجيل الخروج',
-                style: TextStyle(color: darkGreen, fontWeight: FontWeight.w600),
+    return RefreshIndicator(
+      color: darkGreen,
+      onRefresh: _loadUserData,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 12),
+            _buildHeader(),
+            const SizedBox(height: 22),
+            _buildStatsCard(),
+            const SizedBox(height: 26),
+            const Text(
+              'الخيارات السريعة',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: darkGreen,
               ),
             ),
-          ),
-          const SizedBox(height: 100), // مساحة فوق الـ bottom nav العائم
-        ],
+            const SizedBox(height: 14),
+            _buildQuickActionsGrid(),
+            const SizedBox(height: 26),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'أحدث التوصيات',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: darkGreen,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    // TODO: عرض الكل
+                  },
+                  style: TextButton.styleFrom(foregroundColor: gold),
+                  child: const Text(
+                    'عرض الكل',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            _buildNearbyList(),
+            const SizedBox(height: 22),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: OutlinedButton.icon(
+                onPressed: () => _logout(context),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: darkGreen.withValues(alpha: 0.18)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  backgroundColor: Colors.white,
+                ),
+                icon: const Icon(Icons.logout_rounded, color: darkGreen, size: 19),
+                label: const Text(
+                  'تسجيل الخروج',
+                  style: TextStyle(color: darkGreen, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+            const SizedBox(height: 100), // مساحة فوق الـ bottom nav العائم
+          ],
+        ),
       ),
     );
   }
@@ -483,39 +522,35 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             clipBehavior: Clip.none,
             children: [
               Container(
+                padding: const EdgeInsets.all(2.5),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(color: gold, width: 2.5),
                   boxShadow: [
                     BoxShadow(
-                      color: gold.withValues(alpha: 0.2),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
+                      color: gold.withValues(alpha: 0.22),
+                      blurRadius: 14,
+                      offset: const Offset(0, 5),
                     ),
                   ],
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(2),
-                  child: CircleAvatar(
-                    radius: 32,
-                    backgroundColor: darkGreen.withValues(alpha: 0.1),
-                    child: ClipOval(
-                      child: SizedBox(
-                        width: 64,
-                        height: 64,
-                        child: _buildAvatarImage(size: 64),
-                      ),
-                    ),
+                child: Container(
+                  width: 62,
+                  height: 62,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: darkGreen.withValues(alpha: 0.08),
                   ),
+                  child: _buildAvatarImage(size: 62),
                 ),
               ),
               // ✅ نقطة صغيرة تعكس الحالة الحقيقية (أخضر=متصل / رمادي=مخفي)
               Positioned(
-                bottom: 2,
-                right: 2,
+                bottom: 1,
+                right: 1,
                 child: Container(
-                  width: 16,
-                  height: 16,
+                  width: 15,
+                  height: 15,
                   decoration: BoxDecoration(
                     color: _isOnline
                         ? Colors.green.shade500
@@ -535,7 +570,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             children: [
               const Text(
                 'مرحباً بك 👋',
-                style: TextStyle(color: Colors.grey, fontSize: 13),
+                style: TextStyle(color: Colors.black45, fontSize: 12.5),
               ),
               const SizedBox(height: 2),
               Text(
@@ -544,7 +579,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w800,
                   color: darkGreen,
                 ),
               ),
@@ -559,7 +594,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           iconColor: _isOnline ? darkGreen : Colors.grey.shade500,
           onTap: _toggleOnlineStatus,
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: 8),
         _CircleIconButton(
           icon: Icons.notifications_outlined,
           iconColor: darkGreen,
@@ -567,7 +602,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             // TODO: فتح صفحة الإشعارات
           },
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: 8),
         _CircleIconButton(
           icon: Icons.settings_outlined,
           iconColor: darkGreen,
@@ -581,19 +616,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Widget _buildStatsCard() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [darkGreen, Color(0xFF1A6B4A)],
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.25),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: darkGreen.withValues(alpha: 0.28),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -601,10 +636,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildStatItem('المتوافقين', '$_matches', Icons.people_rounded),
+          _statDivider(),
           _buildStatItem('الرسائل', '$_messages', Icons.chat_rounded),
+          _statDivider(),
           _buildStatItem('الإعجابات', '$_likes', Icons.favorite_rounded),
         ],
       ),
+    );
+  }
+
+  Widget _statDivider() {
+    return Container(
+      width: 1,
+      height: 34,
+      color: Colors.white.withValues(alpha: 0.18),
     );
   }
 
@@ -613,9 +658,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisCount: 4,
-      crossAxisSpacing: 12,
+      crossAxisSpacing: 10,
       mainAxisSpacing: 12,
-      childAspectRatio: 0.78,
+      childAspectRatio: 0.8,
       children: [
         _buildQuickAction(
           icon: Icons.person_outline_rounded,
@@ -649,14 +694,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Widget _buildNearbyList() {
     return SizedBox(
-      height: 190,
+      height: 200,
       child: _isLoadingNearby
           ? const Center(child: CircularProgressIndicator(color: darkGreen))
           : _nearbyPeople.isEmpty
           ? Center(
-              child: Text(
-                'ماكاين حتى حد فـ نفس مدينتك دابا',
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.people_outline_rounded,
+                      color: Colors.grey.shade300, size: 36),
+                  const SizedBox(height: 8),
+                  Text(
+                    'ماكاين حتى حد فـ نفس مدينتك دابا',
+                    style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                  ),
+                ],
               ),
             )
           : ListView.builder(
@@ -689,19 +742,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(26),
               decoration: BoxDecoration(
                 color: darkGreen.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: darkGreen.withValues(alpha: 0.06),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
-              child: Icon(icon, size: 48, color: darkGreen),
+              child: Icon(icon, size: 46, color: darkGreen),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 22),
             Text(
               title,
               style: const TextStyle(
                 fontSize: 20,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w800,
                 color: darkGreen,
               ),
             ),
@@ -709,7 +769,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade500, height: 1.5),
             ),
           ],
         ),
@@ -823,6 +883,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ✅ تبويب "ملفي" يعرض الأفاتار الحقيقي متاع المستخدم بدل أيقونة عامة
+  // (نفس تصحيح fit ديال الأفاتار: SizedBox.expand بلا oversize)
   Widget _buildProfileNavIcon(bool selected) {
     final hasAvatar = _avatarAsset != null && _avatarAsset!.isEmpty == false;
     return AnimatedScale(
@@ -840,14 +901,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
         child: ClipOval(
           child: hasAvatar
-              ? Image.asset(
-                  _avatarAsset!,
-                  fit: BoxFit.cover,
-                  alignment: Alignment.topCenter,
-                  errorBuilder: (context, error, stack) => Icon(
-                    Icons.person,
-                    size: 16,
-                    color: selected ? Colors.white : Colors.grey.shade400,
+              ? SizedBox.expand(
+                  child: Image.asset(
+                    _avatarAsset!,
+                    fit: BoxFit.cover,
+                    alignment: Alignment.topCenter,
+                    errorBuilder: (context, error, stack) => Icon(
+                      Icons.person,
+                      size: 16,
+                      color: selected ? Colors.white : Colors.grey.shade400,
+                    ),
                   ),
                 )
               : Icon(
@@ -864,25 +927,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return Column(
       children: [
         Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: gold, size: 18),
+            Icon(icon, color: gold, size: 17),
             const SizedBox(width: 6),
             Text(
               value,
               style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+                fontSize: 19,
+                fontWeight: FontWeight.w800,
                 color: Colors.white,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 5),
         Text(
           label,
           style: TextStyle(
-            fontSize: 12,
-            color: Colors.white.withValues(alpha: 0.7),
+            fontSize: 11.5,
+            color: Colors.white.withValues(alpha: 0.75),
           ),
         ),
       ],
@@ -902,19 +966,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(13),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.08),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            child: Icon(icon, color: color, size: 24),
+            child: Icon(icon, color: color, size: 23),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 7),
           Text(
             label,
             style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
               color: Colors.black87,
             ),
             textAlign: TextAlign.center,
@@ -949,15 +1020,17 @@ class _CircleIconButton extends StatelessWidget {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
-            blurRadius: 8,
+            color: Colors.grey.withValues(alpha: 0.12),
+            blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       child: IconButton(
-        icon: Icon(icon, color: iconColor),
+        icon: Icon(icon, color: iconColor, size: 20),
         onPressed: onTap,
+        padding: const EdgeInsets.all(8),
+        constraints: const BoxConstraints(),
       ),
     );
   }
@@ -986,20 +1059,20 @@ class _NearbyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 130,
+      width: 136,
       margin: const EdgeInsets.only(right: 12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.12),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
+            color: Colors.grey.withValues(alpha: 0.14),
+            blurRadius: 16,
+            offset: const Offset(0, 7),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -1027,14 +1100,14 @@ class _NearbyCard extends StatelessWidget {
               right: 0,
               bottom: 0,
               child: Container(
-                padding: const EdgeInsets.fromLTRB(10, 24, 10, 10),
+                padding: const EdgeInsets.fromLTRB(10, 26, 10, 10),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.black.withValues(alpha: 0),
-                      Colors.black.withValues(alpha: 0.75),
+                      Colors.black.withValues(alpha: 0.78),
                     ],
                   ),
                 ),
@@ -1043,22 +1116,28 @@ class _NearbyCard extends StatelessWidget {
                   children: [
                     Text(
                       person.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                         fontSize: 14,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     Row(
                       children: [
                         Icon(Icons.location_on_rounded, size: 11, color: gold),
                         const SizedBox(width: 2),
-                        Text(
-                          person.city,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.white70,
+                        Expanded(
+                          child: Text(
+                            person.city,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.white70,
+                            ),
                           ),
                         ),
                       ],
@@ -1079,6 +1158,12 @@ class _NearbyCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Colors.green.shade600,
                     borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.green.withValues(alpha: 0.3),
+                        blurRadius: 6,
+                      ),
+                    ],
                   ),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
