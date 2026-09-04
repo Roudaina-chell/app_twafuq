@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../auth/login_screen.dart';
 import '../profile/profile_edit_screen.dart';
+import 'discover_tab.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -36,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<_NearbyPerson> _nearbyPeople = [];
   bool _isLoadingNearby = true;
 
-  // ✅ 0 = الرئيسية | 1 = الإعجابات | 2 = الدردشة | 3 = الملف الشخصي
+  // ✅ 0 = الرئيسية | 1 = الإعجابات (اكتشف) | 2 = الدردشة | 3 = الملف الشخصي
   int _selectedIndex = 0;
   bool _isLoading = true;
   String? _errorMessage;
@@ -248,12 +249,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ============================================================
-  // ✅ دورة حياة التطبيق — كانت مكسورة (ناقصها التوقيع)، تصلحت هنا
+  // ✅ دورة حياة التطبيق
   // ============================================================
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // إذا المستخدم مفعّل Ghost mode بيدو، ما نبدلوش الحالة تلقائياً
-    // كي التطبيق يخرج للخلفية ويرجع — نحترمو اختياره اليدوي فـ الـ resume
     if (state == AppLifecycleState.resumed) {
       if (_isOnline) _setOnlineStatus(true);
     } else if (state == AppLifecycleState.paused ||
@@ -289,8 +288,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ============================================================
-  // ✅ الأفاتار الحقيقي — دابا ياخد بالضبط قياس الدائرة (SizedBox.expand)
-  // بش ما توقعش صور مقصوصة غلط بحال ما كان يصرا مع بعض الأفاتارات
+  // ✅ الأفاتار الحقيقي — دابا ياخد بالضبط قياس الدائرة
   // ============================================================
   Widget _buildAvatarImage({required double size}) {
     if (_avatarAsset == null || _avatarAsset!.isEmpty) {
@@ -314,10 +312,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ============================================================
-  // ✅ يفتح شاشة تعديل الملف الشخصي، وكي يرجع منها يعاود يقرا الداتا
-  // (الاسم، المدينة، وخاصة الأفاتار) باش تتبدل مباشرة فـ الهوم
-  // وفـ أيقونة "ملفي" فـ الـ bottom nav بلا ما يحتاج المستخدم يعاود
-  // يفتح التطبيق
+  // ✅ يفتح شاشة تعديل الملف الشخصي
   // ============================================================
   Future<void> _openProfile() async {
     await Navigator.push(
@@ -330,7 +325,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   // ============================================================
   // ✅ نقرة على شريط التنقل السفلي
-  // "الملف الشخصي" يفتح شاشة كاملة (push)، الباقي IndexedStack داخلي
   // ============================================================
   void _onNavTap(int index) {
     if (index == 3) {
@@ -374,7 +368,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 Text(
                   _errorMessage!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Color(0xFFDE3B40), fontSize: 14),
+                  style: const TextStyle(
+                    color: Color(0xFFDE3B40),
+                    fontSize: 14,
+                  ),
                 ),
                 const SizedBox(height: 22),
                 SizedBox(
@@ -389,10 +386,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ),
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                     ),
-                    icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                    icon: const Icon(
+                      Icons.refresh_rounded,
+                      color: Colors.white,
+                    ),
                     label: const Text(
                       'إعادة المحاولة',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
@@ -412,11 +415,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           index: _selectedIndex,
           children: [
             _buildHomeTab(),
-            _buildPlaceholderTab(
-              icon: Icons.favorite_rounded,
-              title: 'الإعجابات',
-              subtitle: 'الأشخاص لي عجبوك رح يبانو هنا قريباً 💛',
-            ),
+            const DiscoverTab(),
             _buildPlaceholderTab(
               icon: Icons.chat_bubble_rounded,
               title: 'الدردشة',
@@ -496,10 +495,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                   backgroundColor: Colors.white,
                 ),
-                icon: const Icon(Icons.logout_rounded, color: darkGreen, size: 19),
+                icon: const Icon(
+                  Icons.logout_rounded,
+                  color: darkGreen,
+                  size: 19,
+                ),
                 label: const Text(
                   'تسجيل الخروج',
-                  style: TextStyle(color: darkGreen, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: darkGreen,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
@@ -544,7 +550,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   child: _buildAvatarImage(size: 62),
                 ),
               ),
-              // ✅ نقطة صغيرة تعكس الحالة الحقيقية (أخضر=متصل / رمادي=مخفي)
               Positioned(
                 bottom: 1,
                 right: 1,
@@ -586,7 +591,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ],
           ),
         ),
-        // ✅ زر Ghost mode اليدوي (متصل / مخفي)
         _CircleIconButton(
           icon: _isOnline
               ? Icons.visibility_rounded
@@ -702,8 +706,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.people_outline_rounded,
-                      color: Colors.grey.shade300, size: 36),
+                  Icon(
+                    Icons.people_outline_rounded,
+                    color: Colors.grey.shade300,
+                    size: 36,
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     'ماكاين حتى حد فـ نفس مدينتك دابا',
@@ -728,7 +735,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ============================================================
-  // ✅ تبويبات مؤقتة (الإعجابات / الدردشة) لحد ما تتخلق شاشاتهم
+  // ✅ تبويب "الدردشة" مؤقت
   // ============================================================
   Widget _buildPlaceholderTab({
     required IconData icon,
@@ -769,7 +776,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade500, height: 1.5),
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade500,
+                height: 1.5,
+              ),
             ),
           ],
         ),
@@ -778,8 +789,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ============================================================
-  // ✅ شريط التنقل السفلي الجديد — عائم، بحواف مدورة، مع مؤشر
-  // متحرك (pill) تحت العنصر المختار + أفاتار حقيقي فـ تبويب الملف
+  // ✅ شريط التنقل السفلي — عائم، بحواف مدورة، مع مؤشر متحرك
   // ============================================================
   Widget _buildWowBottomNav() {
     final items = <_NavItemData>[
@@ -813,7 +823,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               return Stack(
                 alignment: Alignment.centerLeft,
                 children: [
-                  // ✅ المؤشر (pill) المتحرك خلف العنصر المختار
                   AnimatedPositioned(
                     duration: const Duration(milliseconds: 280),
                     curve: Curves.easeOutCubic,
@@ -882,8 +891,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  // ✅ تبويب "ملفي" يعرض الأفاتار الحقيقي متاع المستخدم بدل أيقونة عامة
-  // (نفس تصحيح fit ديال الأفاتار: SizedBox.expand بلا oversize)
   Widget _buildProfileNavIcon(bool selected) {
     final hasAvatar = _avatarAsset != null && _avatarAsset!.isEmpty == false;
     return AnimatedScale(
