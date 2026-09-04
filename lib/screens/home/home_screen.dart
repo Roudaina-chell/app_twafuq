@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../auth/login_screen.dart';
 import '../profile/profile_edit_screen.dart';
 import 'discover_tab.dart';
+import '../chat/chat_list_tab.dart'; 
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -416,11 +418,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           children: [
             _buildHomeTab(),
             const DiscoverTab(),
-            _buildPlaceholderTab(
-              icon: Icons.chat_bubble_rounded,
-              title: 'الدردشة',
-              subtitle: 'محادثاتك مع المتوافقين رح تبان هنا قريباً 💬',
-            ),
+           const ChatsListTab(),
           ],
         ),
       ),

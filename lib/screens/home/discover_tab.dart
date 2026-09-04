@@ -4,8 +4,10 @@
 // بدل البيانات الوهمية اللي كانت hardcodée. نفس منطق _loadNearbyPeople فـ
 // home_screen.dart: name/fullName, city, avatarAsset.
 //
+// ✅ عند الإعجاب: نسجل الإعجاب فـ collection 'likes' (fromUserId, toUserId,
+// timestamp) وبعدها نفتح شاشة الدردشة الحقيقية معاه.
+//
 // ⚠️ TODO:
-// - عند الإعجاب: نسجل toUserId فـ collection 'likes' (TODO فـ _handleDiscoverLike).
 // - فلتر "جديد" محتاج composite index (gender + createdAt) — شوف التعليق
 //   فوق _loadDiscoverProfiles لتفاصيل أكثر.
 // - فلتر "جديد" يخدم غير إذا كاين حقل createdAt (Timestamp) فـ document ديال
@@ -807,14 +809,30 @@ class _DiscoverTabState extends State<DiscoverTab>
 
   void _handleDiscoverSkip() => _goToNextDiscoverProfile();
 
+  // ============================================================
+  // ✅ عند الإعجاب: نسجل الإعجاب فـ Firestore بحال حقيقي، من بعد
+  // نفتحو شاشة الدردشة الحقيقية معاه (مربوطة بـ Firestore دابا)
+  // Schema: collection('likes') {fromUserId, toUserId, timestamp}
+  // (نفس الـ schema اللي كتقرا منها _loadRealStats فـ home_screen.dart)
+  // ============================================================
   Future<void> _handleDiscoverLike() async {
     if (_isDiscoverActing) return;
     final profile = _discoverProfiles[_discoverIndex];
+    final myUid = FirebaseAuth.instance.currentUser?.uid;
 
-    // TODO: سجل الإعجاب فـ Firestore
-    // collection('likes').add({fromUserId: myUid, toUserId: profile.uid, timestamp: ...})
+    if (myUid != null) {
+      try {
+        await FirebaseFirestore.instance.collection('likes').add({
+          'fromUserId': myUid,
+          'toUserId': profile.uid,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        debugPrint('❌ Like save failed: $e');
+      }
+    }
 
-    // ✅ يفتح مباشرة شاشة الدردشة مع هاد الشخص
+    // ✅ يفتح مباشرة شاشة الدردشة الحقيقية مع هاد الشخص
     await Navigator.push(
       context,
       MaterialPageRoute(
