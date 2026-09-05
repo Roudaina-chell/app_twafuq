@@ -24,7 +24,7 @@ dependencies:
   shared_preferences: ^2.3.2
   geocoding: ^3.0.0
   google_mlkit_text_recognition: ^0.13.0
-  record: ^5.1.2
+  record: ^7.1.1
   audioplayers: ^6.1.0
   path_provider: ^2.1.4
 
