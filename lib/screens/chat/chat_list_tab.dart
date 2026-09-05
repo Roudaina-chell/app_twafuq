@@ -1,13 +1,16 @@
-// screens/chat/chats_list_tab.dart
+// screens/chat/chat_list_tab.dart
 //
-// ✅ قائمة المحادثات (Inbox) — كتجمع آخر رسالة فـ كل محادثة (chatId) لي
-// أنت طرف فيها (fromUserId == me أو toUserId == me)، كتجيب معلومات
-// الطرف الآخر (name/avatar/city) من collection('users')، وكتفتح
+// ✅ قائمة المحادثات (Inbox) — نفس التصميم لي فـ الصورة المرجعية
+// (عنوان "الدردشات" + شريط بحث + ليستة مسطحة بخطوط فاصلة)، لكن
+// دابا مربوطة بـ Firestore حقيقي (ماشي بيانات ثابتة).
+//
+// كتجمع آخر رسالة فـ كل محادثة (chatId) لي أنت طرف فيها
+// (fromUserId == me أو toUserId == me)، كتجيب معلومات الطرف الآخر
+// (name/avatar/city) من collection('users')، وكتفتح
 // ChatConversationScreen الحقيقي كي تدوس على واحد.
 //
-// ⚠️ الرسائل القديمة اللي تصاوبت قبل ما نزيدو حقل chatId (إذا كاينة)
-// ماغاديش تبان هنا حيت ما فيهاش chatId — هذا طبيعي، الرسائل الجداد
-// كلها فيها chatId.
+// عداد الرسائل غير المقروءة (badge) لكل محادثة مبني على حقل "read"
+// فـ كل document من collection('messages').
 
 import 'dart:async';
 
@@ -22,6 +25,7 @@ class _ConversationPreview {
   final String lastMessage;
   final Timestamp? lastTimestamp;
   final bool lastFromMe;
+  final int unreadCount;
 
   _ConversationPreview({
     required this.chatId,
@@ -29,7 +33,72 @@ class _ConversationPreview {
     required this.lastMessage,
     required this.lastTimestamp,
     required this.lastFromMe,
+    required this.unreadCount,
   });
+}
+
+// ============================================================
+// ✅ صورة الأفاتار الحقيقية — تدعم asset محلي و رابط شبكة، مع
+// fallback لحرف اسم الشخص فـ دائرة ملونة (بحال التصميم المرجعي)
+// إلا ماكانتش الصورة موجودة أو فشلت.
+// ============================================================
+Widget buildAvatarImage({
+  required String? source,
+  required String name,
+  required double size,
+  required Color fallbackColor,
+}) {
+  Widget letterFallback() {
+    final letter = name.trim().isNotEmpty ? name.trim()[0] : '؟';
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: fallbackColor.withValues(alpha: 0.14),
+      ),
+      child: Text(
+        letter,
+        style: TextStyle(
+          fontSize: size * 0.4,
+          fontWeight: FontWeight.w800,
+          color: fallbackColor,
+        ),
+      ),
+    );
+  }
+
+  if (source == null || source.trim().isEmpty) {
+    return letterFallback();
+  }
+  final isNetwork =
+      source.startsWith('http://') || source.startsWith('https://');
+  return ClipOval(
+    child: SizedBox(
+      width: size,
+      height: size,
+      child: isNetwork
+          ? Image.network(
+              source,
+              fit: BoxFit.cover,
+              alignment: Alignment.topCenter,
+              errorBuilder: (context, error, stack) {
+                debugPrint('❌ Avatar (network) load failed: $source -> $error');
+                return letterFallback();
+              },
+            )
+          : Image.asset(
+              source,
+              fit: BoxFit.cover,
+              alignment: Alignment.topCenter,
+              errorBuilder: (context, error, stack) {
+                debugPrint('❌ Avatar (asset) load failed: $source -> $error');
+                return letterFallback();
+              },
+            ),
+    ),
+  );
 }
 
 class ChatsListTab extends StatefulWidget {
@@ -41,7 +110,7 @@ class ChatsListTab extends StatefulWidget {
 
 class _ChatsListTabState extends State<ChatsListTab> {
   static const Color darkGreen = Color(0xFF0F3D2E);
-  static const Color gold = Color(0xFFC9A24B);
+  static const Color bg = Color(0xFFFAF7F2);
 
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _sentDocs = [];
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _receivedDocs = [];
@@ -51,17 +120,36 @@ class _ChatsListTabState extends State<ChatsListTab> {
 
   StreamSubscription? _sentSub;
   StreamSubscription? _receivedSub;
+  StreamSubscription<User?>? _authSub;
 
-  // ✅ كاش لمعلومات المستخدمين باش ما نعاودوش نجيبهم كل مرة توصل رسالة جديدة
   final Map<String, Map<String, dynamic>?> _userCache = {};
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   String? get _myUid => FirebaseAuth.instance.currentUser?.uid;
 
   @override
   void initState() {
     super.initState();
-    final me = _myUid;
-    if (me == null) return;
+    // ✅ نستنو المستخدم يكون جاهز (auth state) قبل ما نربطو الـ streams،
+    // باش ما تبقاش الليستة "معلقة" إلا كانت initState تلقات قبل ما
+    // يكمل تسجيل الدخول.
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user != null) {
+        _attachStreams(user.uid);
+      }
+    });
+    if (_myUid != null) {
+      _attachStreams(_myUid!);
+    }
+    _searchController.addListener(() {
+      setState(() => _searchQuery = _searchController.text.trim());
+    });
+  }
+
+  void _attachStreams(String me) {
+    _sentSub?.cancel();
+    _receivedSub?.cancel();
 
     _sentSub = FirebaseFirestore.instance
         .collection('messages')
@@ -112,14 +200,18 @@ class _ChatsListTabState extends State<ChatsListTab> {
   void dispose() {
     _sentSub?.cancel();
     _receivedSub?.cancel();
+    _authSub?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
   Future<Map<String, dynamic>?> _getUserInfo(String uid) async {
     if (_userCache.containsKey(uid)) return _userCache[uid];
     try {
-      final doc =
-          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
       final data = doc.data();
       _userCache[uid] = data;
       return data;
@@ -130,12 +222,12 @@ class _ChatsListTabState extends State<ChatsListTab> {
     }
   }
 
-  // ✅ نجمعو آخر رسالة لكل chatId من الجوج القوائم (المرسلة + المستقبلة)
   List<_ConversationPreview> _buildConversations() {
     final me = _myUid;
     if (me == null) return [];
 
     final Map<String, _ConversationPreview> latestByChat = {};
+    final Map<String, int> unreadByChat = {};
 
     void process(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
       final data = doc.data();
@@ -149,7 +241,8 @@ class _ChatsListTabState extends State<ChatsListTab> {
       final text = (data['text'] as String?) ?? '';
 
       final existing = latestByChat[chatId];
-      final bool isNewer = existing == null ||
+      final bool isNewer =
+          existing == null ||
           existing.lastTimestamp == null ||
           (ts != null && ts.compareTo(existing.lastTimestamp!) > 0);
 
@@ -160,7 +253,18 @@ class _ChatsListTabState extends State<ChatsListTab> {
           lastMessage: text,
           lastTimestamp: ts,
           lastFromMe: fromUserId == me,
+          unreadCount: unreadByChat[chatId] ?? 0,
         );
+      }
+    }
+
+    for (final d in _receivedDocs) {
+      final data = d.data();
+      final chatId = data['chatId'] as String?;
+      if (chatId == null) continue;
+      final bool isRead = data['read'] == true;
+      if (!isRead) {
+        unreadByChat[chatId] = (unreadByChat[chatId] ?? 0) + 1;
       }
     }
 
@@ -171,7 +275,18 @@ class _ChatsListTabState extends State<ChatsListTab> {
       process(d);
     }
 
-    final list = latestByChat.values.toList();
+    final list = latestByChat.entries.map((entry) {
+      final p = entry.value;
+      return _ConversationPreview(
+        chatId: p.chatId,
+        otherUid: p.otherUid,
+        lastMessage: p.lastMessage,
+        lastTimestamp: p.lastTimestamp,
+        lastFromMe: p.lastFromMe,
+        unreadCount: unreadByChat[entry.key] ?? 0,
+      );
+    }).toList();
+
     list.sort((a, b) {
       if (a.lastTimestamp == null && b.lastTimestamp == null) return 0;
       if (a.lastTimestamp == null) return 1;
@@ -181,10 +296,130 @@ class _ChatsListTabState extends State<ChatsListTab> {
     return list;
   }
 
+  String _formatTimestamp(Timestamp? ts) {
+    if (ts == null) return '';
+    final now = DateTime.now();
+    final date = ts.toDate();
+    final diff = now.difference(date);
+
+    if (diff.inMinutes < 1) return 'الآن';
+    if (diff.inHours < 1) return 'منذ ${diff.inMinutes} د';
+    if (diff.inHours < 24 && now.day == date.day) {
+      final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
+      final minute = date.minute.toString().padLeft(2, '0');
+      final period = date.hour >= 12 ? 'م' : 'ص';
+      return '$hour:$minute $period';
+    }
+    if (diff.inDays < 7) {
+      const days = [
+        'الإثنين',
+        'الثلاثاء',
+        'الأربعاء',
+        'الخميس',
+        'الجمعة',
+        'السبت',
+        'الأحد',
+      ];
+      return days[date.weekday - 1];
+    }
+    return '${date.day}/${date.month}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final me = _myUid;
 
+    return Scaffold(
+      backgroundColor: bg,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(),
+            const SizedBox(height: 14),
+            _buildSearchBar(),
+            const SizedBox(height: 8),
+            Expanded(child: _buildBody(me)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // 🔝 الهيدر: "الدردشات" + وصف + زر خيارات
+  // ============================================================
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'الدردشات',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: darkGreen,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'تواصل بسهولة مع الجميع',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.more_vert_rounded, color: Colors.grey.shade600),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // 🔍 شريط البحث
+  // ============================================================
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        height: 46,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _searchController,
+                textAlign: TextAlign.right,
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  isDense: true,
+                  hintText: 'ابحث عن محادثة...',
+                  hintStyle: TextStyle(
+                    color: Colors.grey.shade500,
+                    fontSize: 13.5,
+                  ),
+                ),
+                style: const TextStyle(fontSize: 13.5),
+              ),
+            ),
+            Icon(Icons.search_rounded, color: Colors.grey.shade500, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(String? me) {
     if (me == null) {
       return _buildInfoState(
         icon: Icons.person_off_rounded,
@@ -202,9 +437,7 @@ class _ChatsListTabState extends State<ChatsListTab> {
     }
 
     if (!_sentLoaded || !_receivedLoaded) {
-      return const Center(
-        child: CircularProgressIndicator(color: darkGreen),
-      );
+      return const Center(child: CircularProgressIndicator(color: darkGreen));
     }
 
     final conversations = _buildConversations();
@@ -217,32 +450,38 @@ class _ChatsListTabState extends State<ChatsListTab> {
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 100),
+    return ListView.builder(
+      padding: const EdgeInsets.only(top: 4, bottom: 100),
       itemCount: conversations.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final convo = conversations[index];
         return FutureBuilder<Map<String, dynamic>?>(
           future: _getUserInfo(convo.otherUid),
           builder: (context, snap) {
             final userData = snap.data;
-            final name = (userData?['fullName'] as String?) ??
+            final name =
+                (userData?['fullName'] as String?) ??
                 (userData?['name'] as String?) ??
                 'مستخدم';
-            final avatarAsset = userData?['avatarAsset'] as String?;
-            final city = userData?['city'] as String?;
-            final isOnline = userData?['isOnline'] == true;
 
-            return _ConversationTile(
+            // ✅ فلترة البحث بالاسم
+            if (_searchQuery.isNotEmpty &&
+                !name.toLowerCase().contains(_searchQuery.toLowerCase())) {
+              return const SizedBox.shrink();
+            }
+
+            final avatarAsset =
+                (userData?['avatarAsset'] as String?) ??
+                (userData?['avatarPath'] as String?);
+
+            return _ConversationRow(
               name: name,
               avatarAsset: avatarAsset,
-              isOnline: isOnline,
               lastMessage: convo.lastMessage,
-              lastFromMe: convo.lastFromMe,
               timestamp: convo.lastTimestamp,
+              unreadCount: convo.unreadCount,
+              timeLabel: _formatTimestamp(convo.lastTimestamp),
               darkGreen: darkGreen,
-              gold: gold,
               onTap: () {
                 Navigator.push(
                   context,
@@ -250,7 +489,7 @@ class _ChatsListTabState extends State<ChatsListTab> {
                     builder: (_) => ChatConversationScreen(
                       personId: convo.otherUid,
                       personName: name,
-                      personCity: city,
+                      personCity: userData?['city'] as String?,
                       personAvatarAsset: avatarAsset,
                     ),
                   ),
@@ -309,185 +548,131 @@ class _ChatsListTabState extends State<ChatsListTab> {
 }
 
 // ============================================================
-// عنصر واحد فـ قائمة المحادثات (بحال Messenger/WhatsApp)
+// عنصر واحد فـ الليستة — نفس تصميم الصورة المرجعية بالضبط:
+// ليستة مسطحة، خط فاصل تحت كل عنصر، الوقت + badge على اليسار،
+// الاسم + آخر رسالة فـ الوسط (محاذاة يمين)، الأفاتار على اليمين.
 // ============================================================
-class _ConversationTile extends StatelessWidget {
+class _ConversationRow extends StatelessWidget {
   final String name;
   final String? avatarAsset;
-  final bool isOnline;
   final String lastMessage;
-  final bool lastFromMe;
   final Timestamp? timestamp;
+  final int unreadCount;
+  final String timeLabel;
   final Color darkGreen;
-  final Color gold;
   final VoidCallback onTap;
 
-  const _ConversationTile({
+  const _ConversationRow({
     required this.name,
     required this.avatarAsset,
-    required this.isOnline,
     required this.lastMessage,
-    required this.lastFromMe,
     required this.timestamp,
+    required this.unreadCount,
+    required this.timeLabel,
     required this.darkGreen,
-    required this.gold,
     required this.onTap,
   });
 
-  String _formatTimestamp(Timestamp? ts) {
-    if (ts == null) return '';
-    final now = DateTime.now();
-    final date = ts.toDate();
-    final diff = now.difference(date);
-
-    if (diff.inMinutes < 1) return 'الآن';
-    if (diff.inHours < 1) return 'منذ ${diff.inMinutes} د';
-    if (diff.inHours < 24 && now.day == date.day) {
-      final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
-      final minute = date.minute.toString().padLeft(2, '0');
-      final period = date.hour >= 12 ? 'م' : 'ص';
-      return '$hour:$minute $period';
-    }
-    if (diff.inDays < 7) {
-      const days = [
-        'الإثنين',
-        'الثلاثاء',
-        'الأربعاء',
-        'الخميس',
-        'الجمعة',
-        'السبت',
-        'الأحد',
-      ];
-      return days[date.weekday - 1];
-    }
-    return '${date.day}/${date.month}';
-  }
-
   @override
   Widget build(BuildContext context) {
-    final hasAvatar = avatarAsset != null && avatarAsset!.isNotEmpty;
+    final bool hasUnread = unreadCount > 0;
 
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: darkGreen.withValues(alpha: 0.05),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: Colors.grey.shade200, width: 1),
           ),
-          child: Row(
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ⏰ الوقت + عداد الغير مقروء (يسار)
+            SizedBox(
+              width: 56,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 54,
-                    height: 54,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: darkGreen.withValues(alpha: 0.08),
-                    ),
-                    child: ClipOval(
-                      child: hasAvatar
-                          ? SizedBox.expand(
-                              child: Image.asset(
-                                avatarAsset!,
-                                fit: BoxFit.cover,
-                                alignment: Alignment.topCenter,
-                                errorBuilder: (context, error, stack) => Icon(
-                                  Icons.person,
-                                  color: darkGreen,
-                                  size: 26,
-                                ),
-                              ),
-                            )
-                          : Icon(Icons.person, color: darkGreen, size: 26),
+                  Text(
+                    timeLabel,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: hasUnread ? darkGreen : Colors.grey.shade400,
+                      fontWeight: hasUnread
+                          ? FontWeight.w700
+                          : FontWeight.normal,
                     ),
                   ),
-                  if (isOnline)
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        width: 13,
-                        height: 13,
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade500,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
+                  if (hasUnread) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      width: 20,
+                      height: 20,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: darkGreen,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        unreadCount > 9 ? '9+' : '$unreadCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
+                  ],
                 ],
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 14.5,
-                              color: Color(0xFF0F3D2E),
-                            ),
-                          ),
-                        ),
-                        Text(
-                          _formatTimestamp(timestamp),
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey.shade400,
-                          ),
-                        ),
-                      ],
+            ),
+            const SizedBox(width: 10),
+            // 📝 الاسم + آخر رسالة (محاذاة يمين)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    name,
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15.5,
+                      color: darkGreen,
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        if (lastFromMe)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 4),
-                            child: Icon(
-                              Icons.done_rounded,
-                              size: 15,
-                              color: Colors.grey.shade400,
-                            ),
-                          ),
-                        Expanded(
-                          child: Text(
-                            lastMessage.isEmpty ? '📎 رسالة' : lastMessage,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ),
-                      ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    lastMessage.isEmpty ? '📎 رسالة' : lastMessage,
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: hasUnread
+                          ? Colors.grey.shade700
+                          : Colors.grey.shade500,
+                      fontWeight: hasUnread
+                          ? FontWeight.w600
+                          : FontWeight.normal,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 12),
+            // 🖼️ الأفاتار (يمين)
+            buildAvatarImage(
+              source: avatarAsset,
+              name: name,
+              size: 52,
+              fallbackColor: darkGreen,
+            ),
+          ],
         ),
       ),
     );

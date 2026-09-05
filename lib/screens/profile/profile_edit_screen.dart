@@ -94,7 +94,11 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         _educationLevel = data['educationLevel'] as String?;
         _city = data['city'] as String?;
         _maritalStatus = data['maritalStatus'] as String?;
-        _avatarAsset = data['avatarAsset'] as String?;
+        // ✅ Fallback: بعض الحسابات القديمة تخزنو تحت "avatarPath" بدل
+        // "avatarAsset" (نسخة قديمة من avatar_selection.dart). نقرا
+        // الحقلين بجوج باش ما يبقاش حتى حساب بلا أفاتار.
+        _avatarAsset =
+            (data['avatarAsset'] as String?) ?? (data['avatarPath'] as String?);
         _ageMin = preferences['ageMin'] as int?;
         _ageMax = preferences['ageMax'] as int?;
         _prefCity =
@@ -147,6 +151,40 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     );
     if (!mounted) return;
     await _loadProfile();
+  }
+
+  // ============================================================
+  // ✅ صورة الأفاتار — تدعم رابط شبكة (Firebase Storage) و asset محلي
+  // (نفس المنطق لي كاين فـ home_screen.dart)
+  // ============================================================
+  static Widget _buildAvatarImage({
+    required String? source,
+    required double size,
+  }) {
+    if (source == null || source.trim().isEmpty) {
+      return const Icon(Icons.person, size: 56, color: kDarkGreen);
+    }
+    final isNetwork =
+        source.startsWith('http://') || source.startsWith('https://');
+    return isNetwork
+        ? Image.network(
+            source,
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
+            errorBuilder: (context, error, stack) {
+              debugPrint('❌ Avatar (network) load failed: $source -> $error');
+              return const Icon(Icons.person, size: 56, color: kDarkGreen);
+            },
+          )
+        : Image.asset(
+            source,
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
+            errorBuilder: (context, error, stack) {
+              debugPrint('❌ Avatar (asset) load failed: $source -> $error');
+              return const Icon(Icons.person, size: 56, color: kDarkGreen);
+            },
+          );
   }
 
   @override
@@ -219,25 +257,10 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                           child: ClipOval(
                             child: Container(
                               color: kDarkGreen.withValues(alpha: 0.08),
-                              child:
-                                  (_avatarAsset == null ||
-                                      _avatarAsset!.isEmpty)
-                                  ? const Icon(
-                                      Icons.person,
-                                      size: 56,
-                                      color: kDarkGreen,
-                                    )
-                                  : Image.asset(
-                                      _avatarAsset!,
-                                      fit: BoxFit.cover,
-                                      alignment: Alignment.topCenter,
-                                      errorBuilder: (context, error, stack) =>
-                                          const Icon(
-                                            Icons.person,
-                                            size: 56,
-                                            color: kDarkGreen,
-                                          ),
-                                    ),
+                              child: _buildAvatarImage(
+                                source: _avatarAsset,
+                                size: 94,
+                              ),
                             ),
                           ),
                         ),

@@ -4,9 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../auth/login_screen.dart';
 import '../profile/profile_edit_screen.dart';
+import '../chat/chat_list_tab.dart';
 import 'discover_tab.dart';
-import '../chat/chat_list_tab.dart'; 
-
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,6 +18,7 @@ class _NearbyPerson {
   final String uid;
   final String name;
   final String city;
+  final int? age;
   final String? avatarAsset;
   final bool isOnline;
 
@@ -26,6 +26,7 @@ class _NearbyPerson {
     required this.uid,
     required this.name,
     required this.city,
+    required this.age,
     required this.avatarAsset,
     required this.isOnline,
   });
@@ -51,10 +52,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _matches = 0;
   int _messages = 0;
   int _likes = 0;
+  int _points = 0;
 
   // ✅ حالة "متصل الآن" اليدوية (Ghost mode)
   bool _isOnline = true;
   bool _isTogglingOnline = false;
+
+  final Set<String> _likedUids = {};
 
   // ============================================================
   // تحميل بيانات المستخدم
@@ -90,9 +94,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             user.displayName ??
             user.email ??
             'مستخدم';
-        _avatarAsset = data['avatarAsset'] as String?;
+        _avatarAsset =
+            (data['avatarAsset'] as String?) ?? (data['avatarPath'] as String?);
         _myCity = data['city'] as String?;
         _isOnline = data['isOnline'] as bool? ?? true;
+        _points = (data['points'] as num?)?.toInt() ?? 0;
         _isLoading = false;
       });
 
@@ -136,7 +142,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   (data['name'] as String?) ??
                   'مستخدم',
               city: (data['city'] as String?) ?? city,
-              avatarAsset: data['avatarAsset'] as String?,
+              age: (data['age'] as num?)?.toInt(),
+              avatarAsset:
+                  (data['avatarAsset'] as String?) ??
+                  (data['avatarPath'] as String?),
               isOnline: data['isOnline'] == true,
             );
           })
@@ -171,10 +180,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  // ============================================================
-  // ✅ Toggle يدوي لحالة "متصل" — تقدر تخبي روحك (Ghost mode) حتى
-  // وأنتَ فاتح التطبيق
-  // ============================================================
   Future<void> _toggleOnlineStatus() async {
     if (_isTogglingOnline) return;
     setState(() {
@@ -214,9 +219,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   // ============================================================
   // ✅ إحصائيات حقيقية من Firestore (aggregate count queries)
-  // Schema: 'likes' {fromUserId, toUserId, timestamp}
-  //         'matches' {users: [uid1, uid2], timestamp}
-  //         'messages' {fromUserId, toUserId, text, timestamp}
   // ============================================================
   Future<void> _loadRealStats(String uid) async {
     try {
@@ -268,13 +270,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadUserData();
-    _setOnlineStatus(true); // ✅ "متصل الآن" كي يفتح الهوم
+    _setOnlineStatus(true);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _setOnlineStatus(false); // ✅ "غير متصل" كي يسكر/يخرج
+    _setOnlineStatus(false);
     super.dispose();
   }
 
@@ -290,25 +292,73 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ============================================================
-  // ✅ الأفاتار الحقيقي — دابا ياخد بالضبط قياس الدائرة
+  // ✅ صورة الأفاتار — تدعم رابط شبكة (Firebase Storage) و asset محلي
+  // هذا هو الإصلاح: قبل كان الكود يستعمل Image.asset بشكل دائم حتى
+  // إلا كان avatarAsset فـ الحقيقة رابط http (من Firebase Storage) ،
+  // ولي كان كيبان errorBuilder ويرجع للأيقونة الافتراضية بصمت.
   // ============================================================
-  Widget _buildAvatarImage({required double size}) {
-    if (_avatarAsset == null || _avatarAsset!.isEmpty) {
-      return Icon(Icons.person, size: size * 0.6, color: darkGreen);
+  static Widget buildAvatar({
+    required String? source,
+    required double size,
+    required Color fallbackColor,
+  }) {
+    if (source == null || source.trim().isEmpty) {
+      return Icon(Icons.person, size: size * 0.6, color: fallbackColor);
     }
+
+    final isNetwork =
+        source.startsWith('http://') || source.startsWith('https://');
+
     return ClipOval(
       child: SizedBox(
         width: size,
         height: size,
-        child: Image.asset(
-          _avatarAsset!,
-          fit: BoxFit.cover,
-          alignment: Alignment.topCenter,
-          errorBuilder: (context, error, stack) {
-            debugPrint('❌ Home avatar load failed: $_avatarAsset -> $error');
-            return Icon(Icons.person, size: size * 0.6, color: darkGreen);
-          },
-        ),
+        child: isNetwork
+            ? Image.network(
+                source,
+                fit: BoxFit.cover,
+                alignment: Alignment.topCenter,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return Center(
+                    child: SizedBox(
+                      width: size * 0.35,
+                      height: size * 0.35,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: fallbackColor,
+                        value: progress.expectedTotalBytes != null
+                            ? (progress.cumulativeBytesLoaded /
+                                  progress.expectedTotalBytes!)
+                            : null,
+                      ),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stack) {
+                  debugPrint(
+                    '❌ Avatar (network) load failed: $source -> $error',
+                  );
+                  return Icon(
+                    Icons.person,
+                    size: size * 0.6,
+                    color: fallbackColor,
+                  );
+                },
+              )
+            : Image.asset(
+                source,
+                fit: BoxFit.cover,
+                alignment: Alignment.topCenter,
+                errorBuilder: (context, error, stack) {
+                  debugPrint('❌ Avatar (asset) load failed: $source -> $error');
+                  return Icon(
+                    Icons.person,
+                    size: size * 0.6,
+                    color: fallbackColor,
+                  );
+                },
+              ),
       ),
     );
   }
@@ -325,9 +375,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _loadUserData();
   }
 
-  // ============================================================
-  // ✅ نقرة على شريط التنقل السفلي
-  // ============================================================
   void _onNavTap(int index) {
     if (index == 3) {
       _openProfile();
@@ -418,7 +465,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           children: [
             _buildHomeTab(),
             const DiscoverTab(),
-           const ChatsListTab(),
+            const ChatsListTab(),
           ],
         ),
       ),
@@ -441,11 +488,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           children: [
             const SizedBox(height: 12),
             _buildHeader(),
-            const SizedBox(height: 22),
+            const SizedBox(height: 24),
+            _buildTagline(),
+            const SizedBox(height: 18),
             _buildStatsCard(),
+            const SizedBox(height: 18),
+            _buildSearchBar(),
             const SizedBox(height: 26),
             const Text(
-              'الخيارات السريعة',
+              'أشخاص مقترحون',
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
@@ -453,33 +504,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
             ),
             const SizedBox(height: 14),
-            _buildQuickActionsGrid(),
-            const SizedBox(height: 26),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'أحدث التوصيات',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: darkGreen,
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    // TODO: عرض الكل
-                  },
-                  style: TextButton.styleFrom(foregroundColor: gold),
-                  child: const Text(
-                    'عرض الكل',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            _buildNearbyList(),
+            _buildNearbyGrid(),
             const SizedBox(height: 22),
             SizedBox(
               width: double.infinity,
@@ -507,7 +532,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
               ),
             ),
-            const SizedBox(height: 100), // مساحة فوق الـ bottom nav العائم
+            const SizedBox(height: 100),
           ],
         ),
       ),
@@ -515,7 +540,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ============================================================
-  // HEADER: الأفاتار + الترحيب + زر Ghost mode + الإعدادات
+  // HEADER: الأفاتار + الترحيب + جرس الإشعارات + الإعدادات
   // ============================================================
   Widget _buildHeader() {
     return Row(
@@ -526,34 +551,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             clipBehavior: Clip.none,
             children: [
               Container(
-                padding: const EdgeInsets.all(2.5),
+                width: 60,
+                height: 60,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: gold, width: 2.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: gold.withValues(alpha: 0.22),
-                      blurRadius: 14,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
+                  color: darkGreen.withValues(alpha: 0.08),
                 ),
-                child: Container(
-                  width: 62,
-                  height: 62,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: darkGreen.withValues(alpha: 0.08),
-                  ),
-                  child: _buildAvatarImage(size: 62),
+                child: buildAvatar(
+                  source: _avatarAsset,
+                  size: 60,
+                  fallbackColor: darkGreen,
                 ),
               ),
               Positioned(
                 bottom: 1,
                 right: 1,
                 child: Container(
-                  width: 15,
-                  height: 15,
+                  width: 14,
+                  height: 14,
                   decoration: BoxDecoration(
                     color: _isOnline
                         ? Colors.green.shade500
@@ -597,11 +612,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           onTap: _toggleOnlineStatus,
         ),
         const SizedBox(width: 8),
-        _CircleIconButton(
-          icon: Icons.notifications_outlined,
-          iconColor: darkGreen,
+        _PointsBasketButton(
+          points: _points,
+          darkGreen: darkGreen,
+          gold: gold,
           onTap: () {
-            // TODO: فتح صفحة الإشعارات
+            // TODO: فتح صفحة النقاط / المتجر
           },
         ),
         const SizedBox(width: 8),
@@ -613,6 +629,73 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           },
         ),
       ],
+    );
+  }
+
+  Widget _buildTagline() {
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          RichText(
+            textAlign: TextAlign.center,
+            text: const TextSpan(
+              children: [
+                TextSpan(
+                  text: 'ابحث عن شخص يشاركك الاهتمامات ',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: darkGreen,
+                  ),
+                ),
+                TextSpan(text: '✨', style: TextStyle(fontSize: 18)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'اكتشف أشخاص جدد وتعرّف عليهم',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13.5, color: Colors.grey.shade600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      height: 54,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.12),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.search_rounded, color: darkGreen.withValues(alpha: 0.6)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              textAlign: TextAlign.right,
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                hintText: 'ابحث عن شخص...',
+                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -655,134 +738,69 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildQuickActionsGrid() {
-    return GridView.count(
+  // ============================================================
+  // ✅ شبكة "أشخاص مقترحون" — 3 أعمدة، بنفس شكل الصورة المرجعية
+  // ============================================================
+  Widget _buildNearbyGrid() {
+    if (_isLoadingNearby) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 30),
+        child: Center(child: CircularProgressIndicator(color: darkGreen)),
+      );
+    }
+    if (_nearbyPeople.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 30),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(
+                Icons.people_outline_rounded,
+                color: Colors.grey.shade300,
+                size: 36,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'ماكاين حتى حد فـ نفس مدينتك دابا',
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 4,
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 12,
-      childAspectRatio: 0.8,
-      children: [
-        _buildQuickAction(
-          icon: Icons.person_outline_rounded,
-          label: 'الملف الشخصي',
-          color: Colors.blue.shade700,
-          onTap: _openProfile,
-        ),
-        _buildQuickAction(
-          icon: Icons.search_rounded,
-          label: 'البحث',
-          color: darkGreen,
-          onTap: () {
-            // TODO: فتح صفحة البحث
-          },
-        ),
-        _buildQuickAction(
-          icon: Icons.chat_bubble_outline_rounded,
-          label: 'الرسائل',
-          color: Colors.orange.shade700,
-          onTap: () => _onNavTap(2),
-        ),
-        _buildQuickAction(
-          icon: Icons.favorite_outline_rounded,
-          label: 'المفضلة',
-          color: Colors.red.shade400,
-          onTap: () => _onNavTap(1),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildNearbyList() {
-    return SizedBox(
-      height: 200,
-      child: _isLoadingNearby
-          ? const Center(child: CircularProgressIndicator(color: darkGreen))
-          : _nearbyPeople.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.people_outline_rounded,
-                    color: Colors.grey.shade300,
-                    size: 36,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'ماكاين حتى حد فـ نفس مدينتك دابا',
-                    style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _nearbyPeople.length,
-              itemBuilder: (context, index) {
-                final person = _nearbyPeople[index];
-                return _NearbyCard(
-                  person: person,
-                  darkGreen: darkGreen,
-                  gold: gold,
-                );
-              },
-            ),
-    );
-  }
-
-  // ============================================================
-  // ✅ تبويب "الدردشة" مؤقت
-  // ============================================================
-  Widget _buildPlaceholderTab({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(26),
-              decoration: BoxDecoration(
-                color: darkGreen.withValues(alpha: 0.08),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: darkGreen.withValues(alpha: 0.06),
-                    blurRadius: 18,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Icon(icon, size: 46, color: darkGreen),
-            ),
-            const SizedBox(height: 22),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: darkGreen,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey.shade500,
-                height: 1.5,
-              ),
-            ),
-          ],
-        ),
+      itemCount: _nearbyPeople.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 14,
+        childAspectRatio: 0.6,
       ),
+      itemBuilder: (context, index) {
+        final person = _nearbyPeople[index];
+        return _SuggestedCard(
+          person: person,
+          darkGreen: darkGreen,
+          gold: gold,
+          isLiked: _likedUids.contains(person.uid),
+          onLikeTap: () {
+            setState(() {
+              if (_likedUids.contains(person.uid)) {
+                _likedUids.remove(person.uid);
+              } else {
+                _likedUids.add(person.uid);
+              }
+            });
+          },
+          onViewProfile: () {
+            // TODO: فتح صفحة الملف الشخصي لهذا الشخص
+          },
+        );
+      },
     );
   }
 
@@ -890,7 +908,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildProfileNavIcon(bool selected) {
-    final hasAvatar = _avatarAsset != null && _avatarAsset!.isEmpty == false;
     return AnimatedScale(
       duration: const Duration(milliseconds: 200),
       scale: selected ? 1.0 : 0.92,
@@ -904,25 +921,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             width: 2,
           ),
         ),
-        child: ClipOval(
-          child: hasAvatar
-              ? SizedBox.expand(
-                  child: Image.asset(
-                    _avatarAsset!,
-                    fit: BoxFit.cover,
-                    alignment: Alignment.topCenter,
-                    errorBuilder: (context, error, stack) => Icon(
-                      Icons.person,
-                      size: 16,
-                      color: selected ? Colors.white : Colors.grey.shade400,
-                    ),
-                  ),
-                )
-              : Icon(
-                  Icons.person,
-                  size: 16,
-                  color: selected ? Colors.white : Colors.grey.shade400,
-                ),
+        child: buildAvatar(
+          source: _avatarAsset,
+          size: 30,
+          fallbackColor: selected ? Colors.white : Colors.grey.shade400,
         ),
       ),
     );
@@ -955,50 +957,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildQuickAction({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(13),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.08),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Icon(icon, color: color, size: 23),
-          ),
-          const SizedBox(height: 7),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
     );
   }
 }
@@ -1048,147 +1006,234 @@ class _NavItemData {
 }
 
 // ============================================================
-// كارت شخص قريب (نفس المدينة) — بيانات حقيقية من Firestore
+// زر "النقاط" (سلة/basket) — يعوض جرس الإشعارات، وكيبان فوقه عدد
+// النقاط الحالي فـ badge صغير لون ذهبي
 // ============================================================
-class _NearbyCard extends StatelessWidget {
+class _PointsBasketButton extends StatelessWidget {
+  final int points;
+  final Color darkGreen;
+  final Color gold;
+  final VoidCallback onTap;
+
+  const _PointsBasketButton({
+    required this.points,
+    required this.darkGreen,
+    required this.gold,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withValues(alpha: 0.12),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: IconButton(
+              icon: Icon(
+                Icons.shopping_basket_rounded,
+                color: darkGreen,
+                size: 20,
+              ),
+              onPressed: onTap,
+              padding: const EdgeInsets.all(8),
+              constraints: const BoxConstraints(),
+            ),
+          ),
+          if (points > 0)
+            Positioned(
+              top: -4,
+              left: -4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                constraints: const BoxConstraints(minWidth: 18),
+                decoration: BoxDecoration(
+                  color: gold,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white, width: 1.5),
+                ),
+                child: Text(
+                  points > 99 ? '99+' : '$points',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================
+// كارت "شخص مقترح" — بنفس تصميم الصورة المرجعية: قلب فوق، أفاتار
+// دائري بنقطة أونلاين، اسم، عمر، مدينة، وزر "عرض الملف"
+// ============================================================
+class _SuggestedCard extends StatelessWidget {
   final _NearbyPerson person;
   final Color darkGreen;
   final Color gold;
+  final bool isLiked;
+  final VoidCallback onLikeTap;
+  final VoidCallback onViewProfile;
 
-  const _NearbyCard({
+  const _SuggestedCard({
     required this.person,
     required this.darkGreen,
     required this.gold,
+    required this.isLiked,
+    required this.onLikeTap,
+    required this.onViewProfile,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 136,
-      margin: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.14),
-            blurRadius: 16,
-            offset: const Offset(0, 7),
+            color: Colors.grey.withValues(alpha: 0.12),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            person.avatarAsset == null || person.avatarAsset!.isEmpty
-                ? Container(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: onLikeTap,
+            child: Icon(
+              isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+              size: 18,
+              color: isLiked ? Colors.red.shade400 : darkGreen,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Center(
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
                     color: darkGreen.withValues(alpha: 0.08),
-                    child: Icon(Icons.person, size: 44, color: darkGreen),
-                  )
-                : Image.asset(
-                    person.avatarAsset!,
-                    fit: BoxFit.cover,
-                    alignment: Alignment.topCenter,
-                    errorBuilder: (context, error, stack) {
-                      debugPrint(
-                        '❌ Nearby avatar failed: ${person.avatarAsset} -> $error',
-                      );
-                      return Container(
-                        color: darkGreen.withValues(alpha: 0.08),
-                        child: Icon(Icons.person, size: 44, color: darkGreen),
-                      );
-                    },
                   ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(10, 26, 10, 10),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0),
-                      Colors.black.withValues(alpha: 0.78),
-                    ],
+                  child: _HomeScreenState.buildAvatar(
+                    source: person.avatarAsset,
+                    size: 56,
+                    fallbackColor: darkGreen,
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      person.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        fontSize: 14,
+                if (person.isOnline)
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade500,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    Row(
-                      children: [
-                        Icon(Icons.location_on_rounded, size: 11, color: gold),
-                        const SizedBox(width: 2),
-                        Expanded(
-                          child: Text(
-                            person.city,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: Colors.white70,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            person.name,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              color: darkGreen,
+              fontSize: 13.5,
+            ),
+          ),
+          if (person.age != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              '${person.age} سنة',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: gold,
+                fontWeight: FontWeight.w700,
+                fontSize: 11.5,
+              ),
+            ),
+          ],
+          const SizedBox(height: 2),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.location_on_rounded,
+                size: 11,
+                color: Colors.grey.shade400,
+              ),
+              const SizedBox(width: 2),
+              Expanded(
+                child: Text(
+                  person.city,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 10.5, color: Colors.grey.shade500),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            height: 30,
+            child: ElevatedButton(
+              onPressed: onViewProfile,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: darkGreen,
+                elevation: 0,
+                padding: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              child: const Text(
+                'عرض الملف',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
-            if (person.isOnline)
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade600,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.green.withValues(alpha: 0.3),
-                        blurRadius: 6,
-                      ),
-                    ],
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.circle, size: 6, color: Colors.white),
-                      SizedBox(width: 4),
-                      Text(
-                        'متصل الآن',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

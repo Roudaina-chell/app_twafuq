@@ -1,7 +1,8 @@
-// screens/profile/profile_view_screen.dart
+// screens/chat/profile_view_screen.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'report_user_screen.dart';
 
 class ProfileViewScreen extends StatefulWidget {
   final String userId;
@@ -24,18 +25,28 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
 
   bool _isLoading = true;
   bool _isBlocked = false;
+  bool _isMuted = false;
+  bool _isDisappearing = false;
   bool _isSubmitting = false;
+  int _unreadNotifCount = 0;
   String? _errorMessage;
 
   Map<String, dynamic>? _userData;
 
   String get _myUid => FirebaseAuth.instance.currentUser?.uid ?? '';
 
+  String get _chatId {
+    final ids = [_myUid, widget.userId]..sort();
+    return ids.join('_');
+  }
+
   @override
   void initState() {
     super.initState();
     _loadProfile();
     _checkIfBlocked();
+    _checkIfMuted();
+    _loadChatSettings();
   }
 
   Future<void> _loadProfile() async {
@@ -74,8 +85,7 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
           .collection('blocked')
           .doc(widget.userId)
           .get();
-
-      if (doc.exists) {
+      if (mounted && doc.exists) {
         setState(() => _isBlocked = true);
       }
     } catch (e) {
@@ -83,23 +93,94 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
     }
   }
 
+  // ============================================================
+  // 🔕 كتم الإشعارات لهاذ المحادثة (users/{me}/muted/{otherUid})
+  // ============================================================
+  Future<void> _checkIfMuted() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_myUid)
+          .collection('muted')
+          .doc(widget.userId)
+          .get();
+      if (mounted && doc.exists) {
+        setState(() => _isMuted = true);
+      }
+    } catch (e) {
+      debugPrint('❌ Check muted failed: $e');
+    }
+  }
+
+  Future<void> _toggleMute() async {
+    try {
+      final ref = FirebaseFirestore.instance
+          .collection('users')
+          .doc(_myUid)
+          .collection('muted')
+          .doc(widget.userId);
+      if (_isMuted) {
+        await ref.delete();
+      } else {
+        await ref.set({'mutedAt': FieldValue.serverTimestamp()});
+      }
+      if (!mounted) return;
+      setState(() => _isMuted = !_isMuted);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _isMuted ? '🔕 تم كتم إشعارات هذه المحادثة' : '🔔 تم إلغاء الكتم',
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('❌ Toggle mute failed: $e');
+    }
+  }
+
+  // ============================================================
+  // ⏱️ إعدادات المحادثة (الرسائل ذاتية الاختفاء) — chatSettings/{chatId}
+  // ============================================================
+  Future<void> _loadChatSettings() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('chatSettings')
+          .doc(_chatId)
+          .get();
+      if (mounted && doc.exists) {
+        setState(() => _isDisappearing = doc.data()?['disappearing'] == true);
+      }
+    } catch (e) {
+      debugPrint('❌ Load chat settings failed: $e');
+    }
+  }
+
+  Future<void> _toggleDisappearing() async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('chatSettings')
+          .doc(_chatId)
+          .set({'disappearing': !_isDisappearing}, SetOptions(merge: true));
+      if (!mounted) return;
+      setState(() => _isDisappearing = !_isDisappearing);
+    } catch (e) {
+      debugPrint('❌ Toggle disappearing failed: $e');
+    }
+  }
+
   Future<void> _toggleBlock() async {
     if (_isSubmitting) return;
-
     setState(() => _isSubmitting = true);
-
     try {
+      final ref = FirebaseFirestore.instance
+          .collection('users')
+          .doc(_myUid)
+          .collection('blocked')
+          .doc(widget.userId);
+
       if (_isBlocked) {
-        // 🔓 إلغاء الحظر
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(_myUid)
-            .collection('blocked')
-            .doc(widget.userId)
-            .delete();
-
+        await ref.delete();
         setState(() => _isBlocked = false);
-
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -109,19 +190,19 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
           );
         }
       } else {
-        // 🔒 حظر المستخدم
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(_myUid)
-            .collection('blocked')
-            .doc(widget.userId)
-            .set({
+        final confirm = await _confirmDialog(
+          title: 'حظر المستخدم',
+          message: 'لن يتمكن هذا المستخدم من مراسلتك أو رؤية معلوماتك. متأكد؟',
+          confirmLabel: 'حظر',
+          confirmColor: Colors.red,
+        );
+        if (confirm != true) return;
+
+        await ref.set({
           'blockedUserId': widget.userId,
           'blockedAt': FieldValue.serverTimestamp(),
         });
-
         setState(() => _isBlocked = true);
-
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -129,10 +210,8 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
               backgroundColor: Colors.red,
             ),
           );
+          Navigator.pop(context);
         }
-
-        // رجوع للشاشة السابقة
-        Navigator.pop(context);
       }
     } catch (e) {
       debugPrint('❌ Block toggle failed: $e');
@@ -149,109 +228,200 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
     }
   }
 
-  Future<void> _reportUser() async {
-    if (_isSubmitting) return;
+  // ============================================================
+  // 🗑️ حذف المحادثة كاملة (كل الرسائل بيناتي أنا وهو)
+  // ============================================================
+  Future<void> _deleteConversation() async {
+    final confirm = await _confirmDialog(
+      title: 'حذف المحادثة',
+      message: 'غادي تتحذف كل الرسائل بيناتكم نهائياً. هاذ الشي ما يتراجعش.',
+      confirmLabel: 'حذف',
+      confirmColor: Colors.red,
+    );
+    if (confirm != true) return;
 
-    // عرض حوار لإدخال سبب البلاغ
-    final TextEditingController reasonController = TextEditingController();
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('messages')
+          .where('chatId', isEqualTo: _chatId)
+          .get();
+      final batch = FirebaseFirestore.instance.batch();
+      for (final doc in snap.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('🗑️ تم حذف المحادثة')));
+        // ✅ نرجعو 2 pops: هاذي الصفحة (profile view) + المحادثة لي
+        // تحذفات — كنرجعو لقائمة المحادثات، ماشي لأول صفحة فـ التطبيق
+        Navigator.pop(context);
+        if (mounted) Navigator.pop(context);
+      }
+    } catch (e) {
+      debugPrint('❌ Delete conversation failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('❌ فشل الحذف: $e')));
+      }
+    }
+  }
 
-    showDialog(
+  Future<bool?> _confirmDialog({
+    required String title,
+    required String message,
+    required String confirmLabel,
+    required Color confirmColor,
+  }) {
+    return showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'الإبلاغ عن مستخدم',
-          style: TextStyle(color: darkGreen, fontWeight: FontWeight.bold),
+        title: Text(
+          title,
+          style: const TextStyle(color: darkGreen, fontWeight: FontWeight.bold),
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'يرجى ذكر سبب الإبلاغ عن هذا المستخدم:',
-              style: TextStyle(fontSize: 13),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: reasonController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: 'اكتب السبب هنا...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ],
-        ),
+        content: Text(message, style: const TextStyle(fontSize: 13)),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(ctx, false),
             child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
-            onPressed: () async {
-              final reason = reasonController.text.trim();
-              if (reason.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('يرجى كتابة سبب الإبلاغ'),
-                    backgroundColor: Colors.orange,
-                  ),
-                );
-                return;
-              }
-
-              Navigator.pop(context);
-              await _submitReport(reason);
-            },
+            onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: confirmColor,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text('إبلاغ', style: TextStyle(color: Colors.white)),
+            child: Text(
+              confirmLabel,
+              style: const TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _submitReport(String reason) async {
-    setState(() => _isSubmitting = true);
-
+  // ============================================================
+  // 🔍 بحث بسيط فـ رسائل هاذ المحادثة (فلترة من جانب العميل)
+  // ============================================================
+  Future<void> _openSearch() async {
+    final controller = TextEditingController();
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> allDocs = [];
     try {
-      await FirebaseFirestore.instance.collection('reports').add({
-        'reporterUserId': _myUid,
-        'reportedUserId': widget.userId,
-        'reportedUserName': widget.userName,
-        'reason': reason,
-        'timestamp': FieldValue.serverTimestamp(),
-        'status': 'pending',
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم إرسال البلاغ بنجاح، شكراً لك'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pop(context);
-      }
+      final snap = await FirebaseFirestore.instance
+          .collection('messages')
+          .where('chatId', isEqualTo: _chatId)
+          .orderBy('timestamp', descending: true)
+          .get();
+      allDocs = snap.docs;
     } catch (e) {
-      debugPrint('❌ Report failed: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('حدث خطأ، عاود المحاولة'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
+      debugPrint('❌ Search load failed: $e');
     }
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            final query = controller.text.trim();
+            final results = query.isEmpty
+                ? <QueryDocumentSnapshot<Map<String, dynamic>>>[]
+                : allDocs.where((d) {
+                    final text = (d.data()['text'] as String?) ?? '';
+                    return text.contains(query);
+                  }).toList();
+
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+              ),
+              child: SizedBox(
+                height: MediaQuery.of(ctx).size.height * 0.6,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.search_rounded, color: darkGreen),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: controller,
+                            autofocus: true,
+                            textAlign: TextAlign.right,
+                            decoration: const InputDecoration(
+                              hintText: 'ابحث في المحادثة...',
+                              border: InputBorder.none,
+                            ),
+                            onChanged: (_) => setModalState(() {}),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Divider(),
+                    Expanded(
+                      child: query.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'اكتب باش تبدا البحث',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            )
+                          : results.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'ماكاين حتى نتيجة',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            )
+                          : ListView.builder(
+                              itemCount: results.length,
+                              itemBuilder: (context, index) {
+                                final data = results[index].data();
+                                final text = (data['text'] as String?) ?? '';
+                                final ts = data['timestamp'] as Timestamp?;
+                                return ListTile(
+                                  leading: const Icon(
+                                    Icons.chat_bubble_outline_rounded,
+                                    color: darkGreen,
+                                  ),
+                                  title: Text(
+                                    text,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  subtitle: ts != null
+                                      ? Text(
+                                          '${ts.toDate().day}/${ts.toDate().month}/${ts.toDate().year}',
+                                          style: const TextStyle(fontSize: 11),
+                                        )
+                                      : null,
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -261,23 +431,37 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.5,
-        title: Text(
-          'الملف الشخصي',
-          style: const TextStyle(
-            color: darkGreen,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
         iconTheme: const IconThemeData(color: darkGreen),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded, color: darkGreen),
+            onSelected: (value) {
+              if (value == 'delete') _deleteConversation();
+            },
+            itemBuilder: (ctx) => [
+              const PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.delete_outline_rounded,
+                      color: Colors.red,
+                      size: 20,
+                    ),
+                    SizedBox(width: 10),
+                    Text('حذف المحادثة'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: darkGreen),
-            )
+          ? const Center(child: CircularProgressIndicator(color: darkGreen))
           : _errorMessage != null
-              ? _buildErrorState()
-              : _buildProfileContent(),
+          ? _buildErrorState()
+          : _buildProfileContent(),
     );
   }
 
@@ -312,78 +496,67 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
     );
   }
 
+  Widget _buildAvatarImage(String? source, double size) {
+    if (source == null || source.trim().isEmpty) {
+      return Icon(Icons.person, size: size * 0.55, color: darkGreen);
+    }
+    final isNetwork =
+        source.startsWith('http://') || source.startsWith('https://');
+    return isNetwork
+        ? Image.network(
+            source,
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
+            errorBuilder: (context, error, stack) =>
+                Icon(Icons.person, size: size * 0.55, color: darkGreen),
+          )
+        : Image.asset(
+            source,
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
+            errorBuilder: (context, error, stack) =>
+                Icon(Icons.person, size: size * 0.55, color: darkGreen),
+          );
+  }
+
   Widget _buildProfileContent() {
     if (_userData == null) {
       return const Center(child: Text('لا توجد بيانات'));
     }
 
     final data = _userData!;
-    final String name = data['fullName'] as String? ?? data['name'] as String? ?? 'مستخدم';
-    final int? age = data['age'] as int?;
+    final String name =
+        data['fullName'] as String? ?? data['name'] as String? ?? 'مستخدم';
     final String city = data['city'] as String? ?? '';
-    final String occupation = data['occupation'] as String? ?? data['job'] as String? ?? '';
-    final String education = data['educationLevel'] as String? ?? '';
-    final String bio = data['bio'] as String? ?? data['about'] as String? ?? '';
-    final String? avatarAsset = data['avatarAsset'] as String?;
+    final String? avatarAsset =
+        (data['avatarAsset'] as String?) ?? (data['avatarPath'] as String?);
     final bool isOnline = data['isOnline'] == true;
+    final Timestamp? joinedAt = data['createdAt'] as Timestamp?;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // ============================================================
-          // ✅ بطاقة المعلومات الأساسية
+          // ✅ الأفاتار + الاسم + الحالة (بحال الصورة المرجعية)
           // ============================================================
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withValues(alpha: 0.08),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
+          Center(
             child: Column(
               children: [
-                // الأفاتار مع الحالة
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
                     Container(
-                      width: 100,
-                      height: 100,
+                      width: 96,
+                      height: 96,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: gold, width: 3),
-                        boxShadow: [
-                          BoxShadow(
-                            color: gold.withValues(alpha: 0.25),
-                            blurRadius: 16,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
+                        color: darkGreen.withValues(alpha: 0.08),
+                        border: Border.all(color: gold, width: 2.5),
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(3),
-                        child: ClipOval(
-                          child: Container(
-                            color: darkGreen.withValues(alpha: 0.08),
-                            child: (avatarAsset == null || avatarAsset.isEmpty)
-                                ? Icon(Icons.person, size: 56, color: darkGreen)
-                                : Image.asset(
-                                    avatarAsset,
-                                    fit: BoxFit.cover,
-                                    alignment: Alignment.topCenter,
-                                    errorBuilder: (context, error, stack) =>
-                                        Icon(Icons.person, size: 56, color: darkGreen),
-                                  ),
-                          ),
-                        ),
+                      child: ClipOval(
+                        child: _buildAvatarImage(avatarAsset, 96),
                       ),
                     ),
                     if (isOnline)
@@ -391,8 +564,8 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
                         bottom: 2,
                         right: 2,
                         child: Container(
-                          width: 20,
-                          height: 20,
+                          width: 18,
+                          height: 18,
                           decoration: BoxDecoration(
                             color: Colors.green.shade500,
                             shape: BoxShape.circle,
@@ -402,188 +575,394 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
                       ),
                   ],
                 ),
-                const SizedBox(height: 16),
-
-                // الاسم والعمر
+                const SizedBox(height: 12),
                 Text(
-                  age != null ? '$name، $age' : name,
+                  name,
                   style: const TextStyle(
-                    fontSize: 22,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: darkGreen,
                   ),
                 ),
-                const SizedBox(height: 6),
-
-                // المدينة
-                if (city.isNotEmpty)
+                const SizedBox(height: 4),
+                if (isOnline)
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.location_on_rounded, color: gold, size: 16),
-                      const SizedBox(width: 4),
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
                       Text(
-                        city,
+                        'متصل الآن',
                         style: TextStyle(
+                          fontSize: 12.5,
                           color: Colors.grey.shade600,
-                          fontSize: 14,
                         ),
                       ),
                     ],
                   ),
-
-                const Divider(height: 24),
-
-                // المهنة
-                if (occupation.isNotEmpty)
-                  _InfoRow(icon: Icons.work_outline, label: 'المهنة', value: occupation),
-
-                // المستوى التعليمي
-                if (education.isNotEmpty)
-                  _InfoRow(icon: Icons.school_outlined, label: 'المستوى التعليمي', value: education),
-
-                // النبذة
-                if (bio.isNotEmpty)
-                  _InfoRow(
-                    icon: Icons.info_outline,
-                    label: 'نبذة',
-                    value: bio,
-                    isMultiline: true,
-                  ),
               ],
             ),
           ),
-
-          const SizedBox(height: 20),
+          const SizedBox(height: 22),
 
           // ============================================================
-          // ✅ أزرار الإجراءات (بلاغ / حظر)
+          // ✅ صف الإجراءات السريعة: بحث / إشعارات
           // ============================================================
           Row(
             children: [
-              // زر الحظر
               Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _isSubmitting ? null : _toggleBlock,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _isBlocked ? Colors.green.shade600 : Colors.red.shade600,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  icon: Icon(
-                    _isBlocked ? Icons.check_circle_rounded : Icons.block_rounded,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                  label: Text(
-                    _isBlocked ? 'تم الحظر' : 'حظر',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                    ),
-                  ),
+                child: _QuickActionCard(
+                  icon: Icons.search_rounded,
+                  label: 'بحث في المحادثة',
+                  onTap: _openSearch,
                 ),
               ),
-              const SizedBox(width: 12),
-
-              // زر البلاغ
+              const SizedBox(width: 10),
               Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _isSubmitting ? null : _reportUser,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange.shade700,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  icon: const Icon(
-                    Icons.flag_rounded,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                  label: const Text(
-                    'إبلاغ',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                    ),
-                  ),
+                child: _QuickActionCard(
+                  icon: _isMuted
+                      ? Icons.notifications_off_rounded
+                      : Icons.notifications_none_rounded,
+                  label: 'الإشعارات',
+                  badgeCount: _unreadNotifCount,
+                  onTap: _toggleMute,
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 22),
 
-          const SizedBox(height: 12),
+          // ============================================================
+          // ✅ معلومات
+          // ============================================================
+          const _SectionLabel('معلومات'),
+          const SizedBox(height: 8),
+          _InfoCard(
+            icon: Icons.calendar_today_rounded,
+            title: 'انضم في',
+            value: joinedAt != null
+                ? _formatMonthYear(joinedAt.toDate())
+                : 'غير محدد',
+          ),
+          const SizedBox(height: 10),
+          if (city.isNotEmpty)
+            _InfoCard(
+              icon: Icons.location_on_rounded,
+              title: 'الموقع',
+              value: city,
+            ),
 
-          // ملاحظة صغيرة
+          const SizedBox(height: 22),
+
+          // ============================================================
+          // ✅ إعدادات الخصوصية
+          // ============================================================
+          const _SectionLabel('إعدادات الخصوصية'),
+          const SizedBox(height: 8),
+          const _InfoCard(
+            icon: Icons.lock_rounded,
+            title: 'التشفير',
+            value: 'الرسائل والمكالمات مشفرة تماماً',
+          ),
+          const SizedBox(height: 10),
+          _InfoCard(
+            icon: Icons.timer_outlined,
+            title: 'الرسائل ذاتية الاختفاء',
+            value: _isDisappearing ? 'مفعّلة' : 'متوقفة',
+            onTap: _toggleDisappearing,
+          ),
+
+          const SizedBox(height: 22),
+
+          // ============================================================
+          // ✅ الإبلاغ / الحظر
+          // ============================================================
+          _ActionRow(
+            icon: Icons.flag_rounded,
+            label: 'الإبلاغ عن المستخدم',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      ReportUserScreen(userId: widget.userId, userName: name),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 10),
+          _ActionRow(
+            icon: _isBlocked ? Icons.check_circle_rounded : Icons.block_rounded,
+            label: _isBlocked ? 'إلغاء حظر المستخدم' : 'حظر المستخدم',
+            onTap: _isSubmitting ? null : _toggleBlock,
+          ),
+
+          const SizedBox(height: 16),
           Center(
             child: Text(
-              'يمكنك إلغاء الحظر في أي وقت من هنا',
-              style: TextStyle(
-                color: Colors.grey.shade500,
-                fontSize: 11,
-              ),
+              'لن يتمكن هذا المستخدم من مراسلتك أو رؤية معلوماتك.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
             ),
           ),
         ],
       ),
     );
   }
+
+  String _formatMonthYear(DateTime d) {
+    const months = [
+      'يناير',
+      'فبراير',
+      'مارس',
+      'أبريل',
+      'مايو',
+      'يونيو',
+      'يوليو',
+      'أغسطس',
+      'سبتمبر',
+      'أكتوبر',
+      'نوفمبر',
+      'ديسمبر',
+    ];
+    return '${months[d.month - 1]} ${d.year}';
+  }
 }
 
 // ============================================================
-// ✅ عنصر لعرض صف من المعلومات
+// عنصر عام: تسمية قسم
 // ============================================================
-class _InfoRow extends StatelessWidget {
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w800,
+        color: Color(0xFF0F3D2E),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// بطاقة إجراء سريع (بحث / إشعارات / وسائط)
+// ============================================================
+class _QuickActionCard extends StatelessWidget {
   final IconData icon;
   final String label;
-  final String value;
-  final bool isMultiline;
+  final int badgeCount;
+  final VoidCallback onTap;
 
-  const _InfoRow({
+  const _QuickActionCard({
     required this.icon,
     required this.label,
-    required this.value,
-    this.isMultiline = false,
+    required this.onTap,
+    this.badgeCount = 0,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 18, color: const Color(0xFF0F3D2E)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    const darkGreen = Color(0xFF0F3D2E);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withValues(alpha: 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
               children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: Colors.grey.shade500,
-                    fontSize: 12,
+                Icon(icon, color: darkGreen, size: 22),
+                if (badgeCount > 0)
+                  Positioned(
+                    top: -6,
+                    right: -8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade600,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '$badgeCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black87,
-                  ),
-                ),
               ],
             ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10.5,
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// بطاقة معلومة (انضم في / الموقع / التشفير / الرسائل ذاتية الاختفاء)
+// ============================================================
+class _InfoCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String value;
+  final VoidCallback? onTap;
+
+  const _InfoCard({
+    required this.icon,
+    required this.title,
+    required this.value,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const darkGreen = Color(0xFF0F3D2E);
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withValues(alpha: 0.06),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
-        ],
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: darkGreen.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: darkGreen, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                        color: darkGreen,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (onTap != null)
+                Icon(Icons.chevron_left_rounded, color: Colors.grey.shade400),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// صف إجراء أحمر (إبلاغ / حظر)
+// ============================================================
+class _ActionRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  const _ActionRow({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.red.withValues(alpha: 0.06),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Icon(icon, color: Colors.red.shade600, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: Colors.red.shade700,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              Icon(Icons.chevron_left_rounded, color: Colors.red.shade300),
+            ],
+          ),
+        ),
       ),
     );
   }
