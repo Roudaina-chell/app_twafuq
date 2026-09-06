@@ -16,9 +16,11 @@
 // ⚠️ N'oublie pas de garder l'asset image utilisé dans l'état "intro" :
 //    assets/discover/discover_people.png
 
+import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../chat/chat_conversation_screen.dart';
 
 class _DiscoverProfile {
@@ -47,6 +49,7 @@ class DiscoverTab extends StatefulWidget {
 class _DiscoverTabState extends State<DiscoverTab>
     with SingleTickerProviderStateMixin {
   static const Color darkGreen = Color(0xFF0F3D2E);
+  static const Color darkGreenDeep = Color(0xFF07231A);
   static const Color darkGreenLight = Color(0xFF1A6B4A);
   static const Color gold = Color(0xFFC9A24B);
   static const Color discoverCardBg = Color(0xFFEFEAE2);
@@ -206,166 +209,219 @@ class _DiscoverTabState extends State<DiscoverTab>
   }
 
   // ------------------------------------------------------------
-  // الحالة 1: "اكتشف الأشخاص" (intro) — صورة واحدة + زر بدء
+  // الحالة 1: "اكتشف الأشخاص" (intro) — هيدر داكن بأورب ضوئية
+  // (بنفس روح الهيدر الجديد فـ home_screen) + زر بتدرج ذهبي متوهج
   // ------------------------------------------------------------
   Widget _buildDiscoverIntro() {
-    return Center(
+    return Container(
       key: const ValueKey('discover_intro'),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 96,
-              height: 96,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    darkGreen.withValues(alpha: 0.10),
-                    darkGreen.withValues(alpha: 0.02),
-                  ],
-                ),
-                border: Border.all(
-                  color: darkGreen.withValues(alpha: 0.18),
-                  width: 1.6,
-                ),
-              ),
-              child: const Icon(
-                Icons.people_alt_rounded,
-                color: darkGreen,
-                size: 38,
-              ),
+      color: bg,
+      child: Column(
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(44),
+              bottomRight: Radius.circular(44),
             ),
-            const SizedBox(height: 24),
-            const Text(
-              'اكتشف الأشخاص',
-              style: TextStyle(
-                fontSize: 25,
-                fontWeight: FontWeight.w800,
-                color: darkGreen,
-                letterSpacing: -0.3,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'ابحث عن شريك يشاركك نفس\nالقيم والاهتمامات',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade600,
-                height: 1.6,
-              ),
-            ),
-            const SizedBox(height: 30),
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(22),
-                boxShadow: [
-                  BoxShadow(
-                    color: darkGreen.withValues(alpha: 0.10),
-                    blurRadius: 24,
-                    offset: const Offset(0, 12),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(22),
-                child: Image.asset(
-                  'assets/discover/discover_people.png',
-                  width: 320,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stack) => Container(
-                    width: 280,
-                    height: 200,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: darkGreen.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Icon(
-                      Icons.image_not_supported_rounded,
-                      color: darkGreen.withValues(alpha: 0.4),
-                      size: 40,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 32),
-            SizedBox(
+            child: Container(
               width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: () => setState(() => _hasStartedDiscovering = true),
-                style:
-                    ElevatedButton.styleFrom(
-                      backgroundColor: darkGreen,
-                      elevation: 0,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+              padding: const EdgeInsets.fromLTRB(28, 30, 28, 40),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [darkGreenDeep, darkGreen, darkGreenLight],
+                ),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    top: -50,
+                    left: -40,
+                    child: _orb(150, gold.withValues(alpha: 0.14)),
+                  ),
+                  Positioned(
+                    bottom: -40,
+                    right: -30,
+                    child: _orb(120, Colors.white.withValues(alpha: 0.05)),
+                  ),
+                  Column(
+                    children: [
+                      Container(
+                        width: 88,
+                        height: 88,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.1),
+                          border: Border.all(
+                            color: gold.withValues(alpha: 0.6),
+                            width: 1.4,
+                          ),
+                        ),
+                        child: Icon(Icons.auto_awesome_rounded,
+                            color: gold, size: 36),
                       ),
-                    ).copyWith(
-                      overlayColor: WidgetStateProperty.all(
-                        Colors.white.withValues(alpha: 0.08),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'اكتشف الأشخاص',
+                        style: TextStyle(
+                          fontSize: 27,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: -0.4,
+                        ),
                       ),
-                    ),
-                child: Ink(
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [darkGreen, darkGreenLight],
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: darkGreen.withValues(alpha: 0.32),
-                        blurRadius: 18,
-                        offset: const Offset(0, 8),
+                      const SizedBox(height: 10),
+                      Text(
+                        'ابحث عن شريك يشاركك نفس\nالقيم والاهتمامات',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          color: Colors.white.withValues(alpha: 0.68),
+                          height: 1.6,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ),
-                  child: Container(
-                    alignment: Alignment.center,
-                    child: const Text(
-                      'ابدأ الاكتشاف',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+              child: Column(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(26),
+                      boxShadow: [
+                        BoxShadow(
+                          color: darkGreen.withValues(alpha: 0.14),
+                          blurRadius: 30,
+                          offset: const Offset(0, 16),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(26),
+                      child: Image.asset(
+                        'assets/discover/discover_people.png',
+                        width: 320,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stack) => Container(
+                          width: 280,
+                          height: 200,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: darkGreen.withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: Icon(
+                            Icons.image_not_supported_rounded,
+                            color: darkGreen.withValues(alpha: 0.4),
+                            size: 40,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 60,
+                    child: ElevatedButton(
+                      onPressed: () =>
+                          setState(() => _hasStartedDiscovering = true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: darkGreen,
+                        elevation: 0,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ).copyWith(
+                        overlayColor: WidgetStateProperty.all(
+                          Colors.white.withValues(alpha: 0.08),
+                        ),
+                      ),
+                      child: Ink(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [gold, darkGreen],
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: darkGreen.withValues(alpha: 0.36),
+                              blurRadius: 22,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Container(
+                          alignment: Alignment.center,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Text(
+                                'ابدأ الاكتشاف',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Icon(Icons.bolt_rounded,
+                                  color: Colors.white, size: 20),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
+  Widget _orb(double size, Color color) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+    );
+  }
+
   // ------------------------------------------------------------
-  // الحالة 2: فلاتر + عداد التقدم + كارت السحب (X / قلب)
+  // الحالة 2: فلاتر زجاجية + عداد التقدم + كارت "immersive" بالكامل
   // ------------------------------------------------------------
   Widget _buildDiscoverSwipeContent() {
     final hasProfile = _discoverIndex < _discoverProfiles.length;
     return Column(
       key: const ValueKey('discover_swipe'),
       children: [
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         _buildDiscoverFilterChips(),
         const SizedBox(height: 14),
         if (!_isLoadingProfiles && _loadError == null && hasProfile)
           _buildProgressDots(),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 18),
             child: _isLoadingProfiles
                 ? const Center(
-                    child: CircularProgressIndicator(color: darkGreen),
+                    child: CircularProgressIndicator(
+                      color: darkGreen,
+                      strokeWidth: 2.4,
+                    ),
                   )
                 : _loadError != null
                 ? _buildErrorState()
@@ -384,12 +440,19 @@ class _DiscoverTabState extends State<DiscoverTab>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.error_outline_rounded,
-            color: Colors.grey.shade400,
-            size: 40,
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.grey.withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.error_outline_rounded,
+              color: Colors.grey.shade400,
+              size: 34,
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Text(
             _loadError!,
             style: TextStyle(color: Colors.grey.shade500, fontSize: 13.5),
@@ -417,10 +480,13 @@ class _DiscoverTabState extends State<DiscoverTab>
         return AnimatedContainer(
           duration: const Duration(milliseconds: 220),
           margin: const EdgeInsets.symmetric(horizontal: 3),
-          width: active ? 20 : 6,
+          width: active ? 24 : 6,
           height: 6,
           decoration: BoxDecoration(
-            color: active ? darkGreen : darkGreen.withValues(alpha: 0.16),
+            gradient: active
+                ? LinearGradient(colors: [gold, darkGreen])
+                : null,
+            color: active ? null : darkGreen.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(4),
           ),
         );
@@ -438,7 +504,7 @@ class _DiscoverTabState extends State<DiscoverTab>
       children: [
         Expanded(
           child: SizedBox(
-            height: 44,
+            height: 46,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -450,6 +516,7 @@ class _DiscoverTabState extends State<DiscoverTab>
                 return GestureDetector(
                   onTap: () {
                     if (_discoverFilter == data.label) return;
+                    HapticFeedback.selectionClick();
                     setState(() => _discoverFilter = data.label);
                     _loadDiscoverProfiles();
                   },
@@ -458,14 +525,17 @@ class _DiscoverTabState extends State<DiscoverTab>
                     padding: const EdgeInsets.symmetric(horizontal: 18),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: selected ? darkGreen : Colors.white,
+                      gradient: selected
+                          ? LinearGradient(colors: [darkGreen, darkGreenLight])
+                          : null,
+                      color: selected ? null : Colors.white,
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: selected
                           ? [
                               BoxShadow(
-                                color: darkGreen.withValues(alpha: 0.24),
-                                blurRadius: 12,
-                                offset: const Offset(0, 5),
+                                color: darkGreen.withValues(alpha: 0.28),
+                                blurRadius: 14,
+                                offset: const Offset(0, 6),
                               ),
                             ]
                           : [
@@ -512,11 +582,12 @@ class _DiscoverTabState extends State<DiscoverTab>
           onTap: _isLoadingProfiles ? null : _loadDiscoverProfiles,
           child: Container(
             margin: const EdgeInsets.only(right: 20),
-            width: 40,
-            height: 40,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
+              border: Border.all(color: Colors.grey.shade100),
               boxShadow: [
                 BoxShadow(
                   color: Colors.grey.withValues(alpha: 0.12),
@@ -541,18 +612,18 @@ class _DiscoverTabState extends State<DiscoverTab>
       children: [
         if (hasNext)
           Positioned(
-            top: 14,
-            left: 10,
-            right: 10,
+            top: 16,
+            left: 8,
+            right: 8,
             bottom: 0,
             child: Transform.scale(
-              scale: 0.95,
+              scale: 0.94,
               child: Opacity(
-                opacity: 0.55,
+                opacity: 0.5,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: discoverCardBg,
-                    borderRadius: BorderRadius.circular(28),
+                    color: darkGreen.withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(32),
                   ),
                 ),
               ),
@@ -564,44 +635,79 @@ class _DiscoverTabState extends State<DiscoverTab>
             opacity: _discoverFade.value,
             child: Transform.scale(scale: _cardScale.value, child: child),
           ),
-          child: _buildDiscoverCard(_discoverProfiles[_discoverIndex]),
+          child: _buildImmersiveCard(_discoverProfiles[_discoverIndex]),
         ),
       ],
     );
   }
 
-  Widget _buildDiscoverCard(_DiscoverProfile profile) {
-    final displayName = profile.age != null
-        ? '${profile.name}، ${profile.age}'
-        : profile.name;
-    return SizedBox(
+  // ============================================================
+  // 🃏 كارت "immersive" بالكامل: الصورة تاخد الكارت من فوق لتحت،
+  // تدرج غامق فالأسفل، اسم/عمر/مدينة بخط كبير، أزرار عائمة على
+  // الحافة السفلية (X + قلب متوهج) — إحساس Tinder/Bumble حقيقي
+  // ============================================================
+  Widget _buildImmersiveCard(_DiscoverProfile profile) {
+    return Container(
       width: double.infinity,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 26),
-        decoration: BoxDecoration(
-          color: discoverCardBg,
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
-          boxShadow: [
-            BoxShadow(
-              color: darkGreen.withValues(alpha: 0.12),
-              blurRadius: 26,
-              offset: const Offset(0, 14),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: discoverCardBg,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: darkGreen.withValues(alpha: 0.2),
+            blurRadius: 30,
+            offset: const Offset(0, 18),
+          ),
+        ],
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          profile.avatarAsset == null || profile.avatarAsset!.isEmpty
+              ? Container(
+                  color: darkGreen.withValues(alpha: 0.1),
+                  child: Icon(Icons.person, size: 120, color: darkGreen),
+                )
+              : Image.asset(
+                  profile.avatarAsset!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (c, e, s) {
+                    debugPrint(
+                      '❌ Discover avatar failed: ${profile.avatarAsset} -> $e',
+                    );
+                    return Container(
+                      color: darkGreen.withValues(alpha: 0.1),
+                      child: Icon(Icons.person, size: 120, color: darkGreen),
+                    );
+                  },
+                ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.1),
+                    Colors.transparent,
+                    darkGreenDeep.withValues(alpha: 0.55),
+                    darkGreenDeep.withValues(alpha: 0.94),
+                  ],
+                  stops: const [0.0, 0.32, 0.68, 1.0],
+                ),
+              ),
             ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
+          ),
+          Positioned(
+            top: 16,
+            left: 16,
+            right: 16,
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildDiscoverCircleTag(
-                  icon: Icons.location_on_rounded,
-                  onTap: () {},
-                ),
-                _buildDiscoverCircleTag(
+                _glassCircleIcon(icon: Icons.location_on_rounded, onTap: () {}),
+                _glassCircleIcon(
                   icon: Icons.more_horiz_rounded,
                   onTap: () {
                     // TODO: بلاغ / حظر
@@ -609,152 +715,119 @@ class _DiscoverTabState extends State<DiscoverTab>
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            Container(
-              width: 216,
-              height: 216,
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    gold.withValues(alpha: 0.85),
-                    gold.withValues(alpha: 0.25),
-                  ],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: darkGreen.withValues(alpha: 0.14),
-                    blurRadius: 24,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white,
-                ),
-                child: ClipOval(
-                  child:
-                      profile.avatarAsset == null ||
-                          profile.avatarAsset!.isEmpty
-                      ? Container(
-                          color: darkGreen.withValues(alpha: 0.06),
-                          child: Icon(Icons.person, size: 74, color: darkGreen),
-                        )
-                      : Image.asset(
-                          profile.avatarAsset!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (c, e, s) {
-                            debugPrint(
-                              '❌ Discover avatar failed: ${profile.avatarAsset} -> $e',
-                            );
-                            return Container(
-                              color: darkGreen.withValues(alpha: 0.06),
-                              child: Icon(
-                                Icons.person,
-                                size: 74,
-                                color: darkGreen,
-                              ),
-                            );
-                          },
-                        ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              displayName,
-              style: const TextStyle(
-                fontSize: 25,
-                fontWeight: FontWeight.w800,
-                color: darkGreen,
-                letterSpacing: -0.3,
-              ),
-            ),
-            if (profile.city.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: darkGreen.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+          ),
+          Positioned(
+            left: 22,
+            right: 22,
+            bottom: 92,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Icon(Icons.location_on_rounded, size: 13, color: gold),
-                    const SizedBox(width: 4),
-                    Text(
-                      profile.city,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        color: Colors.grey.shade700,
-                        fontWeight: FontWeight.w600,
+                    Flexible(
+                      child: Text(
+                        profile.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: -0.6,
+                        ),
                       ),
                     ),
+                    if (profile.age != null) ...[
+                      const SizedBox(width: 8),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(
+                          '${profile.age}',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: gold,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
-              ),
-            ],
-            const SizedBox(height: 26),
-            Row(
+                if (profile.city.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.location_on_rounded, size: 15, color: gold),
+                      const SizedBox(width: 4),
+                      Text(
+                        profile.city,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          color: Colors.white.withValues(alpha: 0.8),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 20,
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _BounceIconButton(
                   icon: Icons.close_rounded,
-                  iconColor: Colors.grey.shade700,
-                  background: Colors.white,
+                  iconColor: Colors.white,
+                  background: Colors.white.withValues(alpha: 0.16),
+                  glass: true,
                   onTap: _handleDiscoverSkip,
                 ),
-                const SizedBox(width: 30),
+                const SizedBox(width: 34),
                 _BounceIconButton(
                   icon: Icons.favorite_rounded,
                   iconColor: Colors.white,
-                  size: 72,
-                  gradient: const LinearGradient(
+                  size: 76,
+                  gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [darkGreen, darkGreenLight],
+                    colors: [gold, darkGreen],
                   ),
-                  shadowColor: darkGreen.withValues(alpha: 0.38),
+                  shadowColor: gold.withValues(alpha: 0.5),
                   onTap: _handleDiscoverLike,
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildDiscoverCircleTag({
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
+  Widget _glassCircleIcon({required IconData icon, required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withValues(alpha: 0.15),
-              blurRadius: 8,
+      child: ClipOval(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
             ),
-          ],
+            child: Icon(icon, color: Colors.white, size: 20),
+          ),
         ),
-        child: Icon(icon, color: darkGreen, size: 20),
       ),
     );
   }
@@ -807,7 +880,10 @@ class _DiscoverTabState extends State<DiscoverTab>
     );
   }
 
-  void _handleDiscoverSkip() => _goToNextDiscoverProfile();
+  void _handleDiscoverSkip() {
+    HapticFeedback.lightImpact();
+    _goToNextDiscoverProfile();
+  }
 
   // ============================================================
   // ✅ عند الإعجاب: نسجل الإعجاب فـ Firestore بحال حقيقي، من بعد
@@ -817,6 +893,7 @@ class _DiscoverTabState extends State<DiscoverTab>
   // ============================================================
   Future<void> _handleDiscoverLike() async {
     if (_isDiscoverActing) return;
+    HapticFeedback.mediumImpact();
     final profile = _discoverProfiles[_discoverIndex];
     final myUid = FirebaseAuth.instance.currentUser?.uid;
 
@@ -872,7 +949,8 @@ class _FilterChipData {
 }
 
 // ============================================================
-// ✅ زر أيقونة دائري بتأثير لمسي (ينكمش شوية كي يتضغط)
+// ✅ زر أيقونة دائري بتأثير لمسي (ينكمش شوية كي يتضغط) — يدعم
+// وضع "زجاجي" (glass) للاستعمال فوق الصورة مباشرة
 // ============================================================
 class _BounceIconButton extends StatefulWidget {
   final IconData icon;
@@ -881,6 +959,7 @@ class _BounceIconButton extends StatefulWidget {
   final Gradient? gradient;
   final Color shadowColor;
   final double size;
+  final bool glass;
   final VoidCallback onTap;
 
   const _BounceIconButton({
@@ -891,6 +970,7 @@ class _BounceIconButton extends StatefulWidget {
     this.gradient,
     this.shadowColor = const Color(0x1F000000),
     this.size = 62,
+    this.glass = false,
   });
 
   @override
@@ -902,6 +982,31 @@ class _BounceIconButtonState extends State<_BounceIconButton> {
 
   @override
   Widget build(BuildContext context) {
+    final content = Container(
+      width: widget.size,
+      height: widget.size,
+      decoration: BoxDecoration(
+        color: widget.gradient == null ? widget.background : null,
+        gradient: widget.gradient,
+        shape: BoxShape.circle,
+        border: widget.glass
+            ? Border.all(color: Colors.white.withValues(alpha: 0.35))
+            : null,
+        boxShadow: [
+          BoxShadow(
+            color: widget.shadowColor,
+            blurRadius: 16,
+            offset: const Offset(0, 7),
+          ),
+        ],
+      ),
+      child: Icon(
+        widget.icon,
+        color: widget.iconColor,
+        size: widget.size * 0.4,
+      ),
+    );
+
     return GestureDetector(
       onTapDown: (_) => setState(() => _pressed = true),
       onTapCancel: () => setState(() => _pressed = false),
@@ -910,27 +1015,14 @@ class _BounceIconButtonState extends State<_BounceIconButton> {
       child: AnimatedScale(
         duration: const Duration(milliseconds: 110),
         scale: _pressed ? 0.90 : 1.0,
-        child: Container(
-          width: widget.size,
-          height: widget.size,
-          decoration: BoxDecoration(
-            color: widget.gradient == null ? widget.background : null,
-            gradient: widget.gradient,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: widget.shadowColor,
-                blurRadius: 14,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Icon(
-            widget.icon,
-            color: widget.iconColor,
-            size: widget.size * 0.4,
-          ),
-        ),
+        child: widget.glass
+            ? ClipOval(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: content,
+                ),
+              )
+            : content,
       ),
     );
   }

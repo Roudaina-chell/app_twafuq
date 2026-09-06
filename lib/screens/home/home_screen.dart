@@ -194,7 +194,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         behavior: SnackBarBehavior.floating,
         backgroundColor: darkGreen,
         duration: const Duration(seconds: 2),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         content: Row(
           children: [
             Icon(
@@ -388,7 +389,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (_isLoading) {
       return const Scaffold(
         backgroundColor: bg,
-        body: Center(child: CircularProgressIndicator(color: darkGreen)),
+        body: Center(
+          child: CircularProgressIndicator(color: darkGreen, strokeWidth: 2.4),
+        ),
       );
     }
 
@@ -402,7 +405,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(22),
                   decoration: BoxDecoration(
                     color: const Color(0xFFDE3B40).withValues(alpha: 0.08),
                     shape: BoxShape.circle,
@@ -413,27 +416,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     size: 40,
                   ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 20),
                 Text(
                   _errorMessage!,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Color(0xFFDE3B40),
                     fontSize: 14,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 22),
+                const SizedBox(height: 24),
                 SizedBox(
-                  height: 50,
+                  height: 52,
                   child: ElevatedButton.icon(
                     onPressed: _loadUserData,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: darkGreen,
                       elevation: 0,
+                      shadowColor: darkGreen.withValues(alpha: 0.4),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      padding: const EdgeInsets.symmetric(horizontal: 26),
                     ),
                     icon: const Icon(
                       Icons.refresh_rounded,
@@ -443,7 +448,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       'إعادة المحاولة',
                       style: TextStyle(
                         color: Colors.white,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
@@ -469,12 +474,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ],
         ),
       ),
-      bottomNavigationBar: _buildWowBottomNav(),
+      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
   // ============================================================
-  // محتوى تبويب "الرئيسية"
+  // محتوى تبويب "الرئيسية" — تصميم جديد كليا: هيدر "hero" أخضر
+  // بحواف سفلية مدورة، بطاقة إحصائيات "عائمة" فوق حده، وبعدها
+  // كاروسيل أفقي للأشخاص المقترحين بدل الشبكة القديمة.
   // ============================================================
   Widget _buildHomeTab() {
     return RefreshIndicator(
@@ -482,57 +489,80 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       onRefresh: _loadUserData,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: EdgeInsets.zero,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 12),
-            _buildHeader(),
-            const SizedBox(height: 24),
-            _buildTagline(),
-            const SizedBox(height: 18),
-            _buildStatsCard(),
-            const SizedBox(height: 18),
-            _buildSearchBar(),
+            _buildHeroHeader(),
+            Transform.translate(
+              offset: const Offset(0, -34),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _buildStatsCard(),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSearchBar(),
+                  const SizedBox(height: 26),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 4,
+                            height: 18,
+                            decoration: BoxDecoration(
+                              color: gold,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'أشخاص مقترحون',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: darkGreen,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        '${_nearbyPeople.length}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.grey.shade400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildNearbyCarousel(),
             const SizedBox(height: 26),
-            const Text(
-              'أشخاص مقترحون',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                color: darkGreen,
-              ),
-            ),
-            const SizedBox(height: 14),
-            _buildNearbyGrid(),
-            const SizedBox(height: 22),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: OutlinedButton.icon(
-                onPressed: () => _logout(context),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: darkGreen.withValues(alpha: 0.18)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  backgroundColor: Colors.white,
-                ),
-                icon: const Icon(
-                  Icons.logout_rounded,
-                  color: darkGreen,
-                  size: 19,
-                ),
-                label: const Text(
-                  'تسجيل الخروج',
-                  style: TextStyle(
-                    color: darkGreen,
-                    fontWeight: FontWeight.w600,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Center(
+                child: TextButton.icon(
+                  onPressed: () => _logout(context),
+                  style: TextButton.styleFrom(foregroundColor: Colors.grey.shade500),
+                  icon: const Icon(Icons.logout_rounded, size: 17),
+                  label: const Text(
+                    'تسجيل الخروج',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 100),
+            const SizedBox(height: 90),
           ],
         ),
       ),
@@ -540,127 +570,182 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ============================================================
-  // HEADER: الأفاتار + الترحيب + جرس الإشعارات + الإعدادات
+  // 🟢 HERO HEADER: قسم أخضر بحواف سفلية مدورة يحتوي الأفاتار،
+  // الترحيب، أزرار سريعة، والشعار — كليا مختلف عن الهيدر الأبيض
+  // القديم.
   // ============================================================
-  Widget _buildHeader() {
-    return Row(
-      children: [
-        GestureDetector(
-          onTap: _openProfile,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: 60,
-                height: 60,
+  Widget _buildHeroHeader() {
+    return ClipRRect(
+      borderRadius: const BorderRadius.only(
+        bottomLeft: Radius.circular(36),
+        bottomRight: Radius.circular(36),
+      ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 56),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [darkGreen, Color(0xFF1A6B4A)],
+          ),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: -40,
+              left: -30,
+              child: Container(
+                width: 140,
+                height: 140,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: darkGreen.withValues(alpha: 0.08),
-                ),
-                child: buildAvatar(
-                  source: _avatarAsset,
-                  size: 60,
-                  fallbackColor: darkGreen,
+                  color: Colors.white.withValues(alpha: 0.04),
                 ),
               ),
-              Positioned(
-                bottom: 1,
-                right: 1,
-                child: Container(
-                  width: 14,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    color: _isOnline
-                        ? Colors.green.shade500
-                        : Colors.grey.shade400,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2.5),
-                  ),
+            ),
+            Positioned(
+              top: 30,
+              right: -20,
+              child: Container(
+                width: 90,
+                height: 90,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: gold.withValues(alpha: 0.07),
                 ),
               ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'مرحباً بك 👋',
-                style: TextStyle(color: Colors.black45, fontSize: 12.5),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                _userName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: darkGreen,
-                ),
-              ),
-            ],
-          ),
-        ),
-        _CircleIconButton(
-          icon: _isOnline
-              ? Icons.visibility_rounded
-              : Icons.visibility_off_rounded,
-          iconColor: _isOnline ? darkGreen : Colors.grey.shade500,
-          onTap: _toggleOnlineStatus,
-        ),
-        const SizedBox(width: 8),
-        _PointsBasketButton(
-          points: _points,
-          darkGreen: darkGreen,
-          gold: gold,
-          onTap: () {
-            // TODO: فتح صفحة النقاط / المتجر
-          },
-        ),
-        const SizedBox(width: 8),
-        _CircleIconButton(
-          icon: Icons.settings_outlined,
-          iconColor: darkGreen,
-          onTap: () {
-            // TODO: فتح صفحة الإعدادات (اللغة، الفوترة، إلخ)
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTagline() {
-    return SizedBox(
-      width: double.infinity,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          RichText(
-            textAlign: TextAlign.center,
-            text: const TextSpan(
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextSpan(
-                  text: 'ابحث عن شخص يشاركك الاهتمامات ',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: darkGreen,
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: _openProfile,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            width: 54,
+                            height: 54,
+                            padding: const EdgeInsets.all(2.5),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: gold.withValues(alpha: 0.85),
+                                width: 1.6,
+                              ),
+                            ),
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white,
+                              ),
+                              child: buildAvatar(
+                                source: _avatarAsset,
+                                size: 49,
+                                fallbackColor: darkGreen,
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              width: 13,
+                              height: 13,
+                              decoration: BoxDecoration(
+                                color: _isOnline
+                                    ? Colors.green.shade400
+                                    : Colors.grey.shade400,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: darkGreen,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'مرحباً بك 👋',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.7),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _userName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    _HeroIconButton(
+                      icon: _isOnline
+                          ? Icons.visibility_rounded
+                          : Icons.visibility_off_rounded,
+                      onTap: _toggleOnlineStatus,
+                    ),
+                    const SizedBox(width: 8),
+                    _HeroPointsButton(points: _points, gold: gold, onTap: () {
+                      // TODO: فتح صفحة النقاط / المتجر
+                    }),
+                    const SizedBox(width: 8),
+                    _HeroIconButton(
+                      icon: Icons.settings_outlined,
+                      onTap: () {
+                        // TODO: فتح صفحة الإعدادات
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 22),
+                RichText(
+                  text: const TextSpan(
+                    children: [
+                      TextSpan(
+                        text: 'ابحث عن شخص يشاركك الاهتمامات ',
+                        style: TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          height: 1.4,
+                        ),
+                      ),
+                      TextSpan(text: '✨', style: TextStyle(fontSize: 18)),
+                    ],
                   ),
                 ),
-                TextSpan(text: '✨', style: TextStyle(fontSize: 18)),
+                const SizedBox(height: 6),
+                Text(
+                  'اكتشف أشخاص جدد وتعرّف عليهم',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white.withValues(alpha: 0.65),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ],
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'اكتشف أشخاص جدد وتعرّف عليهم',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13.5, color: Colors.grey.shade600),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -672,10 +757,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.grey.shade100),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.12),
-            blurRadius: 14,
+            color: darkGreen.withValues(alpha: 0.06),
+            blurRadius: 16,
             offset: const Offset(0, 6),
           ),
         ],
@@ -699,21 +785,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  // ============================================================
+  // 🃏 بطاقة الإحصائيات — دابا بيضاء "عائمة" فوق حد الهيدر الأخضر
+  // (بدل ما كانت هي نفسها خضراء بالكامل)
+  // ============================================================
   Widget _buildStatsCard() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 10),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [darkGreen, Color(0xFF1A6B4A)],
-        ),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.28),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
+            color: darkGreen.withValues(alpha: 0.14),
+            blurRadius: 26,
+            offset: const Offset(0, 12),
           ),
         ],
       ),
@@ -731,35 +817,69 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _statDivider() {
-    return Container(
-      width: 1,
-      height: 34,
-      color: Colors.white.withValues(alpha: 0.18),
+    return Container(width: 1, height: 34, color: Colors.grey.shade100);
+  }
+
+  Widget _buildStatItem(String label, String value, IconData icon) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(9),
+          decoration: BoxDecoration(
+            color: gold.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: gold, size: 16),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: darkGreen,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(fontSize: 10.5, color: Colors.grey.shade500),
+        ),
+      ],
     );
   }
 
   // ============================================================
-  // ✅ شبكة "أشخاص مقترحون" — 3 أعمدة، بنفس شكل الصورة المرجعية
+  // ✅ كاروسيل أفقي "أشخاص مقترحون" — كليا مختلف عن الشبكة القديمة
   // ============================================================
-  Widget _buildNearbyGrid() {
+  Widget _buildNearbyCarousel() {
     if (_isLoadingNearby) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 30),
-        child: Center(child: CircularProgressIndicator(color: darkGreen)),
+        child: Center(
+          child: CircularProgressIndicator(color: darkGreen, strokeWidth: 2.4),
+        ),
       );
     }
     if (_nearbyPeople.isEmpty) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 30),
-        child: Center(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 30),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.grey.shade100),
+          ),
           child: Column(
             children: [
               Icon(
                 Icons.people_outline_rounded,
                 color: Colors.grey.shade300,
-                size: 36,
+                size: 34,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Text(
                 'ماكاين حتى حد فـ نفس مدينتك دابا',
                 style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
@@ -770,44 +890,44 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
     }
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _nearbyPeople.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 14,
-        childAspectRatio: 0.6,
+    return SizedBox(
+      height: 226,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        itemCount: _nearbyPeople.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 14),
+        itemBuilder: (context, index) {
+          final person = _nearbyPeople[index];
+          return _SuggestedCarouselCard(
+            person: person,
+            darkGreen: darkGreen,
+            gold: gold,
+            isLiked: _likedUids.contains(person.uid),
+            onLikeTap: () {
+              setState(() {
+                if (_likedUids.contains(person.uid)) {
+                  _likedUids.remove(person.uid);
+                } else {
+                  _likedUids.add(person.uid);
+                }
+              });
+            },
+            onViewProfile: () {
+              // TODO: فتح صفحة الملف الشخصي لهذا الشخص
+            },
+          );
+        },
       ),
-      itemBuilder: (context, index) {
-        final person = _nearbyPeople[index];
-        return _SuggestedCard(
-          person: person,
-          darkGreen: darkGreen,
-          gold: gold,
-          isLiked: _likedUids.contains(person.uid),
-          onLikeTap: () {
-            setState(() {
-              if (_likedUids.contains(person.uid)) {
-                _likedUids.remove(person.uid);
-              } else {
-                _likedUids.add(person.uid);
-              }
-            });
-          },
-          onViewProfile: () {
-            // TODO: فتح صفحة الملف الشخصي لهذا الشخص
-          },
-        );
-      },
     );
   }
 
   // ============================================================
-  // ✅ شريط التنقل السفلي — عائم، بحواف مدورة، مع مؤشر متحرك
+  // ✅ شريط تنقل سفلي جديد كليا: شريط مسطح بحواف مدورة، كل عنصر
+  // فيه أيقونة + تسمية، والعنصر المختار عندو خلفية بيضاوية ملونة
+  // (بدل المؤشر الدائري المتحرك القديم).
   // ============================================================
-  Widget _buildWowBottomNav() {
+  Widget _buildBottomNav() {
     final items = <_NavItemData>[
       _NavItemData(icon: Icons.home_rounded, label: 'الرئيسية'),
       _NavItemData(icon: Icons.favorite_rounded, label: 'الإعجابات'),
@@ -817,180 +937,109 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     return SafeArea(
       top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        child: Container(
-          height: 68,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: darkGreen.withValues(alpha: 0.15),
-                blurRadius: 24,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final itemWidth = constraints.maxWidth / items.length;
-              return Stack(
-                alignment: Alignment.centerLeft,
-                children: [
-                  AnimatedPositioned(
-                    duration: const Duration(milliseconds: 280),
-                    curve: Curves.easeOutCubic,
-                    left: itemWidth * _selectedIndex,
-                    top: 8,
-                    child: Container(
-                      width: itemWidth,
-                      height: 52,
-                      alignment: Alignment.center,
-                      child: Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+        decoration: BoxDecoration(
+          color: darkGreen,
+          borderRadius: BorderRadius.circular(26),
+          boxShadow: [
+            BoxShadow(
+              color: darkGreen.withValues(alpha: 0.32),
+              blurRadius: 22,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: List.generate(items.length, (index) {
+            final selected = _selectedIndex == index;
+            final isProfile = index == 3;
+            return GestureDetector(
+              onTap: () => _onNavTap(index),
+              behavior: HitTestBehavior.opaque,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                padding: EdgeInsets.symmetric(
+                  horizontal: selected ? 16 : 10,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: selected ? gold : Colors.transparent,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    isProfile
+                        ? _buildProfileNavIcon(selected)
+                        : Icon(
+                            items[index].icon,
+                            color: selected
+                                ? darkGreen
+                                : Colors.white.withValues(alpha: 0.55),
+                            size: 22,
+                          ),
+                    if (selected) ...[
+                      const SizedBox(width: 7),
+                      Text(
+                        items[index].label,
+                        style: const TextStyle(
                           color: darkGreen,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: darkGreen.withValues(alpha: 0.35),
-                              blurRadius: 14,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12.5,
                         ),
                       ),
-                    ),
-                  ),
-                  Row(
-                    children: List.generate(items.length, (index) {
-                      final selected = _selectedIndex == index;
-                      final isProfile = index == 3;
-                      return SizedBox(
-                        width: itemWidth,
-                        child: InkWell(
-                          onTap: () => _onNavTap(index),
-                          customBorder: const CircleBorder(),
-                          child: SizedBox(
-                            height: 68,
-                            child: Center(
-                              child: isProfile
-                                  ? _buildProfileNavIcon(selected)
-                                  : AnimatedScale(
-                                      duration: const Duration(
-                                        milliseconds: 200,
-                                      ),
-                                      scale: selected ? 1.0 : 0.92,
-                                      child: Icon(
-                                        items[index].icon,
-                                        color: selected
-                                            ? Colors.white
-                                            : Colors.grey.shade400,
-                                        size: 24,
-                                      ),
-                                    ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                  ),
-                ],
-              );
-            },
-          ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          }),
         ),
       ),
     );
   }
 
   Widget _buildProfileNavIcon(bool selected) {
-    return AnimatedScale(
-      duration: const Duration(milliseconds: 200),
-      scale: selected ? 1.0 : 0.92,
-      child: Container(
-        width: 30,
-        height: 30,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: selected ? Colors.white : gold.withValues(alpha: 0.6),
-            width: 2,
-          ),
-        ),
-        child: buildAvatar(
-          source: _avatarAsset,
-          size: 30,
-          fallbackColor: selected ? Colors.white : Colors.grey.shade400,
+    return Container(
+      width: 22,
+      height: 22,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: selected ? darkGreen : Colors.white.withValues(alpha: 0.55),
+          width: 1.6,
         ),
       ),
-    );
-  }
-
-  Widget _buildStatItem(String label, String value, IconData icon) {
-    return Column(
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: gold, size: 17),
-            const SizedBox(width: 6),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 19,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 5),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11.5,
-            color: Colors.white.withValues(alpha: 0.75),
-          ),
-        ),
-      ],
+      child: buildAvatar(
+        source: _avatarAsset,
+        size: 22,
+        fallbackColor: selected ? darkGreen : Colors.white.withValues(alpha: 0.55),
+      ),
     );
   }
 }
 
 // ============================================================
-// عنصر مساعد: زر أيقونة دائري صغير (إشعارات / إعدادات / Ghost mode)
+// عنصر مساعد: زر أيقونة دائري شفاف يستعمل فوق الهيدر الأخضر
 // ============================================================
-class _CircleIconButton extends StatelessWidget {
+class _HeroIconButton extends StatelessWidget {
   final IconData icon;
-  final Color iconColor;
   final VoidCallback onTap;
 
-  const _CircleIconButton({
-    required this.icon,
-    required this.iconColor,
-    required this.onTap,
-  });
+  const _HeroIconButton({required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.white.withValues(alpha: 0.14),
         shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.12),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: IconButton(
-        icon: Icon(icon, color: iconColor, size: 20),
+        icon: Icon(icon, color: Colors.white, size: 19),
         onPressed: onTap,
         padding: const EdgeInsets.all(8),
         constraints: const BoxConstraints(),
@@ -1006,18 +1055,16 @@ class _NavItemData {
 }
 
 // ============================================================
-// زر "النقاط" (سلة/basket) — يعوض جرس الإشعارات، وكيبان فوقه عدد
-// النقاط الحالي فـ badge صغير لون ذهبي
+// زر "النقاط" فوق الهيدر الأخضر — دائرة شفافة + badge ذهبي بعدد
+// النقاط الحالي
 // ============================================================
-class _PointsBasketButton extends StatelessWidget {
+class _HeroPointsButton extends StatelessWidget {
   final int points;
-  final Color darkGreen;
   final Color gold;
   final VoidCallback onTap;
 
-  const _PointsBasketButton({
+  const _HeroPointsButton({
     required this.points,
-    required this.darkGreen,
     required this.gold,
     required this.onTap,
   });
@@ -1031,21 +1078,14 @@ class _PointsBasketButton extends StatelessWidget {
         children: [
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Colors.white.withValues(alpha: 0.14),
               shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withValues(alpha: 0.12),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
             ),
             child: IconButton(
-              icon: Icon(
+              icon: const Icon(
                 Icons.shopping_basket_rounded,
-                color: darkGreen,
-                size: 20,
+                color: Colors.white,
+                size: 19,
               ),
               onPressed: onTap,
               padding: const EdgeInsets.all(8),
@@ -1062,7 +1102,7 @@ class _PointsBasketButton extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: gold,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white, width: 1.5),
+                  border: Border.all(color: const Color(0xFF0F3D2E), width: 1.5),
                 ),
                 child: Text(
                   points > 99 ? '99+' : '$points',
@@ -1082,10 +1122,10 @@ class _PointsBasketButton extends StatelessWidget {
 }
 
 // ============================================================
-// كارت "شخص مقترح" — بنفس تصميم الصورة المرجعية: قلب فوق، أفاتار
-// دائري بنقطة أونلاين، اسم، عمر، مدينة، وزر "عرض الملف"
+// كارت الكاروسيل الأفقي "شخص مقترح" — صورة كبيرة فوق تاخد أغلب
+// الكارت، تدرج غامق أسفلها للنص، بدل الكارت الصغير المربع القديم
 // ============================================================
-class _SuggestedCard extends StatelessWidget {
+class _SuggestedCarouselCard extends StatelessWidget {
   final _NearbyPerson person;
   final Color darkGreen;
   final Color gold;
@@ -1093,7 +1133,7 @@ class _SuggestedCard extends StatelessWidget {
   final VoidCallback onLikeTap;
   final VoidCallback onViewProfile;
 
-  const _SuggestedCard({
+  const _SuggestedCarouselCard({
     required this.person,
     required this.darkGreen,
     required this.gold,
@@ -1104,136 +1144,125 @@ class _SuggestedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.12),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          GestureDetector(
-            onTap: onLikeTap,
-            child: Icon(
-              isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-              size: 18,
-              color: isLiked ? Colors.red.shade400 : darkGreen,
+    return GestureDetector(
+      onTap: onViewProfile,
+      child: Container(
+        width: 148,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: darkGreen.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: darkGreen.withValues(alpha: 0.2),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
             ),
-          ),
-          const SizedBox(height: 6),
-          Center(
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: darkGreen.withValues(alpha: 0.08),
-                  ),
-                  child: _HomeScreenState.buildAvatar(
-                    source: person.avatarAsset,
-                    size: 56,
-                    fallbackColor: darkGreen,
+          ],
+        ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            _HomeScreenState.buildAvatar(
+              source: person.avatarAsset,
+              size: 148,
+              fallbackColor: Colors.white70,
+            ),
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.transparent,
+                      darkGreen.withValues(alpha: 0.85),
+                      darkGreen.withValues(alpha: 0.96),
+                    ],
+                    stops: const [0.0, 0.45, 0.8, 1.0],
                   ),
                 ),
-                if (person.isOnline)
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: Colors.green.shade500,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
+              ),
+            ),
+            Positioned(
+              top: 10,
+              right: 10,
+              child: GestureDetector(
+                onTap: onLikeTap,
+                child: Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isLiked
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    size: 15,
+                    color: isLiked ? Colors.red.shade400 : darkGreen,
+                  ),
+                ),
+              ),
+            ),
+            if (person.isOnline)
+              Positioned(
+                top: 12,
+                left: 10,
+                child: Container(
+                  width: 9,
+                  height: 9,
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade400,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                ),
+              ),
+            Positioned(
+              left: 12,
+              right: 12,
+              bottom: 12,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    person.age != null
+                        ? '${person.name}، ${person.age}'
+                        : person.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13.5,
                     ),
                   ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            person.name,
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              color: darkGreen,
-              fontSize: 13.5,
-            ),
-          ),
-          if (person.age != null) ...[
-            const SizedBox(height: 2),
-            Text(
-              '${person.age} سنة',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: gold,
-                fontWeight: FontWeight.w700,
-                fontSize: 11.5,
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      Icon(Icons.location_on_rounded, size: 11, color: gold),
+                      const SizedBox(width: 2),
+                      Expanded(
+                        child: Text(
+                          person.city,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            color: Colors.white.withValues(alpha: 0.75),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ],
-          const SizedBox(height: 2),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.location_on_rounded,
-                size: 11,
-                color: Colors.grey.shade400,
-              ),
-              const SizedBox(width: 2),
-              Expanded(
-                child: Text(
-                  person.city,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 10.5, color: Colors.grey.shade500),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            height: 30,
-            child: ElevatedButton(
-              onPressed: onViewProfile,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: darkGreen,
-                elevation: 0,
-                padding: EdgeInsets.zero,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-              child: const Text(
-                'عرض الملف',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

@@ -56,7 +56,14 @@ Widget buildAvatarImage({
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: fallbackColor.withValues(alpha: 0.14),
+        gradient: LinearGradient(
+          colors: [
+            fallbackColor.withValues(alpha: 0.18),
+            fallbackColor.withValues(alpha: 0.08),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
       ),
       child: Text(
         letter,
@@ -110,6 +117,7 @@ class ChatsListTab extends StatefulWidget {
 
 class _ChatsListTabState extends State<ChatsListTab> {
   static const Color darkGreen = Color(0xFF0F3D2E);
+  static const Color gold = Color(0xFFC9A24B);
   static const Color bg = Color(0xFFFAF7F2);
 
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _sentDocs = [];
@@ -336,9 +344,9 @@ class _ChatsListTabState extends State<ChatsListTab> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             _buildSearchBar(),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Expanded(child: _buildBody(me)),
           ],
         ),
@@ -351,31 +359,67 @@ class _ChatsListTabState extends State<ChatsListTab> {
   // ============================================================
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'الدردشات',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    color: darkGreen,
-                  ),
+                Row(
+                  children: [
+                    Container(
+                      width: 4,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: gold,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'الدردشات',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: darkGreen,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 5),
                 Text(
                   'تواصل بسهولة مع الجميع',
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey.shade500,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
           ),
-          Icon(Icons.more_vert_rounded, color: Colors.grey.shade600),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.grey.shade100),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withValues(alpha: 0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: IconButton(
+              icon: Icon(Icons.more_vert_rounded, color: darkGreen, size: 20),
+              onPressed: () {},
+              padding: const EdgeInsets.all(8),
+              constraints: const BoxConstraints(),
+            ),
+          ),
         ],
       ),
     );
@@ -388,14 +432,31 @@ class _ChatsListTabState extends State<ChatsListTab> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
-        height: 46,
+        height: 50,
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(24),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.grey.shade100),
+          boxShadow: [
+            BoxShadow(
+              color: darkGreen.withValues(alpha: 0.05),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Row(
           children: [
+            Container(
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                color: darkGreen.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.search_rounded, color: darkGreen, size: 16),
+            ),
+            const SizedBox(width: 10),
             Expanded(
               child: TextField(
                 controller: _searchController,
@@ -405,14 +466,13 @@ class _ChatsListTabState extends State<ChatsListTab> {
                   isDense: true,
                   hintText: 'ابحث عن محادثة...',
                   hintStyle: TextStyle(
-                    color: Colors.grey.shade500,
+                    color: Colors.grey.shade400,
                     fontSize: 13.5,
                   ),
                 ),
-                style: const TextStyle(fontSize: 13.5),
+                style: const TextStyle(fontSize: 13.5, color: darkGreen),
               ),
             ),
-            Icon(Icons.search_rounded, color: Colors.grey.shade500, size: 20),
           ],
         ),
       ),
@@ -437,7 +497,9 @@ class _ChatsListTabState extends State<ChatsListTab> {
     }
 
     if (!_sentLoaded || !_receivedLoaded) {
-      return const Center(child: CircularProgressIndicator(color: darkGreen));
+      return const Center(
+        child: CircularProgressIndicator(color: darkGreen, strokeWidth: 2.4),
+      );
     }
 
     final conversations = _buildConversations();
@@ -451,7 +513,7 @@ class _ChatsListTabState extends State<ChatsListTab> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.only(top: 4, bottom: 100),
+      padding: const EdgeInsets.fromLTRB(14, 6, 14, 100),
       itemCount: conversations.length,
       itemBuilder: (context, index) {
         final convo = conversations[index];
@@ -473,15 +535,17 @@ class _ChatsListTabState extends State<ChatsListTab> {
             final avatarAsset =
                 (userData?['avatarAsset'] as String?) ??
                 (userData?['avatarPath'] as String?);
+            final bool isOnline = userData?['isOnline'] == true;
 
             return _ConversationRow(
               name: name,
               avatarAsset: avatarAsset,
+              isOnline: isOnline,
               lastMessage: convo.lastMessage,
-              timestamp: convo.lastTimestamp,
               unreadCount: convo.unreadCount,
               timeLabel: _formatTimestamp(convo.lastTimestamp),
               darkGreen: darkGreen,
+              gold: gold,
               onTap: () {
                 Navigator.push(
                   context,
@@ -519,13 +583,13 @@ class _ChatsListTabState extends State<ChatsListTab> {
                 color: darkGreen.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 42, color: darkGreen),
+              child: Icon(icon, size: 40, color: darkGreen),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 20),
             Text(
               title,
               style: const TextStyle(
-                fontSize: 18,
+                fontSize: 17,
                 fontWeight: FontWeight.w800,
                 color: darkGreen,
               ),
@@ -548,28 +612,30 @@ class _ChatsListTabState extends State<ChatsListTab> {
 }
 
 // ============================================================
-// عنصر واحد فـ الليستة — نفس تصميم الصورة المرجعية بالضبط:
-// ليستة مسطحة، خط فاصل تحت كل عنصر، الوقت + badge على اليسار،
-// الاسم + آخر رسالة فـ الوسط (محاذاة يمين)، الأفاتار على اليمين.
+// عنصر واحد فـ الليستة — تصميم بطاقة (card) عصري: أفاتار بنقطة
+// أونلاين، اسم + آخر رسالة بمحاذاة يمين، الوقت + عداد الغير مقروء
+// على اليسار، ظل ناعم وحواف مدورة بدل الخط الفاصل المسطح.
 // ============================================================
 class _ConversationRow extends StatelessWidget {
   final String name;
   final String? avatarAsset;
+  final bool isOnline;
   final String lastMessage;
-  final Timestamp? timestamp;
   final int unreadCount;
   final String timeLabel;
   final Color darkGreen;
+  final Color gold;
   final VoidCallback onTap;
 
   const _ConversationRow({
     required this.name,
     required this.avatarAsset,
+    required this.isOnline,
     required this.lastMessage,
-    required this.timestamp,
     required this.unreadCount,
     required this.timeLabel,
     required this.darkGreen,
+    required this.gold,
     required this.onTap,
   });
 
@@ -577,102 +643,169 @@ class _ConversationRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool hasUnread = unreadCount > 0;
 
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: Colors.grey.shade200, width: 1),
-          ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ⏰ الوقت + عداد الغير مقروء (يسار)
-            SizedBox(
-              width: 56,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    timeLabel,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: hasUnread ? darkGreen : Colors.grey.shade400,
-                      fontWeight: hasUnread
-                          ? FontWeight.w700
-                          : FontWeight.normal,
-                    ),
-                  ),
-                  if (hasUnread) ...[
-                    const SizedBox(height: 6),
-                    Container(
-                      width: 20,
-                      height: 20,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: darkGreen,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        unreadCount > 9 ? '9+' : '$unreadCount',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w800,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: hasUnread
+                    ? darkGreen.withValues(alpha: 0.14)
+                    : Colors.grey.shade100,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: darkGreen.withValues(alpha: hasUnread ? 0.07 : 0.04),
+                  blurRadius: 12,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // ⏰ الوقت + عداد الغير مقروء (يسار)
+                SizedBox(
+                  width: 54,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        timeLabel,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: hasUnread ? darkGreen : Colors.grey.shade400,
+                          fontWeight: hasUnread
+                              ? FontWeight.w700
+                              : FontWeight.normal,
                         ),
                       ),
+                      if (hasUnread) ...[
+                        const SizedBox(height: 6),
+                        Container(
+                          width: 20,
+                          height: 20,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                darkGreen,
+                                darkGreen.withValues(alpha: 0.8),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: darkGreen.withValues(alpha: 0.35),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            unreadCount > 9 ? '9+' : '$unreadCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                // 📝 الاسم + آخر رسالة (محاذاة يمين)
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        name,
+                        textAlign: TextAlign.right,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          color: darkGreen,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        lastMessage.isEmpty ? '📎 رسالة' : lastMessage,
+                        textAlign: TextAlign.right,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: hasUnread
+                              ? Colors.grey.shade700
+                              : Colors.grey.shade500,
+                          fontWeight: hasUnread
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // 🖼️ الأفاتار (يمين) + نقطة أونلاين
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(hasUnread ? 2 : 0),
+                      decoration: hasUnread
+                          ? BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                colors: [
+                                  gold.withValues(alpha: 0.8),
+                                  darkGreen.withValues(alpha: 0.5),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            )
+                          : null,
+                      child: buildAvatarImage(
+                        source: avatarAsset,
+                        name: name,
+                        size: 50,
+                        fallbackColor: darkGreen,
+                      ),
                     ),
+                    if (isOnline)
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade500,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                        ),
+                      ),
                   ],
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(width: 10),
-            // 📝 الاسم + آخر رسالة (محاذاة يمين)
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    name,
-                    textAlign: TextAlign.right,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 15.5,
-                      color: darkGreen,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    lastMessage.isEmpty ? '📎 رسالة' : lastMessage,
-                    textAlign: TextAlign.right,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: hasUnread
-                          ? Colors.grey.shade700
-                          : Colors.grey.shade500,
-                      fontWeight: hasUnread
-                          ? FontWeight.w600
-                          : FontWeight.normal,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            // 🖼️ الأفاتار (يمين)
-            buildAvatarImage(
-              source: avatarAsset,
-              name: name,
-              size: 52,
-              fallbackColor: darkGreen,
-            ),
-          ],
+          ),
         ),
       ),
     );
