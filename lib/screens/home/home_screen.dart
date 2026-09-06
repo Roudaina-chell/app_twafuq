@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../auth/login_screen.dart';
 import '../profile/profile_edit_screen.dart';
 import '../chat/chat_list_tab.dart';
+import '../settings/settings_screen.dart';
 import 'discover_tab.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -21,6 +22,8 @@ class _NearbyPerson {
   final int? age;
   final String? avatarAsset;
   final bool isOnline;
+  // ✅ وسم الاهتمام (اختياري) يبان فـ كارت الشبكة (مثلا: تصميم / تكنولوجيا)
+  final String? interest;
 
   const _NearbyPerson({
     required this.uid,
@@ -29,6 +32,7 @@ class _NearbyPerson {
     required this.age,
     required this.avatarAsset,
     required this.isOnline,
+    this.interest,
   });
 }
 
@@ -54,9 +58,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _likes = 0;
   int _points = 0;
 
-  // ✅ حالة "متصل الآن" اليدوية (Ghost mode)
+  // ✅ حالة "متصل الآن" اليدوية (Ghost mode) — دابا كنبدلوها بالضغط
+  // المطول/العادي على النقطة الخضراء فوق الأفاتار (شوف _buildHeroHeader)
   bool _isOnline = true;
   bool _isTogglingOnline = false;
+
+  // ✅ TODO: اربطها بعدد الإشعارات غير المقروءة الحقيقي من Firestore
+  // (مثلا: collection('notifications').where('seen', isEqualTo:false).count())
+  final int _notificationsCount = 0;
 
   final Set<String> _likedUids = {};
 
@@ -147,6 +156,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   (data['avatarAsset'] as String?) ??
                   (data['avatarPath'] as String?),
               isOnline: data['isOnline'] == true,
+              interest:
+                  (data['interest'] as String?) ??
+                  (data['profession'] as String?),
             );
           })
           .toList();
@@ -165,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   // ============================================================
   // ✅ يكتب isOnline + lastSeen فـ Firestore (يُستدعى تلقائياً من
-  // دورة حياة التطبيق، ويدوياً من زر Ghost mode)
+  // دورة حياة التطبيق، ويدوياً من نقطة الحالة فوق الأفاتار)
   // ============================================================
   Future<void> _setOnlineStatus(bool online) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -294,14 +306,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   // ============================================================
   // ✅ صورة الأفاتار — تدعم رابط شبكة (Firebase Storage) و asset محلي
-  // هذا هو الإصلاح: قبل كان الكود يستعمل Image.asset بشكل دائم حتى
-  // إلا كان avatarAsset فـ الحقيقة رابط http (من Firebase Storage) ،
-  // ولي كان كيبان errorBuilder ويرجع للأيقونة الافتراضية بصمت.
+  // ولي دابا كتدعم شكلين: دائرة (borderRadius = null، كيفما كان
+  // قبل) أو مربع بحواف مدورة من فوق فقط (كارت الشبكة الجديد).
   // ============================================================
   static Widget buildAvatar({
     required String? source,
     required double size,
     required Color fallbackColor,
+    BorderRadius? borderRadius,
   }) {
     if (source == null || source.trim().isEmpty) {
       return Icon(Icons.person, size: size * 0.6, color: fallbackColor);
@@ -310,57 +322,53 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final isNetwork =
         source.startsWith('http://') || source.startsWith('https://');
 
-    return ClipOval(
-      child: SizedBox(
-        width: size,
-        height: size,
-        child: isNetwork
-            ? Image.network(
-                source,
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
-                loadingBuilder: (context, child, progress) {
-                  if (progress == null) return child;
-                  return Center(
-                    child: SizedBox(
-                      width: size * 0.35,
-                      height: size * 0.35,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: fallbackColor,
-                        value: progress.expectedTotalBytes != null
-                            ? (progress.cumulativeBytesLoaded /
-                                  progress.expectedTotalBytes!)
-                            : null,
-                      ),
-                    ),
-                  );
-                },
-                errorBuilder: (context, error, stack) {
-                  debugPrint(
-                    '❌ Avatar (network) load failed: $source -> $error',
-                  );
-                  return Icon(
-                    Icons.person,
-                    size: size * 0.6,
+    final Widget image = isNetwork
+        ? Image.network(
+            source,
+            fit: BoxFit.cover,
+            width: size,
+            height: size,
+            alignment: Alignment.topCenter,
+            loadingBuilder: (context, child, progress) {
+              if (progress == null) return child;
+              return Center(
+                child: SizedBox(
+                  width: size * 0.35,
+                  height: size * 0.35,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
                     color: fallbackColor,
-                  );
-                },
-              )
-            : Image.asset(
-                source,
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
-                errorBuilder: (context, error, stack) {
-                  debugPrint('❌ Avatar (asset) load failed: $source -> $error');
-                  return Icon(
-                    Icons.person,
-                    size: size * 0.6,
-                    color: fallbackColor,
-                  );
-                },
-              ),
-      ),
+                    value: progress.expectedTotalBytes != null
+                        ? (progress.cumulativeBytesLoaded /
+                              progress.expectedTotalBytes!)
+                        : null,
+                  ),
+                ),
+              );
+            },
+            errorBuilder: (context, error, stack) {
+              debugPrint('❌ Avatar (network) load failed: $source -> $error');
+              return Icon(Icons.person, size: size * 0.6, color: fallbackColor);
+            },
+          )
+        : Image.asset(
+            source,
+            fit: BoxFit.cover,
+            width: size,
+            height: size,
+            alignment: Alignment.topCenter,
+            errorBuilder: (context, error, stack) {
+              debugPrint('❌ Avatar (asset) load failed: $source -> $error');
+              return Icon(Icons.person, size: size * 0.6, color: fallbackColor);
+            },
+          );
+
+    return SizedBox(
+      width: size,
+      height: size,
+      child: borderRadius == null
+          ? ClipOval(child: image)
+          : ClipRRect(borderRadius: borderRadius, child: image),
     );
   }
 
@@ -479,9 +487,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ============================================================
-  // محتوى تبويب "الرئيسية" — تصميم جديد كليا: هيدر "hero" أخضر
-  // بحواف سفلية مدورة، بطاقة إحصائيات "عائمة" فوق حده، وبعدها
-  // كاروسيل أفقي للأشخاص المقترحين بدل الشبكة القديمة.
+  // محتوى تبويب "الرئيسية" — هيدر "hero" بصورة خلفية، بطاقة
+  // إحصائيات "عائمة" فوق حده، وبعدها شبكة (Grid) لـ 3 أعمدة
+  // للأشخاص المقترحين بدل الكاروسيل القديم.
   // ============================================================
   Widget _buildHomeTab() {
     return RefreshIndicator(
@@ -511,33 +519,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 4,
-                            height: 18,
-                            decoration: BoxDecoration(
-                              color: gold,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'أشخاص مقترحون',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              color: darkGreen,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        '${_nearbyPeople.length}',
+                      const Text(
+                        'الأشخاص المقترحون لك',
                         style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.grey.shade400,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: darkGreen,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          // TODO: فتح صفحة كل الأشخاص المقترحين
+                        },
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          'عرض الكل',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.grey.shade500,
+                          ),
                         ),
                       ),
                     ],
@@ -545,19 +550,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            _buildNearbyCarousel(),
+            const SizedBox(height: 14),
+            _buildNearbyGrid(),
             const SizedBox(height: 26),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Center(
                 child: TextButton.icon(
                   onPressed: () => _logout(context),
-                  style: TextButton.styleFrom(foregroundColor: Colors.grey.shade500),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.grey.shade500,
+                  ),
                   icon: const Icon(Icons.logout_rounded, size: 17),
                   label: const Text(
                     'تسجيل الخروج',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13.5,
+                    ),
                   ),
                 ),
               ),
@@ -570,9 +580,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ============================================================
-  // 🟢 HERO HEADER: قسم أخضر بحواف سفلية مدورة يحتوي الأفاتار،
-  // الترحيب، أزرار سريعة، والشعار — كليا مختلف عن الهيدر الأبيض
-  // القديم.
+  // 🟢 HERO HEADER: خلفية خضراء غامقة صافية (بلا صورة) للجزء
+  // العلوي (أفاتار/ترحيب/أيقونات)، وتحتها كارت مستقل بخلفية صورة
+  // طبيعة (assets/images/hero_nature.jpg) فيه جملة الترحيب، بحواف
+  // سفلية مدورة للهيدر كامل.
   // ============================================================
   Widget _buildHeroHeader() {
     return ClipRRect(
@@ -583,15 +594,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 56),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [darkGreen, Color(0xFF1A6B4A)],
-          ),
-        ),
+        color: darkGreen,
         child: Stack(
           children: [
+            // ✅ زخرفة دوائر خفيفة فوق الأخضر الصافي (تكسر الفراغ
+            // بلا ما تأثر على قراءة النص)
             Positioned(
               top: -40,
               left: -30,
@@ -649,20 +656,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               ),
                             ),
                           ),
+                          // ✅ نقطة الحالة: ضغطة عليها كتبدل الحالة
+                          // (ظاهر / وضع التخفي) بدل زر العين لي كان
+                          // فوق فـ الهيدر
                           Positioned(
                             bottom: 0,
                             right: 0,
-                            child: Container(
-                              width: 13,
-                              height: 13,
-                              decoration: BoxDecoration(
-                                color: _isOnline
-                                    ? Colors.green.shade400
-                                    : Colors.grey.shade400,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: darkGreen,
-                                  width: 2,
+                            child: GestureDetector(
+                              onTap: _toggleOnlineStatus,
+                              child: Container(
+                                width: 13,
+                                height: 13,
+                                decoration: BoxDecoration(
+                                  color: _isOnline
+                                      ? Colors.green.shade400
+                                      : Colors.grey.shade400,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: darkGreen,
+                                    width: 2,
+                                  ),
                                 ),
                               ),
                             ),
@@ -698,53 +711,66 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ),
                     ),
                     _HeroIconButton(
-                      icon: _isOnline
-                          ? Icons.visibility_rounded
-                          : Icons.visibility_off_rounded,
-                      onTap: _toggleOnlineStatus,
+                      icon: Icons.search_rounded,
+                      onTap: () {
+                        // TODO: فتح شاشة بحث مخصصة، أو ركّز شريط
+                        // البحث لي تحت (_buildSearchBar)
+                      },
                     ),
                     const SizedBox(width: 8),
-                    _HeroPointsButton(points: _points, gold: gold, onTap: () {
-                      // TODO: فتح صفحة النقاط / المتجر
-                    }),
+                    _HeroNotificationButton(
+                      count: _notificationsCount,
+                      onTap: () {
+                        // TODO: فتح صفحة الإشعارات
+                      },
+                    ),
                     const SizedBox(width: 8),
                     _HeroIconButton(
-                      icon: Icons.settings_outlined,
+                      icon: Icons.settings_rounded,
                       onTap: () {
-                        // TODO: فتح صفحة الإعدادات
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SettingsScreen(),
+                          ),
+                        );
                       },
                     ),
                   ],
                 ),
-                const SizedBox(height: 22),
-                RichText(
-                  text: const TextSpan(
-                    children: [
-                      TextSpan(
-                        text: 'ابحث عن شخص يشاركك الاهتمامات ',
-                        style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          height: 1.4,
-                        ),
-                      ),
-                      TextSpan(text: '✨', style: TextStyle(fontSize: 18)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'اكتشف أشخاص جدد وتعرّف عليهم',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.white.withValues(alpha: 0.65),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                const SizedBox(height: 18),
+                _buildHeroNatureCard(),
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // 🌿 كارت الطبيعة الداخلي — الصورة (hero_nature.jpg) فيها البلاصة
+  // النص "كل شيء جميل يبدأ من هنا" + القلب مدمجين معاها من الأصل،
+  // فـ الكود هنا كيعرض الصورة فقط (بلا ما يرسم نص فوقها مرة أخرى)
+  // ويحترم النسبة الحقيقية ديال الصورة (3:1) باش ما يقصّها.
+  // ============================================================
+  Widget _buildHeroNatureCard() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      child: AspectRatio(
+        aspectRatio: 3, // ✅ نفس نسبة صورة hero_nature.jpg (2172x724)
+        child: Image.asset(
+          'assets/images/hero_nature.jpg',
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stack) => Container(
+            color: darkGreen.withValues(alpha: 0.15),
+            alignment: Alignment.center,
+            child: Icon(
+              Icons.image_not_supported_rounded,
+              color: darkGreen.withValues(alpha: 0.4),
+              size: 28,
+            ),
+          ),
         ),
       ),
     );
@@ -786,73 +812,81 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ============================================================
-  // 🃏 بطاقة الإحصائيات — دابا بيضاء "عائمة" فوق حد الهيدر الأخضر
-  // (بدل ما كانت هي نفسها خضراء بالكامل)
+  // 🃏 بطاقات الإحصائيات — 3 كروت بيضاء منفصلة "عائمة" فوق حد
+  // الهيدر (بدل كارت واحد بفواصل)، وأيقونة ذهبية مسطحة بلا خلفية
+  // دائرية، بحال التصميم المرجعي بالضبط
   // ============================================================
   Widget _buildStatsCard() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: darkGreen.withValues(alpha: 0.14),
-            blurRadius: 26,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildStatItem('المتوافقين', '$_matches', Icons.people_rounded),
-          _statDivider(),
-          _buildStatItem('الرسائل', '$_messages', Icons.chat_rounded),
-          _statDivider(),
-          _buildStatItem('الإعجابات', '$_likes', Icons.favorite_rounded),
-        ],
-      ),
-    );
-  }
-
-  Widget _statDivider() {
-    return Container(width: 1, height: 34, color: Colors.grey.shade100);
-  }
-
-  Widget _buildStatItem(String label, String value, IconData icon) {
-    return Column(
+    return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.all(9),
-          decoration: BoxDecoration(
-            color: gold.withValues(alpha: 0.12),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: gold, size: 16),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: darkGreen,
+        Expanded(
+          child: _buildStatItem(
+            'المتابعين',
+            '$_matches',
+            Icons.people_alt_outlined,
           ),
         ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: TextStyle(fontSize: 10.5, color: Colors.grey.shade500),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _buildStatItem(
+            'الرسائل',
+            '$_messages',
+            Icons.chat_bubble_outline_rounded,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _buildStatItem(
+            'الإعجابات',
+            '$_likes',
+            Icons.favorite_border_rounded,
+          ),
         ),
       ],
     );
   }
 
+  Widget _buildStatItem(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: darkGreen.withValues(alpha: 0.10),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: gold, size: 22),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: darkGreen,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(fontSize: 10.5, color: Colors.grey.shade500),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ============================================================
-  // ✅ كاروسيل أفقي "أشخاص مقترحون" — كليا مختلف عن الشبكة القديمة
+  // ✅ شبكة (Grid) 3 أعمدة "أشخاص مقترحون" — بدل الكاروسيل الأفقي
+  // القديم. كل كارت: صورة مربعة + اسم/عمر + مدينة + وسم اهتمام
   // ============================================================
-  Widget _buildNearbyCarousel() {
+  Widget _buildNearbyGrid() {
     if (_isLoadingNearby) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 30),
@@ -890,16 +924,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
     }
 
-    return SizedBox(
-      height: 226,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
         itemCount: _nearbyPeople.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 14),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 14,
+          childAspectRatio: 0.62,
+        ),
         itemBuilder: (context, index) {
           final person = _nearbyPeople[index];
-          return _SuggestedCarouselCard(
+          return _SuggestedGridCard(
             person: person,
             darkGreen: darkGreen,
             gold: gold,
@@ -923,9 +962,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ============================================================
-  // ✅ شريط تنقل سفلي جديد كليا: شريط مسطح بحواف مدورة، كل عنصر
-  // فيه أيقونة + تسمية، والعنصر المختار عندو خلفية بيضاوية ملونة
-  // (بدل المؤشر الدائري المتحرك القديم).
+  // ✅ شريط تنقل سفلي: العنصر المختار عندو خلفية بيضاوية ملونة،
+  // وتاب "المحادثات" عندو badge أحمر بعدد الرسائل غير المقروءة
   // ============================================================
   Widget _buildBottomNav() {
     final items = <_NavItemData>[
@@ -974,12 +1012,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   children: [
                     isProfile
                         ? _buildProfileNavIcon(selected)
-                        : Icon(
+                        : _buildNavIconWithBadge(
+                            index,
                             items[index].icon,
-                            color: selected
-                                ? darkGreen
-                                : Colors.white.withValues(alpha: 0.55),
-                            size: 22,
+                            selected,
                           ),
                     if (selected) ...[
                       const SizedBox(width: 7),
@@ -1002,6 +1038,46 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  // ✅ أيقونة الدردشة عندها badge أحمر بعدد الرسائل إلا كانت > 0
+  Widget _buildNavIconWithBadge(int index, IconData icon, bool selected) {
+    final iconWidget = Icon(
+      icon,
+      color: selected ? darkGreen : Colors.white.withValues(alpha: 0.55),
+      size: 22,
+    );
+    if (index == 2 && _messages > 0) {
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          iconWidget,
+          Positioned(
+            top: -4,
+            right: -8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              constraints: const BoxConstraints(minWidth: 15),
+              decoration: BoxDecoration(
+                color: Colors.red.shade400,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: darkGreen, width: 1.3),
+              ),
+              child: Text(
+                _messages > 9 ? '9+' : '$_messages',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 8,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    return iconWidget;
+  }
+
   Widget _buildProfileNavIcon(bool selected) {
     return Container(
       width: 22,
@@ -1016,14 +1092,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       child: buildAvatar(
         source: _avatarAsset,
         size: 22,
-        fallbackColor: selected ? darkGreen : Colors.white.withValues(alpha: 0.55),
+        fallbackColor: selected
+            ? darkGreen
+            : Colors.white.withValues(alpha: 0.55),
       ),
     );
   }
 }
 
 // ============================================================
-// عنصر مساعد: زر أيقونة دائري شفاف يستعمل فوق الهيدر الأخضر
+// عنصر مساعد: زر أيقونة دائري شفاف يستعمل فوق الهيدر
 // ============================================================
 class _HeroIconButton extends StatelessWidget {
   final IconData icon;
@@ -1055,19 +1133,14 @@ class _NavItemData {
 }
 
 // ============================================================
-// زر "النقاط" فوق الهيدر الأخضر — دائرة شفافة + badge ذهبي بعدد
-// النقاط الحالي
+// زر "الإشعارات" فوق الهيدر — دائرة شفافة + عداد أحمر بعدد
+// الإشعارات غير المقروءة (بحال بادج الدردشة فـ الشريط السفلي)
 // ============================================================
-class _HeroPointsButton extends StatelessWidget {
-  final int points;
-  final Color gold;
+class _HeroNotificationButton extends StatelessWidget {
+  final int count;
   final VoidCallback onTap;
 
-  const _HeroPointsButton({
-    required this.points,
-    required this.gold,
-    required this.onTap,
-  });
+  const _HeroNotificationButton({required this.count, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1083,7 +1156,7 @@ class _HeroPointsButton extends StatelessWidget {
             ),
             child: IconButton(
               icon: const Icon(
-                Icons.shopping_basket_rounded,
+                Icons.notifications_none_rounded,
                 color: Colors.white,
                 size: 19,
               ),
@@ -1092,20 +1165,23 @@ class _HeroPointsButton extends StatelessWidget {
               constraints: const BoxConstraints(),
             ),
           ),
-          if (points > 0)
+          if (count > 0)
             Positioned(
-              top: -4,
-              left: -4,
+              top: -2,
+              right: -4,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                constraints: const BoxConstraints(minWidth: 18),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                constraints: const BoxConstraints(minWidth: 16),
                 decoration: BoxDecoration(
-                  color: gold,
+                  color: Colors.red.shade400,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFF0F3D2E), width: 1.5),
+                  border: Border.all(
+                    color: const Color(0xFF0F3D2E),
+                    width: 1.3,
+                  ),
                 ),
                 child: Text(
-                  points > 99 ? '99+' : '$points',
+                  count > 9 ? '9+' : '$count',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Colors.white,
@@ -1122,10 +1198,10 @@ class _HeroPointsButton extends StatelessWidget {
 }
 
 // ============================================================
-// كارت الكاروسيل الأفقي "شخص مقترح" — صورة كبيرة فوق تاخد أغلب
-// الكارت، تدرج غامق أسفلها للنص، بدل الكارت الصغير المربع القديم
+// كارت الشبكة "شخص مقترح" — صورة مربعة فوق، وتحتها الاسم/العمر،
+// المدينة، ووسم اهتمام صغير (إلا كان موجود)
 // ============================================================
-class _SuggestedCarouselCard extends StatelessWidget {
+class _SuggestedGridCard extends StatelessWidget {
   final _NearbyPerson person;
   final Color darkGreen;
   final Color gold;
@@ -1133,7 +1209,7 @@ class _SuggestedCarouselCard extends StatelessWidget {
   final VoidCallback onLikeTap;
   final VoidCallback onViewProfile;
 
-  const _SuggestedCarouselCard({
+  const _SuggestedGridCard({
     required this.person,
     required this.darkGreen,
     required this.gold,
@@ -1147,83 +1223,78 @@ class _SuggestedCarouselCard extends StatelessWidget {
     return GestureDetector(
       onTap: onViewProfile,
       child: Container(
-        width: 148,
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: darkGreen.withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(22),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: darkGreen.withValues(alpha: 0.2),
-              blurRadius: 16,
-              offset: const Offset(0, 8),
+              color: darkGreen.withValues(alpha: 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
-        child: Stack(
-          fit: StackFit.expand,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            _HomeScreenState.buildAvatar(
-              source: person.avatarAsset,
-              size: 148,
-              fallbackColor: Colors.white70,
-            ),
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.transparent,
-                      darkGreen.withValues(alpha: 0.85),
-                      darkGreen.withValues(alpha: 0.96),
-                    ],
-                    stops: const [0.0, 0.45, 0.8, 1.0],
+            Stack(
+              children: [
+                AspectRatio(
+                  aspectRatio: 1,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return _HomeScreenState.buildAvatar(
+                        source: person.avatarAsset,
+                        size: constraints.maxWidth,
+                        fallbackColor: Colors.grey.shade300,
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(16),
+                        ),
+                      );
+                    },
                   ),
                 ),
-              ),
-            ),
-            Positioned(
-              top: 10,
-              right: 10,
-              child: GestureDetector(
-                onTap: onLikeTap,
-                child: Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    shape: BoxShape.circle,
+                if (person.isOnline)
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      width: 9,
+                      height: 9,
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade400,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.5),
+                      ),
+                    ),
                   ),
-                  child: Icon(
-                    isLiked
-                        ? Icons.favorite_rounded
-                        : Icons.favorite_border_rounded,
-                    size: 15,
-                    color: isLiked ? Colors.red.shade400 : darkGreen,
+                Positioned(
+                  top: 6,
+                  right: 6,
+                  child: GestureDetector(
+                    onTap: onLikeTap,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        isLiked
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        size: 13,
+                        color: isLiked ? Colors.red.shade400 : darkGreen,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
-            if (person.isOnline)
-              Positioned(
-                top: 12,
-                left: 10,
-                child: Container(
-                  width: 9,
-                  height: 9,
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade400,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 1.5),
-                  ),
-                ),
-              ),
-            Positioned(
-              left: 12,
-              right: 12,
-              bottom: 12,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -1234,16 +1305,16 @@ class _SuggestedCarouselCard extends StatelessWidget {
                         : person.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
                       fontWeight: FontWeight.w800,
-                      fontSize: 13.5,
+                      fontSize: 12,
+                      color: darkGreen,
                     ),
                   ),
                   const SizedBox(height: 3),
                   Row(
                     children: [
-                      Icon(Icons.location_on_rounded, size: 11, color: gold),
+                      Icon(Icons.location_on_rounded, size: 10, color: gold),
                       const SizedBox(width: 2),
                       Expanded(
                         child: Text(
@@ -1251,13 +1322,37 @@ class _SuggestedCarouselCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 10.5,
-                            color: Colors.white.withValues(alpha: 0.75),
+                            fontSize: 9.5,
+                            color: Colors.grey.shade500,
                           ),
                         ),
                       ),
                     ],
                   ),
+                  if (person.interest != null &&
+                      person.interest!.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: gold.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        person.interest!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: darkGreen,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

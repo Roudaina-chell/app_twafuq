@@ -244,6 +244,9 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 8),
+              // ============================================================
+              // ✅ رأس الصفحة: شارة دائرية خضراء (بحال الصورة المرجعية)
+              // ============================================================
               Center(
                 child: Container(
                   width: 72,
@@ -292,6 +295,10 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
                 ),
               ),
               const SizedBox(height: 10),
+              // ============================================================
+              // ✅ كارطات الأسباب: أيقونة فدائرة خفيفة + عنوان + وصف
+              // الكارطة المختارة عندها حدود خضراء واضحة (بحال الصورة المرجعية)
+              // ============================================================
               ..._reasons.map(
                 (reason) => _ReasonTile(
                   reason: reason,
@@ -316,7 +323,13 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.grey.shade200),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withValues(alpha: 0.06),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
                 child: TextField(
                   controller: _detailsController,
@@ -332,7 +345,7 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
               const SizedBox(height: 22),
               SizedBox(
                 height: 52,
-                child: ElevatedButton(
+                child: ElevatedButton.icon(
                   onPressed: _isSubmitting ? null : _submitReport,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: darkGreen,
@@ -340,7 +353,14 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: _isSubmitting
+                  icon: _isSubmitting
+                      ? const SizedBox.shrink()
+                      : const Icon(
+                          Icons.flag_rounded,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                  label: _isSubmitting
                       ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
                           'إرسال الإبلاغ',
@@ -402,6 +422,11 @@ class _ReportReason {
   });
 }
 
+// ============================================================
+// كارطة سبب الإبلاغ — بنفس ستايل الصورة المرجعية:
+// أيقونة داخل دائرة خضراء خفيفة + عنوان + وصف.
+// عند الاختيار: خلفية خضراء فاتحة + حدود خضراء واضحة + علامة صح.
+// ============================================================
 class _ReasonTile extends StatelessWidget {
   final _ReportReason reason;
   final bool selected;
@@ -420,23 +445,39 @@ class _ReasonTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        color: selected ? darkGreen.withValues(alpha: 0.06) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: selected ? darkGreen : Colors.grey.shade200,
-                width: selected ? 1.5 : 1,
+                color: selected ? darkGreen : Colors.transparent,
+                width: 1.4,
               ),
+              boxShadow: selected
+                  ? []
+                  : [
+                      BoxShadow(
+                        color: Colors.grey.withValues(alpha: 0.06),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
             ),
             child: Row(
               children: [
-                Icon(reason.icon, color: darkGreen, size: 20),
+                Container(
+                  padding: const EdgeInsets.all(9),
+                  decoration: BoxDecoration(
+                    color: darkGreen.withValues(alpha: 0.08),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(reason.icon, color: darkGreen, size: 19),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -461,11 +502,12 @@ class _ReasonTile extends StatelessWidget {
                     ],
                   ),
                 ),
-                Radio<bool>(
-                  value: true,
-                  groupValue: selected,
-                  onChanged: (_) => onTap(),
-                  activeColor: darkGreen,
+                Icon(
+                  selected
+                      ? Icons.check_circle_rounded
+                      : Icons.radio_button_unchecked_rounded,
+                  color: selected ? darkGreen : Colors.grey.shade300,
+                  size: 20,
                 ),
               ],
             ),

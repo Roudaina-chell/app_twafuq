@@ -539,7 +539,8 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // ============================================================
-          // ✅ الأفاتار + الاسم + الحالة (بحال الصورة المرجعية)
+          // ✅ الأفاتار + الاسم + الحالة (بحال الصورة المرجعية بالضبط)
+          // ملاحظة: الصورة المرجعية كتبان "أونلاين" فقط بلا نقطة خضراء
           // ============================================================
           Center(
             child: Column(
@@ -559,20 +560,6 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
                         child: _buildAvatarImage(avatarAsset, 96),
                       ),
                     ),
-                    if (isOnline)
-                      Positioned(
-                        bottom: 2,
-                        right: 2,
-                        child: Container(
-                          width: 18,
-                          height: 18,
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade500,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2.5),
-                          ),
-                        ),
-                      ),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -585,28 +572,10 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                if (isOnline)
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: const BoxDecoration(
-                          color: Colors.green,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        'متصل الآن',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
+                Text(
+                  isOnline ? 'أونلاين' : 'غير متصل',
+                  style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600),
+                ),
               ],
             ),
           ),
