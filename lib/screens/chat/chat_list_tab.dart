@@ -1,25 +1,10 @@
 // screens/chat/chat_list_tab.dart
-//
-// ✅ قائمة المحادثات (Inbox) — نفس التصميم لي فـ الصورة المرجعية
-// (عنوان "الدردشات" + شريط بحث + ليستة مسطحة بخطوط فاصلة)، لكن
-// دابا مربوطة بـ Firestore حقيقي (ماشي بيانات ثابتة).
-//
-// كتجمع آخر رسالة فـ كل محادثة (chatId) لي أنت طرف فيها
-// (fromUserId == me أو toUserId == me)، كتجيب معلومات الطرف الآخر
-// (name/avatar/city) من collection('users')، وكتفتح
-// ChatConversationScreen الحقيقي كي تدوس على واحد.
-//
-// عداد الرسائل غير المقروءة (badge) لكل محادثة مبني على حقل "read"
-// فـ كل document من collection('messages').
-
 import 'dart:async';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'chat_conversation_screen.dart';
 import '../../services/likes_service.dart';
-
 class _ConversationPreview {
   final String chatId;
   final String otherUid;
