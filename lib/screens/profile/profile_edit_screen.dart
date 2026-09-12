@@ -1,17 +1,29 @@
 // screens/profile/profile_edit_screen.dart
 //
-// نسخة بالتعديل الـ inline: كل حقل فيه ✏️ بروحو، كي تدوسي عليه
-// الحقل يتبدل لـ TextField/Dropdown/Date قابل للتعديل فـ نفس المكان،
-// مع ✅ (حفظ هاذاك الحقل وحدو فـ Firestore) و ❌ (إلغاء ورجوع للقيمة القديمة).
+// صفحة "حسابي" — تصميم v2: نفس لغة التصميم المستعملة فـ باقي التطبيق
+// بالضبط (هيدر بتدرّج خفيف + حلقة ذهبية حول الصورة + عنوان بتدرّج لوني
+// + بطاقات بظلال ناعمة وأيقونات دائرية بتدرّج + شريط سفلي مطابق
+// حرفياً لشريط الرئيسية، بلا اختلاف فـ العناصر ولا الترتيب).
+//
+// ✅ الضغط على "المعلومات الشخصية" يودّي لـ PersonalInfoEditScreen.
+// ✅ الضغط على "الخصوصية" كيودّي لـ SecurityPrivacyScreen.
+// ✅ الضغط على تبويب "الرئيسية/الإعجابات/المحادثات" فـ الشريط السفلي
+//    كيرجع لصفحة الرئيسية ويبدّل التبويب المطلوب فعلياً (Navigator.pop
+//    برجوع رقم التبويب، تقرأه home_screen.dart وتبدّل _selectedIndex).
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'avatar_selection.dart';
+import 'personal_info_edit_screen.dart';
+import '../settings/appearance_screen.dart';
+import '../settings/language_screen.dart';
+import '../settings/security_privacy_screen.dart';
 
 const Color kDarkGreen = Color(0xFF0F3D2E);
+const Color kDarkGreenLight = Color(0xFF1A6B4A);
 const Color kGold = Color(0xFFC9A24B);
 const Color kBg = Color(0xFFFAF7F2);
+const Color kMint = Color(0xFFE9F3EC);
 
 class ProfileEditScreen extends StatefulWidget {
   const ProfileEditScreen({super.key});
@@ -22,55 +34,21 @@ class ProfileEditScreen extends StatefulWidget {
 
 class _ProfileEditScreenState extends State<ProfileEditScreen> {
   bool _isLoading = true;
-  String? _errorMessage;
-
-  // القيم الحالية (لي كتبان فـ الصفحة)
-  String _fullName = '';
-  DateTime? _birthDate;
-  String _occupation = '';
-  String? _educationLevel;
-  String? _city;
-  String? _maritalStatus;
-  String _bio = '';
+  String _name = '';
   String? _avatarAsset;
-
-  int? _ageMin;
-  int? _ageMax;
-  String? _prefCity;
-
-  final List<String> _educationLevels = [
-    'ثانوي',
-    'ليسانس',
-    'ماستر',
-    'دكتوراه',
-    'أخرى',
-  ];
-  final List<String> _cities = [
-    'الجزائر العاصمة',
-    'وهران',
-    'قسنطينة',
-    'قالمة',
-    'عنابة',
-    'البليدة',
-    'أخرى',
-  ];
-  final List<String> _maritalStatuses = ['أعزب', 'مطلق', 'أرمل'];
 
   String get _uid => FirebaseAuth.instance.currentUser?.uid ?? '';
 
   @override
   void initState() {
     super.initState();
-    _loadProfile();
+    _loadAccount();
   }
 
-  Future<void> _loadProfile() async {
+  Future<void> _loadAccount() async {
     try {
       if (_uid.isEmpty) {
-        setState(() {
-          _errorMessage = 'خطأ: ماكاين حتى مستخدم مسجل الدخول';
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
         return;
       }
       final doc = await FirebaseFirestore.instance
@@ -78,113 +56,56 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           .doc(_uid)
           .get();
       final data = doc.data() ?? {};
-      final preferences = (data['preferences'] as Map<String, dynamic>?) ?? {};
-
-      final rawBirth = data['birthDate'] as String?;
 
       setState(() {
-        _fullName =
+        _name =
             (data['fullName'] as String?) ?? (data['name'] as String?) ?? '';
-        _occupation =
-            (data['occupation'] as String?) ?? (data['job'] as String?) ?? '';
-        _bio = (data['bio'] as String?) ?? (data['about'] as String?) ?? '';
-        _birthDate = (rawBirth != null && rawBirth.isNotEmpty)
-            ? DateTime.tryParse(rawBirth)
-            : null;
-        _educationLevel = data['educationLevel'] as String?;
-        _city = data['city'] as String?;
-        _maritalStatus = data['maritalStatus'] as String?;
-        // ✅ Fallback: بعض الحسابات القديمة تخزنو تحت "avatarPath" بدل
-        // "avatarAsset" (نسخة قديمة من avatar_selection.dart). نقرا
-        // الحقلين بجوج باش ما يبقاش حتى حساب بلا أفاتار.
         _avatarAsset =
             (data['avatarAsset'] as String?) ?? (data['avatarPath'] as String?);
-        _ageMin = preferences['ageMin'] as int?;
-        _ageMax = preferences['ageMax'] as int?;
-        _prefCity =
-            (preferences['city'] as String?) ??
-            (preferences['wilaya'] as String?);
         _isLoading = false;
       });
     } catch (e) {
-      setState(() {
-        _errorMessage = 'وقع خطأ فـ تحميل المعلومات';
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
-  int? _computeAge(DateTime birth) {
-    final now = DateTime.now();
-    int age = now.year - birth.year;
-    if (now.month < birth.month ||
-        (now.month == birth.month && now.day < birth.day))
-      age--;
-    return age;
-  }
-
-  // ============================================================
-  // ✅ يكتب حقل واحد بروحو فـ Firestore بـ merge:true (بلا ما يلمس الباقي)
-  // ============================================================
-  Future<bool> _saveField(Map<String, dynamic> payload) async {
-    try {
-      if (_uid.isEmpty) return false;
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(_uid)
-          .set(payload, SetOptions(merge: true));
-      return true;
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('وقع خطأ أثناء الحفظ، عاود المحاولة')),
-        );
-      }
-      return false;
-    }
-  }
-
-  Future<void> _changeAvatar() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const AvatarSelectionScreen()),
-    );
-    if (!mounted) return;
-    await _loadProfile();
-  }
-
-  // ============================================================
-  // ✅ صورة الأفاتار — تدعم رابط شبكة (Firebase Storage) و asset محلي
-  // (نفس المنطق لي كاين فـ home_screen.dart)
-  // ============================================================
-  static Widget _buildAvatarImage({
-    required String? source,
-    required double size,
-  }) {
-    if (source == null || source.trim().isEmpty) {
-      return const Icon(Icons.person, size: 56, color: kDarkGreen);
+  Widget _buildAvatar({double size = 46}) {
+    if (_avatarAsset == null || _avatarAsset!.trim().isEmpty) {
+      return Icon(Icons.person, size: size, color: kDarkGreen);
     }
     final isNetwork =
-        source.startsWith('http://') || source.startsWith('https://');
-    return isNetwork
+        _avatarAsset!.startsWith('http://') ||
+        _avatarAsset!.startsWith('https://');
+    final image = isNetwork
         ? Image.network(
-            source,
+            _avatarAsset!,
             fit: BoxFit.cover,
             alignment: Alignment.topCenter,
-            errorBuilder: (context, error, stack) {
-              debugPrint('❌ Avatar (network) load failed: $source -> $error');
-              return const Icon(Icons.person, size: 56, color: kDarkGreen);
-            },
+            errorBuilder: (c, e, s) =>
+                Icon(Icons.person, size: size, color: kDarkGreen),
           )
         : Image.asset(
-            source,
+            _avatarAsset!,
             fit: BoxFit.cover,
             alignment: Alignment.topCenter,
-            errorBuilder: (context, error, stack) {
-              debugPrint('❌ Avatar (asset) load failed: $source -> $error');
-              return const Icon(Icons.person, size: 56, color: kDarkGreen);
-            },
+            errorBuilder: (c, e, s) =>
+                Icon(Icons.person, size: size, color: kDarkGreen),
           );
+    return ClipOval(child: image);
+  }
+
+  Future<void> _signOut() async {
+    await FirebaseAuth.instance.signOut();
+    if (!mounted) return;
+    // ⚠️ بدّل الـ route هنا بالمسار الحقيقي لصفحة تسجيل الدخول عندك
+    Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+  }
+
+  void _openSecurityPrivacy() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SecurityPrivacyScreen()),
+    );
   }
 
   @override
@@ -200,835 +121,436 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       backgroundColor: kBg,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: EdgeInsets.zero,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.maybePop(context),
-                    icon: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      color: kDarkGreen,
-                      size: 20,
+              _AccountHeader(
+                name: _name,
+                avatar: _buildAvatar(size: 44),
+                onBack: () => Navigator.maybePop(context),
+                onSettings: () {
+                  // TODO: اربطها بصفحة الإعدادات المتقدمة إذا كانت موجودة
+                },
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 22, 20, 24),
+                child: Column(
+                  children: [
+                    _SettingsTile(
+                      icon: Icons.person_outline_rounded,
+                      title: 'المعلومات الشخصية',
+                      subtitle: 'الاسم، البريد الإلكتروني، رقم الهاتف',
+                      featured: true,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const PersonalInfoEditScreen(),
+                        ),
+                      ),
                     ),
-                  ),
-                  const Expanded(
-                    child: Text(
-                      'تعديل الملف الشخصي',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: kDarkGreen,
-                        fontSize: 17,
+                    _SettingsTile(
+                      icon: Icons.lock_outline_rounded,
+                      title: 'الخصوصية',
+                      subtitle: 'من يمكنه رؤية محتواك',
+                      onTap: _openSecurityPrivacy,
+                    ),
+                    _SettingsTile(
+                      icon: Icons.language_rounded,
+                      title: 'اللغة',
+                      subtitle: 'العربية',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const LanguageScreen(),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 48),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // الأفاتار (عندها تعديل خاص بيها أصلا: الضغط عليها)
-              Center(
-                child: GestureDetector(
-                  onTap: _changeAvatar,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: kGold, width: 3),
-                          boxShadow: [
-                            BoxShadow(
-                              color: kGold.withValues(alpha: 0.25),
-                              blurRadius: 16,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(3),
-                          child: ClipOval(
-                            child: Container(
-                              color: kDarkGreen.withValues(alpha: 0.08),
-                              child: _buildAvatarImage(
-                                source: _avatarAsset,
-                                size: 94,
-                              ),
-                            ),
-                          ),
+                    _SettingsTile(
+                      icon: Icons.brush_outlined,
+                      title: 'المظهر',
+                      subtitle: 'الوضع العادي / الفاتح',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AppearanceScreen(),
                         ),
                       ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: kDarkGreen,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2.5),
-                          ),
-                          child: const Icon(
-                            Icons.edit_rounded,
-                            size: 14,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                    _SettingsTile(
+                      icon: Icons.logout_rounded,
+                      title: 'تسجيل الخروج',
+                      subtitle: 'الخروج من حسابك',
+                      isDanger: true,
+                      isLast: true,
+                      onTap: _signOut,
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 8),
-              Center(
-                child: Text(
-                  'اضغط على الصورة لتغييرها',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // بطاقة المعلومات الأساسية
-              _Card(
-                title: 'المعلومات الأساسية',
-                children: [
-                  InlineTextField(
-                    label: 'الاسم الكامل',
-                    icon: Icons.person_outline_rounded,
-                    value: _fullName,
-                    onSave: (v) async {
-                      final ok = await _saveField({'fullName': v});
-                      if (ok) setState(() => _fullName = v);
-                      return ok;
-                    },
-                  ),
-                  InlineDateField(
-                    label: 'تاريخ الميلاد',
-                    value: _birthDate,
-                    onSave: (d) async {
-                      final ok = await _saveField({
-                        'birthDate': d.toIso8601String(),
-                        'age': _computeAge(d),
-                      });
-                      if (ok) setState(() => _birthDate = d);
-                      return ok;
-                    },
-                  ),
-                  InlineTextField(
-                    label: 'المهنة',
-                    icon: Icons.work_outline,
-                    value: _occupation,
-                    onSave: (v) async {
-                      final ok = await _saveField({'occupation': v});
-                      if (ok) setState(() => _occupation = v);
-                      return ok;
-                    },
-                  ),
-                  InlineDropdownField(
-                    label: 'المستوى التعليمي',
-                    icon: Icons.school_outlined,
-                    value: _educationLevel,
-                    options: _educationLevels,
-                    onSave: (v) async {
-                      final ok = await _saveField({'educationLevel': v});
-                      if (ok) setState(() => _educationLevel = v);
-                      return ok;
-                    },
-                  ),
-                  InlineDropdownField(
-                    label: 'المدينة',
-                    icon: Icons.location_city_outlined,
-                    value: _city,
-                    options: _cities,
-                    onSave: (v) async {
-                      final ok = await _saveField({'city': v});
-                      if (ok) setState(() => _city = v);
-                      return ok;
-                    },
-                  ),
-                  InlineDropdownField(
-                    label: 'الحالة العائلية',
-                    icon: Icons.people_outline,
-                    value: _maritalStatus,
-                    options: _maritalStatuses,
-                    onSave: (v) async {
-                      final ok = await _saveField({'maritalStatus': v});
-                      if (ok) setState(() => _maritalStatus = v);
-                      return ok;
-                    },
-                  ),
-                  InlineTextField(
-                    label: 'نبذة عني',
-                    icon: Icons.info_outline_rounded,
-                    value: _bio,
-                    maxLines: 4,
-                    maxLength: 300,
-                    onSave: (v) async {
-                      final ok = await _saveField({'bio': v});
-                      if (ok) setState(() => _bio = v);
-                      return ok;
-                    },
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              // بطاقة التفضيلات
-              _Card(
-                title: 'تفضيلات البحث',
-                children: [
-                  InlineTextField(
-                    label: 'العمر من',
-                    icon: Icons.cake_outlined,
-                    value: _ageMin?.toString() ?? '',
-                    keyboardType: TextInputType.number,
-                    onSave: (v) async {
-                      final parsed = int.tryParse(v.trim());
-                      final ok = await _saveField({
-                        'preferences': {'ageMin': parsed},
-                      });
-                      if (ok) setState(() => _ageMin = parsed);
-                      return ok;
-                    },
-                  ),
-                  InlineTextField(
-                    label: 'العمر إلى',
-                    icon: Icons.cake_outlined,
-                    value: _ageMax?.toString() ?? '',
-                    keyboardType: TextInputType.number,
-                    onSave: (v) async {
-                      final parsed = int.tryParse(v.trim());
-                      final ok = await _saveField({
-                        'preferences': {'ageMax': parsed},
-                      });
-                      if (ok) setState(() => _ageMax = parsed);
-                      return ok;
-                    },
-                  ),
-                  InlineDropdownField(
-                    label: 'الولاية المفضلة',
-                    icon: Icons.map_outlined,
-                    value: _cities.contains(_prefCity) ? _prefCity : null,
-                    options: _cities,
-                    onSave: (v) async {
-                      final ok = await _saveField({
-                        'preferences': {'city': v},
-                      });
-                      if (ok) setState(() => _prefCity = v);
-                      return ok;
-                    },
-                  ),
-                ],
-              ),
-
-              if (_errorMessage != null) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    _errorMessage!,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.red, fontSize: 13),
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: 30),
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: _AccountBottomNav(avatar: _buildAvatar(size: 26)),
       ),
     );
   }
 }
 
 // ================================================================
-// بطاقة عامة (Container أبيض بعنوان)
+// ✅ رأس الصفحة: نفس لغة هيدرات باقي الصفحات (تدرّج خفيف + حلقة
+// ذهبية حول الصورة + عنوان بتدرّج لوني ShaderMask)
 // ================================================================
-class _Card extends StatelessWidget {
-  final String title;
-  final List<Widget> children;
-  const _Card({required this.title, required this.children});
+class _AccountHeader extends StatelessWidget {
+  final String name;
+  final Widget avatar;
+  final VoidCallback onBack;
+  final VoidCallback onSettings;
+
+  const _AccountHeader({
+    required this.name,
+    required this.avatar,
+    required this.onBack,
+    required this.onSettings,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 36),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        gradient: LinearGradient(
+          colors: [kGold.withValues(alpha: 0.10), kBg],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(Icons.badge_outlined, size: 16, color: kGold),
-              const SizedBox(width: 6),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: kDarkGreen,
-                ),
+              _CircleIconButton(icon: Icons.arrow_back, onTap: onBack),
+              _CircleIconButton(
+                icon: Icons.settings_outlined,
+                onTap: onSettings,
               ),
             ],
           ),
-          ...children,
-        ],
-      ),
-    );
-  }
-}
-
-// ================================================================
-// حقل نص قابل للتعديل inline: عرض عادي + ✏️  →  TextField + ✅ ❌
-// ================================================================
-class InlineTextField extends StatefulWidget {
-  final String label;
-  final IconData icon;
-  final String value;
-  final int maxLines;
-  final int? maxLength;
-  final TextInputType? keyboardType;
-  final Future<bool> Function(String newValue) onSave;
-
-  const InlineTextField({
-    super.key,
-    required this.label,
-    required this.icon,
-    required this.value,
-    required this.onSave,
-    this.maxLines = 1,
-    this.maxLength,
-    this.keyboardType,
-  });
-
-  @override
-  State<InlineTextField> createState() => _InlineTextFieldState();
-}
-
-class _InlineTextFieldState extends State<InlineTextField> {
-  bool _editing = false;
-  bool _saving = false;
-  late TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.value);
-  }
-
-  @override
-  void didUpdateWidget(covariant InlineTextField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!_editing && oldWidget.value != widget.value) {
-      _controller.text = widget.value;
-    }
-  }
-
-  void _startEdit() {
-    _controller.text = widget.value;
-    setState(() => _editing = true);
-  }
-
-  void _cancel() {
-    _controller.text = widget.value;
-    setState(() => _editing = false);
-  }
-
-  Future<void> _confirm() async {
-    setState(() => _saving = true);
-    final ok = await widget.onSave(_controller.text.trim());
-    if (!mounted) return;
-    setState(() {
-      _saving = false;
-      if (ok) _editing = false;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+          const SizedBox(height: 14),
           Row(
             children: [
+              Container(
+                width: 100,
+                height: 100,
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [kGold, kDarkGreenLight],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                  ),
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white,
+                    ),
+                    child: avatar,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 18),
               Expanded(
-                child: Text(
-                  widget.label,
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(
-                    color: kDarkGreen,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              if (!_editing)
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined, size: 18, color: kGold),
-                  onPressed: _startEdit,
-                  visualDensity: VisualDensity.compact,
-                ),
-            ],
-          ),
-          if (!_editing)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Text(
-                widget.value.isEmpty ? '—' : widget.value,
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  color: widget.value.isEmpty
-                      ? Colors.grey.shade400
-                      : Colors.black87,
-                  fontSize: 14,
-                ),
-              ),
-            )
-          else
-            Row(
-              children: [
-                if (_saving)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: kDarkGreen,
-                      ),
-                    ),
-                  )
-                else ...[
-                  IconButton(
-                    icon: const Icon(
-                      Icons.check_circle_rounded,
-                      color: kDarkGreen,
-                      size: 22,
-                    ),
-                    onPressed: _confirm,
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.cancel_rounded,
-                      color: Colors.grey.shade400,
-                      size: 22,
-                    ),
-                    onPressed: _cancel,
-                  ),
-                ],
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    autofocus: true,
-                    textAlign: TextAlign.right,
-                    maxLines: widget.maxLines,
-                    maxLength: widget.maxLength,
-                    keyboardType: widget.keyboardType,
-                    decoration: InputDecoration(
-                      prefixIcon: Icon(
-                        widget.icon,
-                        color: kDarkGreen,
-                        size: 20,
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(color: Colors.grey.shade200),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(
-                          color: kDarkGreen,
-                          width: 1.5,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ShaderMask(
+                      shaderCallback: (rect) => const LinearGradient(
+                        colors: [kDarkGreen, kGold],
+                      ).createShader(rect),
+                      child: Text(
+                        name.isEmpty ? '—' : name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 25,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: -0.5,
                         ),
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Text(
+                          'استمتع برحلتك معنا',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            color: kDarkGreen.withValues(alpha: 0.75),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Icon(
+                          Icons.favorite_rounded,
+                          size: 14,
+                          color: kGold,
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 }
 
-// ================================================================
-// حقل Dropdown قابل للتعديل inline
-// ================================================================
-class InlineDropdownField extends StatefulWidget {
-  final String label;
+class _CircleIconButton extends StatelessWidget {
   final IconData icon;
-  final String? value;
-  final List<String> options;
-  final Future<bool> Function(String newValue) onSave;
+  final VoidCallback onTap;
 
-  const InlineDropdownField({
-    super.key,
-    required this.label,
-    required this.icon,
-    required this.value,
-    required this.options,
-    required this.onSave,
-  });
-
-  @override
-  State<InlineDropdownField> createState() => _InlineDropdownFieldState();
-}
-
-class _InlineDropdownFieldState extends State<InlineDropdownField> {
-  bool _editing = false;
-  bool _saving = false;
-  String? _pending;
+  const _CircleIconButton({required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  widget.label,
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(
-                    color: kDarkGreen,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+    return Material(
+      color: Colors.white,
+      shape: const CircleBorder(),
+      elevation: 0,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: kDarkGreen.withValues(alpha: 0.08),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
               ),
-              if (!_editing)
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined, size: 18, color: kGold),
-                  onPressed: () => setState(() {
-                    _pending = widget.value;
-                    _editing = true;
-                  }),
-                  visualDensity: VisualDensity.compact,
-                ),
             ],
           ),
-          if (!_editing)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Text(
-                widget.value ?? '—',
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  color: widget.value == null
-                      ? Colors.grey.shade400
-                      : Colors.black87,
-                  fontSize: 14,
-                ),
-              ),
-            )
-          else
-            Row(
-              children: [
-                if (_saving)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: kDarkGreen,
-                      ),
-                    ),
-                  )
-                else ...[
-                  IconButton(
-                    icon: const Icon(
-                      Icons.check_circle_rounded,
-                      color: kDarkGreen,
-                      size: 22,
-                    ),
-                    onPressed: _pending == null
-                        ? null
-                        : () async {
-                            setState(() => _saving = true);
-                            final ok = await widget.onSave(_pending!);
-                            if (!mounted) return;
-                            setState(() {
-                              _saving = false;
-                              if (ok) _editing = false;
-                            });
-                          },
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.cancel_rounded,
-                      color: Colors.grey.shade400,
-                      size: 22,
-                    ),
-                    onPressed: () => setState(() => _editing = false),
-                  ),
-                ],
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: _pending,
-                    isExpanded: true,
-                    icon: const Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: kDarkGreen,
-                    ),
-                    decoration: InputDecoration(
-                      prefixIcon: Icon(
-                        widget.icon,
-                        color: kDarkGreen,
-                        size: 20,
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(color: Colors.grey.shade200),
-                      ),
-                    ),
-                    items: widget.options
-                        .map((o) => DropdownMenuItem(value: o, child: Text(o)))
-                        .toList(),
-                    onChanged: (v) => setState(() => _pending = v),
-                  ),
+          child: Icon(icon, color: kDarkGreen, size: 20),
+        ),
+      ),
+    );
+  }
+}
+
+// ================================================================
+// ✅ صف واحد من لائحة الإعدادات: أيقونة بتدرّج + عنوان + وصف + سهم
+// featured=true → العنصر الأول: حد ذهبي مميّز
+// isDanger=true → لون أحمر (تسجيل الخروج)
+// ================================================================
+class _SettingsTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  final bool featured;
+  final bool isDanger;
+  final bool isLast;
+
+  const _SettingsTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.featured = false,
+    this.isDanger = false,
+    this.isLast = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color accent = isDanger ? const Color(0xFFE0637A) : kDarkGreen;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 14),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: onTap,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              border: featured
+                  ? Border.all(color: kGold.withValues(alpha: 0.35), width: 1.3)
+                  : Border.all(color: Colors.black.withValues(alpha: 0.03)),
+              boxShadow: [
+                BoxShadow(
+                  color: kDarkGreen.withValues(alpha: featured ? 0.09 : 0.05),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: isDanger
+                            ? [accent.withValues(alpha: 0.16), accent.withValues(alpha: 0.06)]
+                            : [kGold.withValues(alpha: 0.20), kDarkGreen.withValues(alpha: 0.08)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, color: accent, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            color: isDanger ? accent : kDarkGreen,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: Colors.grey.shade400,
+                    size: 22,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ================================================================
+// ✅ الشريط السفلي — مطابق حرفياً لشريط الرئيسية (نفس الحاوية العائمة،
+// نفس الظل، نفس الـ4 عناصر بنفس الترتيب). تبويب "حسابي" هو المفعّل،
+// وباقي التبويبات كترجع لصفحة الرئيسية وتبدّل التبويب فعلياً هناك
+// (عبر Navigator.pop مع رقم التبويب).
+// ================================================================
+class _AccountBottomNav extends StatelessWidget {
+  final Widget avatar;
+
+  const _AccountBottomNav({required this.avatar});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(40),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.15),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _navItem(context, Icons.home, 'الرئيسية', false, targetIndex: 0),
+          _navItem(context, Icons.favorite, 'الإعجابات', false, targetIndex: 1),
+          _navItem(context, Icons.chat, 'المحادثات', false, targetIndex: 2),
+          _navItem(context, Icons.person, 'حسابي', true, isProfile: true),
         ],
       ),
     );
   }
-}
 
-// ================================================================
-// حقل تاريخ الميلاد قابل للتعديل inline
-// ================================================================
-class InlineDateField extends StatefulWidget {
-  final String label;
-  final DateTime? value;
-  final Future<bool> Function(DateTime newValue) onSave;
-
-  const InlineDateField({
-    super.key,
-    required this.label,
-    required this.value,
-    required this.onSave,
-  });
-
-  @override
-  State<InlineDateField> createState() => _InlineDateFieldState();
-}
-
-class _InlineDateFieldState extends State<InlineDateField> {
-  bool _editing = false;
-  bool _saving = false;
-  DateTime? _pending;
-
-  String _fmt(DateTime? d) => d == null
-      ? '—'
-      : '${d.day.toString().padLeft(2, '0')} / ${d.month.toString().padLeft(2, '0')} / ${d.year}';
-
-  Future<void> _pickDate() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _pending ?? widget.value ?? DateTime(now.year - 25),
-      firstDate: DateTime(now.year - 80),
-      lastDate: DateTime(now.year - 18),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(
-            primary: kDarkGreen,
-            onPrimary: Colors.white,
-            surface: Colors.white,
-            onSurface: Colors.black87,
-          ),
-          dialogBackgroundColor: Colors.white,
-        ),
-        child: child!,
-      ),
-    );
-    if (picked != null) setState(() => _pending = picked);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 14),
+  Widget _navItem(
+    BuildContext context,
+    IconData icon,
+    String label,
+    bool selected, {
+    int? targetIndex,
+    bool isProfile = false,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        if (targetIndex != null) Navigator.pop(context, targetIndex);
+      },
+      behavior: HitTestBehavior.opaque,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  widget.label,
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(
-                    color: kDarkGreen,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+          isProfile
+              ? Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: kGold, width: 2),
                   ),
+                  child: ClipOval(child: avatar),
+                )
+              : Icon(
+                  icon,
+                  color: selected ? kDarkGreen : Colors.grey.shade400,
+                  size: 24,
                 ),
-              ),
-              if (!_editing)
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined, size: 18, color: kGold),
-                  onPressed: () => setState(() {
-                    _pending = widget.value;
-                    _editing = true;
-                  }),
-                  visualDensity: VisualDensity.compact,
-                ),
-            ],
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+              color: selected ? kDarkGreen : Colors.grey.shade400,
+            ),
           ),
-          if (!_editing)
+          if (selected)
             Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Text(
-                _fmt(widget.value),
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  color: widget.value == null
-                      ? Colors.grey.shade400
-                      : Colors.black87,
-                  fontSize: 14,
-                ),
-              ),
-            )
-          else
-            Row(
-              children: [
-                if (_saving)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: kDarkGreen,
-                      ),
-                    ),
-                  )
-                else ...[
-                  IconButton(
-                    icon: const Icon(
-                      Icons.check_circle_rounded,
-                      color: kDarkGreen,
-                      size: 22,
-                    ),
-                    onPressed: _pending == null
-                        ? null
-                        : () async {
-                            setState(() => _saving = true);
-                            final ok = await widget.onSave(_pending!);
-                            if (!mounted) return;
-                            setState(() {
-                              _saving = false;
-                              if (ok) _editing = false;
-                            });
-                          },
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.cancel_rounded,
-                      color: Colors.grey.shade400,
-                      size: 22,
-                    ),
-                    onPressed: () => setState(() => _editing = false),
-                  ),
-                ],
-                Expanded(
-                  child: GestureDetector(
-                    onTap: _pickDate,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.calendar_today_outlined,
-                            color: kDarkGreen,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              _fmt(_pending),
-                              textAlign: TextAlign.right,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              margin: const EdgeInsets.only(top: 2),
+              width: 6,
+              height: 6,
+              decoration: const BoxDecoration(color: kGold, shape: BoxShape.circle),
             ),
         ],
       ),

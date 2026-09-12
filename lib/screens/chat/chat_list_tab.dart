@@ -18,6 +18,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'chat_conversation_screen.dart';
+import '../../services/likes_service.dart';
 
 class _ConversationPreview {
   final String chatId;
@@ -117,6 +118,7 @@ class ChatsListTab extends StatefulWidget {
 
 class _ChatsListTabState extends State<ChatsListTab> {
   static const Color darkGreen = Color(0xFF0F3D2E);
+  static const Color darkGreenLight = Color(0xFF1A6B4A);
   static const Color gold = Color(0xFFC9A24B);
   static const Color bg = Color(0xFFFAF7F2);
 
@@ -126,9 +128,15 @@ class _ChatsListTabState extends State<ChatsListTab> {
   bool _receivedLoaded = false;
   bool _hasError = false;
 
+  // ✅ لا تظهر أي محادثة إلا لشخص يوجد بيني وبينه Match فعلي (البند 8+7):
+  // لا Invitation معلّقة، لا Invitation مرفوضة، بل Match مقبول فقط.
+  Set<String> _matchedUids = {};
+  bool _matchesLoaded = false;
+
   StreamSubscription? _sentSub;
   StreamSubscription? _receivedSub;
   StreamSubscription<User?>? _authSub;
+  StreamSubscription<List<String>>? _matchesSub;
 
   final Map<String, Map<String, dynamic>?> _userCache = {};
   final TextEditingController _searchController = TextEditingController();
@@ -158,6 +166,22 @@ class _ChatsListTabState extends State<ChatsListTab> {
   void _attachStreams(String me) {
     _sentSub?.cancel();
     _receivedSub?.cancel();
+    _matchesSub?.cancel();
+
+    _matchesSub = LikesService.instance.myMatchedUserIdsStream().listen(
+      (uids) {
+        if (!mounted) return;
+        setState(() {
+          _matchedUids = uids.toSet();
+          _matchesLoaded = true;
+        });
+      },
+      onError: (e) {
+        debugPrint('❌ Chats list (matches) stream failed: $e');
+        if (!mounted) return;
+        setState(() => _matchesLoaded = true);
+      },
+    );
 
     _sentSub = FirebaseFirestore.instance
         .collection('messages')
@@ -208,6 +232,7 @@ class _ChatsListTabState extends State<ChatsListTab> {
   void dispose() {
     _sentSub?.cancel();
     _receivedSub?.cancel();
+    _matchesSub?.cancel();
     _authSub?.cancel();
     _searchController.dispose();
     super.dispose();
@@ -295,13 +320,37 @@ class _ChatsListTabState extends State<ChatsListTab> {
       );
     }).toList();
 
-    list.sort((a, b) {
+    // ✅ فلترة صارمة: لا تظهر أي محادثة إلا لشخص عندي معه Match فعلي.
+    // هذا يمنع ظهور محادثات لأشخاص Invitation معهم ما زالت pending أو
+    // تم رفضها (البند 8).
+    final matched = list.where((c) => _matchedUids.contains(c.otherUid)).toList();
+
+    // ✅ بعد Accept مباشرة، يجب أن تظهر المحادثة فـ "المحادثات" حتى لو
+    // ما تبادلش الطرفان أي رسالة بعد (البند 18) — نضيف صفوف فارغة
+    // للـ Matches التي لا رسائل لها بعد.
+    final existingOtherUids = matched.map((c) => c.otherUid).toSet();
+    for (final uid in _matchedUids) {
+      if (!existingOtherUids.contains(uid)) {
+        matched.add(
+          _ConversationPreview(
+            chatId: '',
+            otherUid: uid,
+            lastMessage: '',
+            lastTimestamp: null,
+            lastFromMe: false,
+            unreadCount: 0,
+          ),
+        );
+      }
+    }
+
+    matched.sort((a, b) {
       if (a.lastTimestamp == null && b.lastTimestamp == null) return 0;
       if (a.lastTimestamp == null) return 1;
       if (b.lastTimestamp == null) return -1;
       return b.lastTimestamp!.compareTo(a.lastTimestamp!);
     });
-    return list;
+    return matched;
   }
 
   String _formatTimestamp(Timestamp? ts) {
@@ -355,11 +404,18 @@ class _ChatsListTabState extends State<ChatsListTab> {
   }
 
   // ============================================================
-  // 🔝 الهيدر: "الدردشات" + وصف + زر خيارات
+  // 🔝 الهيدر: "المحادثات" بتدرّج لوني (نفس لغة صفحة الإعجابات) +
+  // بادج حي لعدد المحادثات غير المقروءة
   // ============================================================
   Widget _buildHeader() {
+    final conversations = (_sentLoaded && _receivedLoaded && _matchesLoaded)
+        ? _buildConversations()
+        : const <_ConversationPreview>[];
+    final int unreadTotal =
+        conversations.fold(0, (sum, c) => sum + c.unreadCount);
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -367,39 +423,75 @@ class _ChatsListTabState extends State<ChatsListTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 4,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        color: gold,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
+                ShaderMask(
+                  shaderCallback: (rect) => const LinearGradient(
+                    colors: [darkGreen, gold],
+                  ).createShader(rect),
+                  child: const Text(
+                    'المحادثات',
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      letterSpacing: -0.5,
                     ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'الدردشات',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: darkGreen,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 4),
                 Text(
                   'تواصل بسهولة مع الجميع',
                   style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey.shade500,
+                    fontSize: 12.5,
+                    color: Colors.grey.shade600,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
           ),
+          if (unreadTotal > 0)
+            Container(
+              margin: const EdgeInsets.only(left: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [darkGreen, darkGreenLight],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: darkGreen.withValues(alpha: 0.30),
+                    blurRadius: 14,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    unreadTotal > 99 ? '99+' : '$unreadTotal',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      height: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    'غير مقروء',
+                    style: TextStyle(
+                      color: gold.withValues(alpha: 0.95),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -496,7 +588,7 @@ class _ChatsListTabState extends State<ChatsListTab> {
       );
     }
 
-    if (!_sentLoaded || !_receivedLoaded) {
+    if (!_sentLoaded || !_receivedLoaded || !_matchesLoaded) {
       return const Center(
         child: CircularProgressIndicator(color: darkGreen, strokeWidth: 2.4),
       );
@@ -507,8 +599,8 @@ class _ChatsListTabState extends State<ChatsListTab> {
     if (conversations.isEmpty) {
       return _buildInfoState(
         icon: Icons.chat_bubble_outline_rounded,
-        title: 'ماكاين حتى رسالة',
-        subtitle: 'كي تعجبك واحد(ة) فـ الاكتشاف، المحادثة رح تبان هنا',
+        title: 'ماكاين حتى محادثة',
+        subtitle: 'كي يقبل حد الإعجاب معاك (Match)، المحادثة رح تبان هنا',
       );
     }
 
@@ -537,14 +629,23 @@ class _ChatsListTabState extends State<ChatsListTab> {
                 (userData?['avatarPath'] as String?);
             final bool isOnline = userData?['isOnline'] == true;
 
+            // ✅ Match بدون أي رسالة بعد (chatId فارغ = تمت إضافته هنا
+            // فقط لأن Match موجود) — نعرض دعوة لطيفة لبدء الحديث بدل
+            // إيحاء "📎 رسالة" الخاص برسالة فعلية غير موجودة.
+            final bool isMatchOnly = convo.chatId.isEmpty;
+            final String lastMessageDisplay =
+                isMatchOnly ? 'تم التوافق — ابدأ المحادثة الآن 👋' : convo.lastMessage;
+
             return _ConversationRow(
               name: name,
               avatarAsset: avatarAsset,
               isOnline: isOnline,
-              lastMessage: convo.lastMessage,
+              isMatchOnly: isMatchOnly,
+              lastMessage: lastMessageDisplay,
               unreadCount: convo.unreadCount,
               timeLabel: _formatTimestamp(convo.lastTimestamp),
               darkGreen: darkGreen,
+              darkGreenLight: darkGreenLight,
               gold: gold,
               onTap: () {
                 Navigator.push(
@@ -620,10 +721,12 @@ class _ConversationRow extends StatelessWidget {
   final String name;
   final String? avatarAsset;
   final bool isOnline;
+  final bool isMatchOnly;
   final String lastMessage;
   final int unreadCount;
   final String timeLabel;
   final Color darkGreen;
+  final Color darkGreenLight;
   final Color gold;
   final VoidCallback onTap;
 
@@ -631,10 +734,12 @@ class _ConversationRow extends StatelessWidget {
     required this.name,
     required this.avatarAsset,
     required this.isOnline,
+    required this.isMatchOnly,
     required this.lastMessage,
     required this.unreadCount,
     required this.timeLabel,
     required this.darkGreen,
+    required this.darkGreenLight,
     required this.gold,
     required this.onTap,
   });
@@ -642,29 +747,33 @@ class _ConversationRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool hasUnread = unreadCount > 0;
+    final bool highlight = hasUnread || isMatchOnly;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Material(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(22),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(22),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(22),
               border: Border.all(
-                color: hasUnread
-                    ? darkGreen.withValues(alpha: 0.14)
-                    : Colors.grey.shade100,
+                color: isMatchOnly
+                    ? gold.withValues(alpha: 0.35)
+                    : hasUnread
+                        ? darkGreen.withValues(alpha: 0.14)
+                        : Colors.black.withValues(alpha: 0.03),
+                width: isMatchOnly ? 1.3 : 1,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: darkGreen.withValues(alpha: hasUnread ? 0.07 : 0.04),
-                  blurRadius: 12,
-                  offset: const Offset(0, 5),
+                  color: darkGreen.withValues(alpha: highlight ? 0.10 : 0.05),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
@@ -677,28 +786,42 @@ class _ConversationRow extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        timeLabel,
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          color: hasUnread ? darkGreen : Colors.grey.shade400,
-                          fontWeight: hasUnread
-                              ? FontWeight.w700
-                              : FontWeight.normal,
+                      if (isMatchOnly)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: [gold, gold.withValues(alpha: 0.8)]),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text(
+                            'جديد',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                        )
+                      else
+                        Text(
+                          timeLabel,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: hasUnread ? darkGreen : Colors.grey.shade400,
+                            fontWeight: hasUnread
+                                ? FontWeight.w700
+                                : FontWeight.normal,
+                          ),
                         ),
-                      ),
                       if (hasUnread) ...[
                         const SizedBox(height: 6),
                         Container(
-                          width: 20,
-                          height: 20,
+                          width: 21,
+                          height: 21,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [
-                                darkGreen,
-                                darkGreen.withValues(alpha: 0.8),
-                              ],
+                              colors: [gold, darkGreen],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
@@ -737,8 +860,9 @@ class _ConversationRow extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
-                          fontSize: 15,
+                          fontSize: 15.5,
                           color: darkGreen,
+                          letterSpacing: -0.2,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -749,10 +873,12 @@ class _ConversationRow extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 12.5,
-                          color: hasUnread
-                              ? Colors.grey.shade700
-                              : Colors.grey.shade500,
-                          fontWeight: hasUnread
+                          color: isMatchOnly
+                              ? gold.withValues(alpha: 0.95)
+                              : hasUnread
+                                  ? Colors.grey.shade700
+                                  : Colors.grey.shade500,
+                          fontWeight: highlight
                               ? FontWeight.w600
                               : FontWeight.normal,
                         ),
@@ -760,44 +886,45 @@ class _ConversationRow extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                // 🖼️ الأفاتار (يمين) + نقطة أونلاين
+                const SizedBox(width: 14),
+                // 🖼️ الأفاتار (يمين) بحلقة تدرّج دائمة — نفس هوية التطبيق
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
                     Container(
-                      padding: EdgeInsets.all(hasUnread ? 2 : 0),
-                      decoration: hasUnread
-                          ? BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                colors: [
-                                  gold.withValues(alpha: 0.8),
-                                  darkGreen.withValues(alpha: 0.5),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                            )
-                          : null,
-                      child: buildAvatarImage(
-                        source: avatarAsset,
-                        name: name,
-                        size: 50,
-                        fallbackColor: darkGreen,
+                      padding: const EdgeInsets.all(2.4),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: highlight
+                              ? [gold, darkGreenLight]
+                              : [Colors.grey.shade200, Colors.grey.shade200],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                        child: buildAvatarImage(
+                          source: avatarAsset,
+                          name: name,
+                          size: 48,
+                          fallbackColor: darkGreen,
+                        ),
                       ),
                     ),
                     if (isOnline)
                       Positioned(
-                        bottom: 0,
-                        right: 0,
+                        bottom: 1,
+                        right: 1,
                         child: Container(
-                          width: 12,
-                          height: 12,
+                          width: 13,
+                          height: 13,
                           decoration: BoxDecoration(
                             color: Colors.green.shade500,
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
+                            border: Border.all(color: Colors.white, width: 2.2),
                           ),
                         ),
                       ),

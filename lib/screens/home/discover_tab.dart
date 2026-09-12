@@ -4,8 +4,9 @@
 // بدل البيانات الوهمية اللي كانت hardcodée. نفس منطق _loadNearbyPeople فـ
 // home_screen.dart: name/fullName, city, avatarAsset.
 //
-// ✅ عند الإعجاب: نسجل الإعجاب فـ collection 'likes' (fromUserId, toUserId,
-// timestamp) وبعدها نفتح شاشة الدردشة الحقيقية معاه.
+// ✅ عند الإعجاب: نرسل دعوة (Invitation) عبر LikesService (collection
+// 'likes' بحالة status)، بلا فتح Chat مباشرة — الدردشة لا تصبح متاحة
+// إلا بعد أن يقبل الطرف الآخر الدعوة (راجع services/likes_service.dart).
 //
 // ⚠️ TODO:
 // - فلتر "جديد" محتاج composite index (gender + createdAt) — شوف التعليق
@@ -21,7 +22,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../chat/chat_conversation_screen.dart';
+import '../../services/likes_service.dart';
 
 class _DiscoverProfile {
   final String uid;
@@ -886,42 +887,43 @@ class _DiscoverTabState extends State<DiscoverTab>
   }
 
   // ============================================================
-  // ✅ عند الإعجاب: نسجل الإعجاب فـ Firestore بحال حقيقي، من بعد
-  // نفتحو شاشة الدردشة الحقيقية معاه (مربوطة بـ Firestore دابا)
-  // Schema: collection('likes') {fromUserId, toUserId, timestamp}
-  // (نفس الـ schema اللي كتقرا منها _loadRealStats فـ home_screen.dart)
+  // ✅ عند الإعجاب: ننشئ دعوة (Invitation) عبر LikesService فقط —
+  // بلا تكرار (البند 11) وبلا فتح Chat مباشرة (ممنوع حسب البند 2).
+  // الشخص المُعجَب به سيرى الدعوة فـ "الإعجابات"، ولا تصبح المحادثة
+  // متاحة إلا بعد قبوله (Match).
   // ============================================================
   Future<void> _handleDiscoverLike() async {
     if (_isDiscoverActing) return;
     HapticFeedback.mediumImpact();
     final profile = _discoverProfiles[_discoverIndex];
-    final myUid = FirebaseAuth.instance.currentUser?.uid;
+    setState(() => _isDiscoverActing = true);
 
-    if (myUid != null) {
-      try {
-        await FirebaseFirestore.instance.collection('likes').add({
-          'fromUserId': myUid,
-          'toUserId': profile.uid,
-          'timestamp': FieldValue.serverTimestamp(),
-        });
-      } catch (e) {
-        debugPrint('❌ Like save failed: $e');
+    try {
+      final created = await LikesService.instance.sendLike(profile.uid);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              created
+                  ? 'تم إرسال إعجابك إلى ${profile.name} ❤️'
+                  : 'سبق أن أرسلت إعجاباً لهذا الشخص',
+            ),
+            backgroundColor: darkGreen,
+          ),
+        );
       }
+    } on LikeActionException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Like save failed: $e');
     }
 
-    // ✅ يفتح مباشرة شاشة الدردشة الحقيقية مع هاد الشخص
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ChatConversationScreen(
-          personId: profile.uid,
-          personName: profile.name,
-          personCity: profile.city,
-          personAvatarAsset: profile.avatarAsset,
-        ),
-      ),
-    );
     if (!mounted) return;
+    setState(() => _isDiscoverActing = false);
     _goToNextDiscoverProfile();
   }
 

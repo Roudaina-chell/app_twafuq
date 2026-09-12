@@ -1,11 +1,15 @@
 // screens/home/home_screen.dart
+import 'dart:async';
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../auth/login_screen.dart';
 import '../profile/profile_edit_screen.dart';
 import '../chat/chat_list_tab.dart';
-import 'discover_tab.dart';
+import '../likes/likes_tab.dart';
+import '../../services/likes_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -32,33 +36,61 @@ class _NearbyPerson {
   });
 }
 
-class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+class _HomeScreenState extends State<HomeScreen>
+    with WidgetsBindingObserver, TickerProviderStateMixin {
   static const Color darkGreen = Color(0xFF0F3D2E);
+  static const Color darkGreenLight = Color(0xFF1A6B4A);
   static const Color gold = Color(0xFFC9A24B);
   static const Color bg = Color(0xFFFAF7F2);
+  static const Color cream = Color(0xFFF3EDE1);
 
+  // بيانات المستخدم
   List<_NearbyPerson> _nearbyPeople = [];
   bool _isLoadingNearby = true;
 
-  // ✅ 0 = الرئيسية | 1 = الإعجابات (اكتشف) | 2 = الدردشة | 3 = الملف الشخصي
   int _selectedIndex = 0;
   bool _isLoading = true;
   String? _errorMessage;
 
-  // بيانات المستخدم
   String _userName = '';
   String? _avatarAsset;
   String? _myCity;
+  String? _myGender;
   int _matches = 0;
   int _messages = 0;
   int _likes = 0;
+
+  // ============================================================
+  // 🔔 إشعارات حية (Live) — عدد الدعوات المعلّقة + عدد الرسائل غير
+  // المقروءة، تتحدّث تلقائياً بلا Refresh يدوي (بوابتها LikesService
+  // و collection('messages') مباشرة، بنفس الـarchitecture الموجود).
+  // ============================================================
+  int _pendingInvitationsCount = 0;
+  int _unreadMessagesCount = 0;
+  StreamSubscription<List<LikeInvitation>>? _invitationsSub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _unreadMsgsSub;
   int _points = 0;
 
-  // ✅ حالة "متصل الآن" اليدوية (Ghost mode)
   bool _isOnline = true;
   bool _isTogglingOnline = false;
 
   final Set<String> _likedUids = {};
+  Set<String> _hiddenUids = {};
+
+  // ============================================================
+  // 🎯 DISSOLVE / APPEAR ANIMATION STATE
+  // ============================================================
+  late AnimationController _dissolveController;
+  late AnimationController _appearController;
+  double _dissolveValue = 0.0;
+  double _appearValue = 0.0;
+  bool _isDissolving = false;
+  bool _isAppearing = false;
+  _NearbyPerson? _likedPerson; // person we liked (for message after dissolve)
+  bool _isMessageSheetOpen = false; // prevent double dissolve
+
+  // Particles
+  List<_Particle> _particles = [];
 
   // ============================================================
   // تحميل بيانات المستخدم
@@ -97,15 +129,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _avatarAsset =
             (data['avatarAsset'] as String?) ?? (data['avatarPath'] as String?);
         _myCity = data['city'] as String?;
+        _myGender = data['gender'] as String?;
         _isOnline = data['isOnline'] as bool? ?? true;
         _points = (data['points'] as num?)?.toInt() ?? 0;
+        _hiddenUids = (data['hiddenUserIds'] as List<dynamic>?)
+                ?.cast<String>()
+                .toSet() ??
+            {};
         _isLoading = false;
       });
 
-      // ✅ الإحصائيات الحقيقية من Firestore (matches/messages/likes)
       _loadRealStats(user.uid);
 
-      // ✅ الناس القريبين (نفس المدينة)
       if (_myCity != null && _myCity!.isNotEmpty) {
         _loadNearbyPeople(user.uid, _myCity!);
       } else {
@@ -125,14 +160,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _loadNearbyPeople(String myUid, String city) async {
     setState(() => _isLoadingNearby = true);
     try {
-      final snapshot = await FirebaseFirestore.instance
+      // ✅ نفس منطق الجنس المستعمل فـ DiscoverTab: نعرض فقط الجنس
+      // المعاكس (أو Preference الحقيقي إذا كان موجوداً فـ المشروع)،
+      // ولا نعمل Hardcode إذا كان الجنس غير معروف (البند 10)
+      final String? oppositeGender = _myGender == 'male'
+          ? 'female'
+          : _myGender == 'female'
+              ? 'male'
+              : null;
+
+      Query<Map<String, dynamic>> query = FirebaseFirestore.instance
           .collection('users')
-          .where('city', isEqualTo: city)
-          .limit(15)
-          .get();
+          .where('city', isEqualTo: city);
+
+      if (oppositeGender != null) {
+        query = query.where('gender', isEqualTo: oppositeGender);
+      }
+
+      final snapshot = await query.limit(15).get();
 
       final List<_NearbyPerson> people = snapshot.docs
-          .where((d) => d.id != myUid)
+          .where((d) => d.id != myUid && !_hiddenUids.contains(d.id))
           .map((d) {
             final data = d.data();
             return _NearbyPerson(
@@ -155,6 +203,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         setState(() {
           _nearbyPeople = people;
           _isLoadingNearby = false;
+          if (_nearbyPeople.isNotEmpty) {
+            _currentCardIndex = 0;
+            // Reset animation states
+            _dissolveValue = 0.0;
+            _appearValue = 0.0;
+            _isDissolving = false;
+            _isAppearing = false;
+            _particles.clear();
+          }
         });
       }
     } catch (e) {
@@ -164,8 +221,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ============================================================
-  // ✅ يكتب isOnline + lastSeen فـ Firestore (يُستدعى تلقائياً من
-  // دورة حياة التطبيق، ويدوياً من زر Ghost mode)
+  // ✅ يكتب isOnline + lastSeen فـ Firestore
   // ============================================================
   Future<void> _setOnlineStatus(bool online) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -189,33 +245,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     await _setOnlineStatus(_isOnline);
     if (!mounted) return;
     setState(() => _isTogglingOnline = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: darkGreen,
-        duration: const Duration(seconds: 2),
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        content: Row(
-          children: [
-            Icon(
-              _isOnline
-                  ? Icons.visibility_rounded
-                  : Icons.visibility_off_rounded,
-              color: gold,
-              size: 18,
-            ),
-            const SizedBox(width: 10),
-            Text(
-              _isOnline
-                  ? 'أنتَ الآن ظاهر للجميع'
-                  : 'وضع التخفي مفعّل (Ghost mode)',
-              style: const TextStyle(color: Colors.white),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   // ============================================================
@@ -269,14 +298,70 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    _dissolveController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    )..addListener(() {
+        if (mounted) {
+          setState(() {
+            _dissolveValue = _dissolveController.value;
+          });
+        }
+      });
+
+    _appearController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    )..addListener(() {
+        if (mounted) {
+          setState(() {
+            _appearValue = _appearController.value;
+          });
+        }
+      });
+
     WidgetsBinding.instance.addObserver(this);
     _loadUserData();
     _setOnlineStatus(true);
+    _attachLiveBadges();
+  }
+
+  // ============================================================
+  // 🔔 ربط الإشعارات الحية بالبادجات (bell + bottom nav)
+  // ============================================================
+  void _attachLiveBadges() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    _invitationsSub = LikesService.instance.receivedInvitationsStream().listen(
+      (list) {
+        if (!mounted) return;
+        setState(() => _pendingInvitationsCount = list.length);
+      },
+      onError: (e) => debugPrint('❌ Invitations badge stream failed: $e'),
+    );
+
+    _unreadMsgsSub = FirebaseFirestore.instance
+        .collection('messages')
+        .where('toUserId', isEqualTo: uid)
+        .where('read', isEqualTo: false)
+        .snapshots()
+        .listen(
+      (snap) {
+        if (!mounted) return;
+        setState(() => _unreadMessagesCount = snap.docs.length);
+      },
+      onError: (e) => debugPrint('❌ Unread messages badge stream failed: $e'),
+    );
   }
 
   @override
   void dispose() {
+    _dissolveController.dispose();
+    _appearController.dispose();
     WidgetsBinding.instance.removeObserver(this);
+    _invitationsSub?.cancel();
+    _unreadMsgsSub?.cancel();
     _setOnlineStatus(false);
     super.dispose();
   }
@@ -293,15 +378,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ============================================================
-  // ✅ صورة الأفاتار — تدعم رابط شبكة (Firebase Storage) و asset محلي
-  // هذا هو الإصلاح: قبل كان الكود يستعمل Image.asset بشكل دائم حتى
-  // إلا كان avatarAsset فـ الحقيقة رابط http (من Firebase Storage) ،
-  // ولي كان كيبان errorBuilder ويرجع للأيقونة الافتراضية بصمت.
+  // ✅ صورة الأفاتار
   // ============================================================
   static Widget buildAvatar({
     required String? source,
     required double size,
     required Color fallbackColor,
+    BorderRadius? borderRadius,
   }) {
     if (source == null || source.trim().isEmpty) {
       return Icon(Icons.person, size: size * 0.6, color: fallbackColor);
@@ -310,70 +393,68 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final isNetwork =
         source.startsWith('http://') || source.startsWith('https://');
 
-    return ClipOval(
-      child: SizedBox(
-        width: size,
-        height: size,
-        child: isNetwork
-            ? Image.network(
-                source,
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
-                loadingBuilder: (context, child, progress) {
-                  if (progress == null) return child;
-                  return Center(
-                    child: SizedBox(
-                      width: size * 0.35,
-                      height: size * 0.35,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: fallbackColor,
-                        value: progress.expectedTotalBytes != null
-                            ? (progress.cumulativeBytesLoaded /
-                                  progress.expectedTotalBytes!)
-                            : null,
-                      ),
-                    ),
-                  );
-                },
-                errorBuilder: (context, error, stack) {
-                  debugPrint(
-                    '❌ Avatar (network) load failed: $source -> $error',
-                  );
-                  return Icon(
-                    Icons.person,
-                    size: size * 0.6,
+    final image = isNetwork
+        ? Image.network(
+            source,
+            fit: BoxFit.cover,
+            width: size,
+            height: size,
+            alignment: Alignment.topCenter,
+            loadingBuilder: (context, child, progress) {
+              if (progress == null) return child;
+              return Center(
+                child: SizedBox(
+                  width: size * 0.35,
+                  height: size * 0.35,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
                     color: fallbackColor,
-                  );
-                },
-              )
-            : Image.asset(
-                source,
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
-                errorBuilder: (context, error, stack) {
-                  debugPrint('❌ Avatar (asset) load failed: $source -> $error');
-                  return Icon(
-                    Icons.person,
-                    size: size * 0.6,
-                    color: fallbackColor,
-                  );
-                },
-              ),
-      ),
-    );
+                    value: progress.expectedTotalBytes != null
+                        ? (progress.cumulativeBytesLoaded /
+                              progress.expectedTotalBytes!)
+                        : null,
+                  ),
+                ),
+              );
+            },
+            errorBuilder: (context, error, stack) {
+              debugPrint('❌ Avatar (network) load failed: $source -> $error');
+              return Icon(Icons.person, size: size * 0.6, color: fallbackColor);
+            },
+          )
+        : Image.asset(
+            source,
+            fit: BoxFit.cover,
+            width: size,
+            height: size,
+            alignment: Alignment.topCenter,
+            errorBuilder: (context, error, stack) {
+              debugPrint('❌ Avatar (asset) load failed: $source -> $error');
+              return Icon(Icons.person, size: size * 0.6, color: fallbackColor);
+            },
+          );
+
+    if (borderRadius != null) {
+      return ClipRRect(borderRadius: borderRadius, child: image);
+    }
+    return ClipOval(child: SizedBox(width: size, height: size, child: image));
   }
 
   // ============================================================
   // ✅ يفتح شاشة تعديل الملف الشخصي
   // ============================================================
   Future<void> _openProfile() async {
-    await Navigator.push(
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const ProfileEditScreen()),
     );
     if (!mounted) return;
     _loadUserData();
+    // ✅ إذا رجع من صفحة "حسابي" بالضغط على تبويب آخر (نفس شريط
+    // الرئيسية بالضبط)، نبدّل التبويب هنا فعلياً — بلا ماشي ديكور فارغ.
+    if (result is int && result >= 0 && result <= 2) {
+      setState(() => _selectedIndex = result);
+    }
   }
 
   void _onNavTap(int index) {
@@ -384,6 +465,209 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     setState(() => _selectedIndex = index);
   }
 
+  // ============================================================
+  // 🚫 EXCLUDE USER FROM HOME DISCOVERY (local + Firestore)
+  // ============================================================
+  /// Removes the user from the local list and returns the new index.
+  /// Does NOT call setState – caller should handle UI update.
+  int _removePersonFromLocalList(String uid) {
+    final index = _nearbyPeople.indexWhere((p) => p.uid == uid);
+    if (index == -1) return _currentCardIndex;
+
+    _nearbyPeople.removeAt(index);
+    if (_currentCardIndex > index) {
+      return _currentCardIndex - 1;
+    } else if (_currentCardIndex == index) {
+      if (_currentCardIndex >= _nearbyPeople.length) {
+        return _nearbyPeople.length - 1;
+      }
+      return _currentCardIndex;
+    }
+    return _currentCardIndex;
+  }
+
+  Future<void> _addHiddenUser(String uid) async {
+    if (_hiddenUids.contains(uid)) return;
+    _hiddenUids.add(uid);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({
+          'hiddenUserIds': FieldValue.arrayUnion([uid]),
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to update hidden users: $e');
+    }
+  }
+
+  // ============================================================
+  // 🎯 CARD INDEX & SWIPE
+  // ============================================================
+  int _currentCardIndex = 0;
+  double _dragOffset = 0.0;
+  double _dragAngle = 0.0;
+
+  /// Starts the dissolve animation for a specific person.
+  void _startDissolve({required _NearbyPerson person, required bool isLike}) {
+    if (_isDissolving || _isAppearing) return;
+    // Find the person's current index
+    final index = _nearbyPeople.indexWhere((p) => p.uid == person.uid);
+    if (index == -1) {
+      // Person already removed – just show next if available
+      _showNextAfterDissolve();
+      return;
+    }
+
+    // Generate particles only for like
+    if (isLike) {
+      _particles = _generateParticles();
+    } else {
+      _particles.clear();
+    }
+
+    // Temporarily store the person for dissolving card
+    _likedPerson = person;
+
+    setState(() {
+      _isDissolving = true;
+      _dissolveValue = 0.0;
+    });
+
+    _dissolveController.forward(from: 0.0).then((_) {
+      if (!mounted) return;
+      // Dissolve complete – remove the person from local list
+      final newIndex = _removePersonFromLocalList(person.uid);
+      // Add to hidden list (Firestore)
+      _addHiddenUser(person.uid);
+
+      setState(() {
+        _currentCardIndex = newIndex;
+        _isDissolving = false;
+        _dissolveValue = 0.0;
+        _particles.clear();
+        _likedPerson = null;
+      });
+
+      // Show next person or empty state
+      _showNextAfterDissolve();
+    });
+  }
+
+  /// Shows the next person with appear animation, or empty state.
+  void _showNextAfterDissolve() {
+    if (_nearbyPeople.isEmpty) {
+      setState(() {
+        _isAppearing = false;
+        _appearValue = 0.0;
+      });
+      return;
+    }
+
+    if (_currentCardIndex >= _nearbyPeople.length) {
+      _currentCardIndex = _nearbyPeople.length - 1;
+    }
+
+    setState(() {
+      _isAppearing = true;
+      _appearValue = 0.0;
+    });
+    _appearController.forward(from: 0.0).then((_) {
+      if (!mounted) return;
+      setState(() {
+        _isAppearing = false;
+        _appearValue = 0.0;
+      });
+    });
+  }
+
+  // ============================================================
+  // 👇 Heart Like – ينشئ إعجاب/دعوة (Invitation) فقط، بلا فتح Chat.
+  // الشخص المعجب به سيرى الدعوة فـ "الإعجابات"، ولا تصبح المحادثة
+  // متاحة إلا إذا هو قَبِل (راجع LikesService + likes_tab.dart).
+  // ============================================================
+  bool _isSendingLike = false;
+
+  Future<void> _heartLike() async {
+    if (_isDissolving || _isAppearing || _isSendingLike) return;
+    if (_currentCardIndex >= _nearbyPeople.length) return;
+
+    final person = _nearbyPeople[_currentCardIndex];
+    setState(() => _isSendingLike = true);
+
+    try {
+      final created = await LikesService.instance.sendLike(person.uid);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              created
+                  ? 'تم إرسال إعجابك إلى ${person.name} ❤️'
+                  : 'سبق أن أرسلت إعجاباً لهذا الشخص',
+            ),
+            backgroundColor: darkGreen,
+          ),
+        );
+      }
+    } on LikeActionException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Send like failed: $e');
+    } finally {
+      if (mounted) setState(() => _isSendingLike = false);
+    }
+
+    if (!mounted) return;
+    // بعد إرسال الإعجاب، نُبعد البطاقة من الاكتشاف الحالي (تأثير بصري فقط،
+    // لا علاقة له بمنطق الإعجاب نفسه الذي تم تسجيله فـ Firestore فوق)
+    _startDissolve(person: person, isLike: true);
+  }
+
+  // 👇 X / Pass – dissolve immediately (no message)
+  void _swipePass() {
+    if (_isDissolving || _isAppearing) return;
+    if (_currentCardIndex >= _nearbyPeople.length) return;
+    final person = _nearbyPeople[_currentCardIndex];
+    _startDissolve(person: person, isLike: false);
+  }
+
+  // ============================================================
+  // 🧪 PARTICLE GENERATION
+  // ============================================================
+  List<_Particle> _generateParticles() {
+    final random = Random();
+    final particles = <_Particle>[];
+    final int count = 30;
+    for (int i = 0; i < count; i++) {
+      final angle = random.nextDouble() * 2 * pi;
+      final distance = 40 + random.nextDouble() * 120;
+      final size = 3 + random.nextDouble() * 8;
+      final speed = 0.5 + random.nextDouble() * 0.5;
+      final startX = (random.nextDouble() - 0.5) * 40;
+      final startY = (random.nextDouble() - 0.5) * 40;
+      particles.add(_Particle(
+        startOffset: Offset(startX, startY),
+        angle: angle,
+        distance: distance,
+        size: size,
+        speed: speed,
+        opacity: 0.5 + random.nextDouble() * 0.5,
+        color: random.nextBool() ? gold : Colors.white,
+      ));
+    }
+    return particles;
+  }
+
+  // ============================================================
+  // 🏗️ BUILD
+  // ============================================================
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -407,7 +691,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 Container(
                   padding: const EdgeInsets.all(22),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFDE3B40).withValues(alpha: 0.08),
+                    color: const Color(0xFFDE3B40).withOpacity(0.08),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -434,7 +718,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: darkGreen,
                       elevation: 0,
-                      shadowColor: darkGreen.withValues(alpha: 0.4),
+                      shadowColor: darkGreen.withOpacity(0.4),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
@@ -460,28 +744,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
     }
 
-    return Scaffold(
-      backgroundColor: bg,
-      extendBody: true,
-      body: SafeArea(
-        bottom: false,
-        child: IndexedStack(
-          index: _selectedIndex,
-          children: [
-            _buildHomeTab(),
-            const DiscoverTab(),
-            const ChatsListTab(),
-          ],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: bg,
+        body: SafeArea(
+          top: false,
+          bottom: false,
+          child: IndexedStack(
+            index: _selectedIndex,
+            children: [
+              _buildHomeTab(),
+              LikesTab(),
+              const ChatsListTab(),
+            ],
+          ),
         ),
+        bottomNavigationBar: SafeArea(top: false, child: _buildBottomNav()),
       ),
-      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
   // ============================================================
-  // محتوى تبويب "الرئيسية" — تصميم جديد كليا: هيدر "hero" أخضر
-  // بحواف سفلية مدورة، بطاقة إحصائيات "عائمة" فوق حده، وبعدها
-  // كاروسيل أفقي للأشخاص المقترحين بدل الشبكة القديمة.
+  // 🏠 HOME TAB
   // ============================================================
   Widget _buildHomeTab() {
     return RefreshIndicator(
@@ -489,278 +774,239 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       onRefresh: _loadUserData,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.zero,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Directionality(
+          textDirection: TextDirection.rtl,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(),
+              const SizedBox(height: 16),
+              _buildSearchBar(),
+              const SizedBox(height: 18),
+              _buildDiscoveryTabs(),
+              const SizedBox(height: 22),
+              _buildMainProfileCard(),
+              const SizedBox(height: 20),
+              _buildNearbySection(),
+              const SizedBox(height: 20),
+              _buildLikesBanner(),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // 1️⃣ HEADER (unchanged)
+  // ============================================================
+  Widget _buildHeader() {
+    return Row(
+      children: [
+        Stack(
           children: [
-            _buildHeroHeader(),
-            Transform.translate(
-              offset: const Offset(0, -34),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: _buildStatsCard(),
+            Container(
+              width: 58,
+              height: 58,
+              padding: const EdgeInsets.all(2.6),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [gold, darkGreenLight],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                child: ClipOval(
+                  child: _HomeScreenState.buildAvatar(
+                    source: _avatarAsset,
+                    size: 50,
+                    fallbackColor: gold,
+                  ),
+                ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSearchBar(),
-                  const SizedBox(height: 26),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 4,
-                            height: 18,
-                            decoration: BoxDecoration(
-                              color: gold,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'أشخاص مقترحون',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              color: darkGreen,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        '${_nearbyPeople.length}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.grey.shade400,
-                        ),
+            Positioned(
+              bottom: 2,
+              right: 2,
+              child: Container(
+                width: 14,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: _isOnline ? Colors.green.shade400 : Colors.grey.shade400,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _userName,
+                style: const TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  color: darkGreen,
+                  letterSpacing: -0.4,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'مرحبا بك مجدداً ♡',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade500,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Row(
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    gradient: _pendingInvitationsCount > 0
+                        ? LinearGradient(
+                            colors: [gold.withOpacity(0.20), gold.withOpacity(0.08)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          )
+                        : null,
+                    color: _pendingInvitationsCount > 0 ? null : Colors.white,
+                    shape: BoxShape.circle,
+                    border: _pendingInvitationsCount > 0
+                        ? Border.all(color: gold.withOpacity(0.35), width: 1.4)
+                        : null,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.10),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
                       ),
                     ],
+                  ),
+                  child: IconButton(
+                    icon: Icon(
+                      _pendingInvitationsCount > 0
+                          ? Icons.notifications_active_rounded
+                          : Icons.notifications_none_rounded,
+                      color: darkGreen,
+                      size: 22,
+                    ),
+                    // ✅ الجرس أصبح فعلياً يشتغل: يودّي مباشرة لصفحة
+                    // "الإعجابات" (وين كاينين الدعوات الجديدة الفعلية)
+                    onPressed: () => _onNavTap(1),
+                    padding: EdgeInsets.zero,
+                    splashRadius: 20,
+                  ),
+                ),
+                if (_pendingInvitationsCount > 0)
+                  Positioned(
+                    top: -2,
+                    right: -2,
+                    child: AnimatedScale(
+                      scale: 1,
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.elasticOut,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5),
+                        constraints: const BoxConstraints(minWidth: 19, minHeight: 19),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFF6B7A), Color(0xFFDE3B40)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          shape: _pendingInvitationsCount > 9
+                              ? BoxShape.rectangle
+                              : BoxShape.circle,
+                          borderRadius: _pendingInvitationsCount > 9
+                              ? BorderRadius.circular(10)
+                              : null,
+                          border: Border.all(color: cream, width: 2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFDE3B40).withOpacity(0.4),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            _pendingInvitationsCount > 9 ? '9+' : '$_pendingInvitationsCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              height: 1.3,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 6),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 16),
-            _buildNearbyCarousel(),
-            const SizedBox(height: 26),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Center(
-                child: TextButton.icon(
-                  onPressed: () => _logout(context),
-                  style: TextButton.styleFrom(foregroundColor: Colors.grey.shade500),
-                  icon: const Icon(Icons.logout_rounded, size: 17),
-                  label: const Text(
-                    'تسجيل الخروج',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
-                  ),
-                ),
+              child: IconButton(
+                icon: const Icon(Icons.tune, color: darkGreen, size: 22),
+                onPressed: () {},
+                padding: EdgeInsets.zero,
+                splashRadius: 20,
               ),
             ),
-            const SizedBox(height: 90),
           ],
         ),
-      ),
+      ],
     );
   }
 
   // ============================================================
-  // 🟢 HERO HEADER: قسم أخضر بحواف سفلية مدورة يحتوي الأفاتار،
-  // الترحيب، أزرار سريعة، والشعار — كليا مختلف عن الهيدر الأبيض
-  // القديم.
+  // 2️⃣ SEARCH BAR (unchanged)
   // ============================================================
-  Widget _buildHeroHeader() {
-    return ClipRRect(
-      borderRadius: const BorderRadius.only(
-        bottomLeft: Radius.circular(36),
-        bottomRight: Radius.circular(36),
-      ),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 56),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [darkGreen, Color(0xFF1A6B4A)],
-          ),
-        ),
-        child: Stack(
-          children: [
-            Positioned(
-              top: -40,
-              left: -30,
-              child: Container(
-                width: 140,
-                height: 140,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.04),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 30,
-              right: -20,
-              child: Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: gold.withValues(alpha: 0.07),
-                ),
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    GestureDetector(
-                      onTap: _openProfile,
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Container(
-                            width: 54,
-                            height: 54,
-                            padding: const EdgeInsets.all(2.5),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: gold.withValues(alpha: 0.85),
-                                width: 1.6,
-                              ),
-                            ),
-                            child: Container(
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.white,
-                              ),
-                              child: buildAvatar(
-                                source: _avatarAsset,
-                                size: 49,
-                                fallbackColor: darkGreen,
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: Container(
-                              width: 13,
-                              height: 13,
-                              decoration: BoxDecoration(
-                                color: _isOnline
-                                    ? Colors.green.shade400
-                                    : Colors.grey.shade400,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: darkGreen,
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'مرحباً بك 👋',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.7),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _userName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    _HeroIconButton(
-                      icon: _isOnline
-                          ? Icons.visibility_rounded
-                          : Icons.visibility_off_rounded,
-                      onTap: _toggleOnlineStatus,
-                    ),
-                    const SizedBox(width: 8),
-                    _HeroPointsButton(points: _points, gold: gold, onTap: () {
-                      // TODO: فتح صفحة النقاط / المتجر
-                    }),
-                    const SizedBox(width: 8),
-                    _HeroIconButton(
-                      icon: Icons.settings_outlined,
-                      onTap: () {
-                        // TODO: فتح صفحة الإعدادات
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 22),
-                RichText(
-                  text: const TextSpan(
-                    children: [
-                      TextSpan(
-                        text: 'ابحث عن شخص يشاركك الاهتمامات ',
-                        style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          height: 1.4,
-                        ),
-                      ),
-                      TextSpan(text: '✨', style: TextStyle(fontSize: 18)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'اكتشف أشخاص جدد وتعرّف عليهم',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.white.withValues(alpha: 0.65),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildSearchBar() {
     return Container(
-      height: 54,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      height: 58,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.grey.shade100),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: Colors.black.withOpacity(0.03)),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withValues(alpha: 0.06),
+            color: darkGreen.withOpacity(0.06),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -768,16 +1014,40 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ),
       child: Row(
         children: [
-          Icon(Icons.search_rounded, color: darkGreen.withValues(alpha: 0.6)),
+          const SizedBox(width: 18),
+          Icon(Icons.search_rounded, color: darkGreen.withOpacity(0.55), size: 22),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
-              textAlign: TextAlign.right,
               decoration: InputDecoration(
+                hintText: 'ابحث عن أصدقاء، أشخاص قريبين...',
+                hintStyle: TextStyle(
+                  color: Colors.grey.shade400,
+                  fontSize: 14,
+                ),
                 border: InputBorder.none,
-                hintText: 'ابحث عن شخص...',
-                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                isDense: true,
               ),
+              textDirection: TextDirection.rtl,
+            ),
+          ),
+          Container(
+            margin: const EdgeInsets.all(6),
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [gold.withOpacity(0.18), gold.withOpacity(0.08)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.tune_rounded, color: darkGreen, size: 20),
+              onPressed: () {},
+              padding: EdgeInsets.zero,
+              splashRadius: 22,
             ),
           ),
         ],
@@ -786,136 +1056,73 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ============================================================
-  // 🃏 بطاقة الإحصائيات — دابا بيضاء "عائمة" فوق حد الهيدر الأخضر
-  // (بدل ما كانت هي نفسها خضراء بالكامل)
+  // 3️⃣ DISCOVERY TABS (unchanged)
   // ============================================================
-  Widget _buildStatsCard() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: darkGreen.withValues(alpha: 0.14),
-            blurRadius: 26,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildStatItem('المتوافقين', '$_matches', Icons.people_rounded),
-          _statDivider(),
-          _buildStatItem('الرسائل', '$_messages', Icons.chat_rounded),
-          _statDivider(),
-          _buildStatItem('الإعجابات', '$_likes', Icons.favorite_rounded),
-        ],
-      ),
-    );
-  }
+  int _selectedTab = 0;
 
-  Widget _statDivider() {
-    return Container(width: 1, height: 34, color: Colors.grey.shade100);
-  }
-
-  Widget _buildStatItem(String label, String value, IconData icon) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(9),
-          decoration: BoxDecoration(
-            color: gold.withValues(alpha: 0.12),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: gold, size: 16),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: darkGreen,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: TextStyle(fontSize: 10.5, color: Colors.grey.shade500),
-        ),
-      ],
-    );
-  }
-
-  // ============================================================
-  // ✅ كاروسيل أفقي "أشخاص مقترحون" — كليا مختلف عن الشبكة القديمة
-  // ============================================================
-  Widget _buildNearbyCarousel() {
-    if (_isLoadingNearby) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 30),
-        child: Center(
-          child: CircularProgressIndicator(color: darkGreen, strokeWidth: 2.4),
-        ),
-      );
-    }
-    if (_nearbyPeople.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 30),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.grey.shade100),
-          ),
-          child: Column(
-            children: [
-              Icon(
-                Icons.people_outline_rounded,
-                color: Colors.grey.shade300,
-                size: 34,
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'ماكاين حتى حد فـ نفس مدينتك دابا',
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
+  Widget _buildDiscoveryTabs() {
+    final tabs = [
+      {'label': 'لك', 'icon': Icons.whatshot_rounded},
+      {'label': 'قريب منك', 'icon': Icons.location_on_rounded},
+      {'label': 'جديد', 'icon': Icons.people_alt_rounded},
+      {'label': 'مفضلين', 'icon': Icons.star_rounded},
+    ];
     return SizedBox(
-      height: 226,
+      height: 44,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        itemCount: _nearbyPeople.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 14),
+        itemCount: tabs.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
-          final person = _nearbyPeople[index];
-          return _SuggestedCarouselCard(
-            person: person,
-            darkGreen: darkGreen,
-            gold: gold,
-            isLiked: _likedUids.contains(person.uid),
-            onLikeTap: () {
+          final isSelected = _selectedTab == index;
+          return GestureDetector(
+            onTap: () {
               setState(() {
-                if (_likedUids.contains(person.uid)) {
-                  _likedUids.remove(person.uid);
-                } else {
-                  _likedUids.add(person.uid);
-                }
+                _selectedTab = index;
               });
             },
-            onViewProfile: () {
-              // TODO: فتح صفحة الملف الشخصي لهذا الشخص
-            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+              decoration: BoxDecoration(
+                gradient: isSelected
+                    ? LinearGradient(colors: [darkGreen, darkGreenLight])
+                    : null,
+                color: isSelected ? null : Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: isSelected ? Colors.transparent : Colors.grey.shade200,
+                  width: 1.2,
+                ),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: darkGreen.withOpacity(0.28),
+                          blurRadius: 12,
+                          offset: const Offset(0, 5),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    tabs[index]['icon'] as IconData,
+                    color: isSelected ? Colors.white : darkGreen,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    tabs[index]['label'] as String,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : darkGreen,
+                      fontSize: 14,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           );
         },
       ),
@@ -923,196 +1130,769 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ============================================================
-  // ✅ شريط تنقل سفلي جديد كليا: شريط مسطح بحواف مدورة، كل عنصر
-  // فيه أيقونة + تسمية، والعنصر المختار عندو خلفية بيضاوية ملونة
-  // (بدل المؤشر الدائري المتحرك القديم).
+  // 4️⃣ MAIN PROFILE CARD (with dissolve + appear animation)
   // ============================================================
-  Widget _buildBottomNav() {
-    final items = <_NavItemData>[
-      _NavItemData(icon: Icons.home_rounded, label: 'الرئيسية'),
-      _NavItemData(icon: Icons.favorite_rounded, label: 'الإعجابات'),
-      _NavItemData(icon: Icons.chat_bubble_rounded, label: 'الدردشة'),
-      _NavItemData(icon: Icons.person_rounded, label: 'ملفي'),
-    ];
+  Widget _buildMainProfileCard() {
+    if (_nearbyPeople.isEmpty && !_isDissolving && !_isAppearing) {
+      return _buildEmptyCard();
+    }
 
-    return SafeArea(
-      top: false,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-        decoration: BoxDecoration(
-          color: darkGreen,
-          borderRadius: BorderRadius.circular(26),
-          boxShadow: [
-            BoxShadow(
-              color: darkGreen.withValues(alpha: 0.32),
-              blurRadius: 22,
-              offset: const Offset(0, 10),
-            ),
-          ],
+    _NearbyPerson? currentPerson;
+    if (_currentCardIndex < _nearbyPeople.length) {
+      currentPerson = _nearbyPeople[_currentCardIndex];
+    }
+
+    Widget cardContent;
+    if (_isDissolving && _likedPerson != null) {
+      cardContent = _buildDissolvingCard(_likedPerson!);
+    } else if (_isAppearing && currentPerson != null) {
+      cardContent = _buildAppearingCard(currentPerson!);
+    } else if (currentPerson != null) {
+      cardContent = _buildNormalCard(currentPerson);
+    } else {
+      return _buildEmptyCard();
+    }
+
+    return GestureDetector(
+      onPanUpdate: (details) {
+        if (_isDissolving || _isAppearing) return;
+        setState(() {
+          _dragOffset += details.delta.dx;
+          _dragAngle = _dragOffset * 0.02;
+        });
+      },
+      onPanEnd: (details) {
+        if (_isDissolving || _isAppearing) return;
+        if (_dragOffset > 80 || _dragOffset < -80) {
+          _swipePass();
+        } else {
+          setState(() {
+            _dragOffset = 0.0;
+            _dragAngle = 0.0;
+          });
+        }
+      },
+      child: Transform.rotate(
+        angle: _dragAngle,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          transform: Matrix4.translationValues(_dragOffset, 0, 0),
+          child: cardContent,
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: List.generate(items.length, (index) {
-            final selected = _selectedIndex == index;
-            final isProfile = index == 3;
-            return GestureDetector(
-              onTap: () => _onNavTap(index),
-              behavior: HitTestBehavior.opaque,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                padding: EdgeInsets.symmetric(
-                  horizontal: selected ? 16 : 10,
-                  vertical: 10,
+      ),
+    );
+  }
+
+  // Build normal card (idle)
+  Widget _buildNormalCard(_NearbyPerson person) {
+    final isLiked = _likedUids.contains(person.uid);
+    return _buildProfileCardContent(
+      person: person,
+      isLiked: isLiked,
+      showButtons: true,
+    );
+  }
+
+  // Build dissolving card (scale + fade + particles)
+  Widget _buildDissolvingCard(_NearbyPerson person) {
+    final isLiked = _likedUids.contains(person.uid);
+    return Stack(
+      children: [
+        Transform.scale(
+          scale: 1.0 - _dissolveValue * 0.3,
+          child: Opacity(
+            opacity: 1.0 - _dissolveValue,
+            child: _buildProfileCardContent(
+              person: person,
+              isLiked: isLiked,
+              showButtons: false,
+            ),
+          ),
+        ),
+        if (_particles.isNotEmpty && _dissolveValue > 0)
+          CustomPaint(
+            painter: _ParticlePainter(
+              particles: _particles,
+              progress: _dissolveValue,
+              cardSize: Size(MediaQuery.of(context).size.width - 40, 400),
+            ),
+            size: Size(MediaQuery.of(context).size.width - 40, 400),
+          ),
+      ],
+    );
+  }
+
+  // Build appearing card (fade + scale in)
+  Widget _buildAppearingCard(_NearbyPerson person) {
+    final isLiked = _likedUids.contains(person.uid);
+    return Transform.scale(
+      scale: 0.7 + _appearValue * 0.3,
+      child: Opacity(
+        opacity: _appearValue,
+        child: _buildProfileCardContent(
+          person: person,
+          isLiked: isLiked,
+          showButtons: true,
+        ),
+      ),
+    );
+  }
+
+  // Helper to build card content (shared)
+  Widget _buildProfileCardContent({
+    required _NearbyPerson person,
+    required bool isLiked,
+    required bool showButtons,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: darkGreen.withOpacity(0.12),
+            blurRadius: 34,
+            offset: const Offset(0, 16),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(32),
+        child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Stack(
+            children: [
+              SizedBox(
+                height: 320,
+                width: double.infinity,
+                child: _HomeScreenState.buildAvatar(
+                  source: person.avatarAsset,
+                  size: 320,
+                  fallbackColor: darkGreen,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(32),
+                    topRight: Radius.circular(32),
+                  ),
                 ),
-                decoration: BoxDecoration(
-                  color: selected ? gold : Colors.transparent,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    isProfile
-                        ? _buildProfileNavIcon(selected)
-                        : Icon(
-                            items[index].icon,
-                            color: selected
-                                ? darkGreen
-                                : Colors.white.withValues(alpha: 0.55),
-                            size: 22,
+              ),
+              // Online pill
+              Positioned(
+                top: 16,
+                left: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: person.isOnline
+                          ? [Colors.green.shade400, Colors.green.shade600]
+                          : [Colors.grey.shade400, Colors.grey.shade500],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.18),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      if (person.isOnline)
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
                           ),
-                    if (selected) ...[
-                      const SizedBox(width: 7),
+                        ),
+                      if (person.isOnline) const SizedBox(width: 6),
                       Text(
-                        items[index].label,
+                        person.isOnline ? 'متصل الآن' : 'غير متصل',
                         style: const TextStyle(
-                          color: darkGreen,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12.5,
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ],
+                  ),
+                ),
+              ),
+              // Image counter
+              Positioned(
+                top: 16,
+                right: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.38),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white.withOpacity(0.25)),
+                  ),
+                  child: const Text(
+                    '1/1',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              // Gradient overlay — تدرّج بثلاث درجات لعمق أكثر
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  height: 170,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.35),
+                        Colors.black.withOpacity(0.72),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              // Info overlay
+              Positioned(
+                bottom: 16,
+                left: 16,
+                right: 16,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          person.name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 23,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.3,
+                            shadows: [
+                              Shadow(
+                                offset: Offset(0, 2),
+                                blurRadius: 6,
+                                color: Colors.black38,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: [gold, gold.withOpacity(0.7)]),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(color: gold.withOpacity(0.5), blurRadius: 6),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.verified,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        if (person.age != null)
+                          Text(
+                            '${person.age} سنة',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        if (person.age != null && person.city.isNotEmpty)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 6),
+                            child: Text('•', style: TextStyle(color: Colors.white54)),
+                          ),
+                        if (person.city.isNotEmpty)
+                          Row(
+                            children: [
+                              const Icon(Icons.location_on_rounded, color: Colors.white70, size: 16),
+                              const SizedBox(width: 4),
+                              Text(
+                                person.city,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.18),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white.withOpacity(0.2)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.school_rounded, color: Colors.white70, size: 14),
+                          SizedBox(width: 4),
+                          Text(
+                            'طالب جامعي',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 9),
+                    Text(
+                      'ثق بنفسك دائماً.. لأنك تستحق الأفضل',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontStyle: FontStyle.italic,
+                        color: Colors.white.withOpacity(0.9),
+                        fontWeight: FontWeight.w500,
+                        shadows: const [
+                          Shadow(
+                            offset: Offset(0, 1),
+                            blurRadius: 4,
+                            color: Colors.black26,
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-            );
-          }),
+            ],
+          ),
+          if (showButtons)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _actionButton(
+                    icon: Icons.close_rounded,
+                    color: Colors.grey.shade400,
+                    onTap: _swipePass,
+                    size: 54,
+                  ),
+                  _actionButton(
+                    icon: Icons.favorite_rounded,
+                    color: isLiked ? darkGreen : gold,
+                    onTap: _heartLike,
+                    size: 68,
+                    hasGlow: true,
+                    isLiked: isLiked,
+                    isPrimary: true,
+                  ),
+                  _actionButton(
+                    icon: Icons.star_rounded,
+                    color: gold,
+                    onTap: _heartLike,
+                    size: 54,
+                  ),
+                ],
+              ),
+            ),
+          if (!showButtons) const SizedBox(height: 20),
+        ],
         ),
       ),
     );
   }
 
-  Widget _buildProfileNavIcon(bool selected) {
-    return Container(
-      width: 22,
-      height: 22,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: selected ? darkGreen : Colors.white.withValues(alpha: 0.55),
-          width: 1.6,
-        ),
-      ),
-      child: buildAvatar(
-        source: _avatarAsset,
-        size: 22,
-        fallbackColor: selected ? darkGreen : Colors.white.withValues(alpha: 0.55),
-      ),
-    );
-  }
-}
-
-// ============================================================
-// عنصر مساعد: زر أيقونة دائري شفاف يستعمل فوق الهيدر الأخضر
-// ============================================================
-class _HeroIconButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _HeroIconButton({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.14),
-        shape: BoxShape.circle,
-      ),
-      child: IconButton(
-        icon: Icon(icon, color: Colors.white, size: 19),
-        onPressed: onTap,
-        padding: const EdgeInsets.all(8),
-        constraints: const BoxConstraints(),
-      ),
-    );
-  }
-}
-
-class _NavItemData {
-  final IconData icon;
-  final String label;
-  const _NavItemData({required this.icon, required this.label});
-}
-
-// ============================================================
-// زر "النقاط" فوق الهيدر الأخضر — دائرة شفافة + badge ذهبي بعدد
-// النقاط الحالي
-// ============================================================
-class _HeroPointsButton extends StatelessWidget {
-  final int points;
-  final Color gold;
-  final VoidCallback onTap;
-
-  const _HeroPointsButton({
-    required this.points,
-    required this.gold,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _actionButton({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+    double size = 56,
+    bool hasGlow = false,
+    bool isLiked = false,
+    bool isPrimary = false,
+  }) {
     return GestureDetector(
       onTap: onTap,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.14),
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              icon: const Icon(
-                Icons.shopping_basket_rounded,
-                color: Colors.white,
-                size: 19,
-              ),
-              onPressed: onTap,
-              padding: const EdgeInsets.all(8),
-              constraints: const BoxConstraints(),
-            ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          gradient: isPrimary
+              ? LinearGradient(
+                  colors: isLiked
+                      ? [darkGreen, darkGreenLight]
+                      : [gold, gold.withOpacity(0.75)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: isPrimary ? null : Colors.white,
+          shape: BoxShape.circle,
+          border: isPrimary
+              ? null
+              : Border.all(color: Colors.grey.shade200, width: 1.5),
+          boxShadow: hasGlow
+              ? [
+                  BoxShadow(
+                    color: color.withOpacity(0.45),
+                    blurRadius: 22,
+                    offset: const Offset(0, 10),
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.12),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+        ),
+        child: Icon(
+          icon,
+          color: isPrimary ? Colors.white : color,
+          size: size * 0.42,
+        ),
+      ),
+    );
+  }
+
+  // Empty state card
+  Widget _buildEmptyCard() {
+    return Container(
+      height: 420,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
-          if (points > 0)
-            Positioned(
-              top: -4,
-              left: -4,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                constraints: const BoxConstraints(minWidth: 18),
-                decoration: BoxDecoration(
-                  color: gold,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFF0F3D2E), width: 1.5),
+        ],
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.people_outline, size: 60, color: Colors.grey.shade300),
+            const SizedBox(height: 16),
+            Text(
+              'لا يوجد أشخاص جدد حالياً',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: darkGreen,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'سنخبرك عندما نجد أشخاصاً مناسبين لك.',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade500,
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: _loadUserData,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: gold,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
                 ),
-                child: Text(
-                  points > 99 ? '99+' : '$points',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 9,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              icon: const Icon(Icons.refresh),
+              label: const Text('تحديث'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // 5️⃣ NEARBY PEOPLE (unchanged)
+  // ============================================================
+  Widget _buildNearbySection() {
+    if (_isLoadingNearby) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 20),
+          child: CircularProgressIndicator(color: darkGreen, strokeWidth: 2),
+        ),
+      );
+    }
+    final nearby = _nearbyPeople.skip(1).toList();
+    if (nearby.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.location_on, color: gold, size: 20),
+                const SizedBox(width: 6),
+                const Text(
+                  'أشخاص قريبون',
+                  style: TextStyle(
+                    fontSize: 18,
                     fontWeight: FontWeight.w800,
+                    color: darkGreen,
                   ),
                 ),
+              ],
+            ),
+            GestureDetector(
+              onTap: () {},
+              child: Text(
+                'عرض الكل >',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: gold,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 120,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: nearby.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            itemBuilder: (context, index) {
+              final p = nearby[index];
+              return _NearbyPersonCard(
+                person: p,
+                darkGreen: darkGreen,
+                gold: gold,
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // 6️⃣ NEW LIKES BANNER (unchanged)
+  // ============================================================
+  Widget _buildLikesBanner() {
+    if (_likes == 0) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: cream,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: gold.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.favorite, color: darkGreen, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'لديك $_likes إعجابات جديدة',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: darkGreen,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'اكتشف من أعجب بك',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {},
+            style: ElevatedButton.styleFrom(
+              backgroundColor: darkGreen,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              elevation: 0,
+            ),
+            child: const Text('مشاهدة >'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // 🧭 BOTTOM NAVIGATION (removed "اكتشف")
+  // ============================================================
+  Widget _buildBottomNav() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(40),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.15),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _navItem(Icons.home, 'الرئيسية', _selectedIndex == 0, () => _onNavTap(0)),
+          _navItem(Icons.favorite, 'الإعجابات', _selectedIndex == 1, () => _onNavTap(1),
+              badgeCount: _pendingInvitationsCount),
+          _navItem(Icons.chat, 'المحادثات', _selectedIndex == 2, () => _onNavTap(2),
+              badgeCount: _unreadMessagesCount),
+          _navItem(Icons.person, 'حسابي', false, () => _onNavTap(3), isProfile: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _navItem(
+    IconData icon,
+    String label,
+    bool selected,
+    VoidCallback onTap, {
+    bool isProfile = false,
+    int badgeCount = 0,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              isProfile
+                  ? Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: selected ? gold : Colors.grey.shade300, width: 2),
+                      ),
+                      child: ClipOval(
+                        child: _HomeScreenState.buildAvatar(
+                          source: _avatarAsset,
+                          size: 28,
+                          fallbackColor: darkGreen,
+                        ),
+                      ),
+                    )
+                  : Icon(
+                      icon,
+                      color: selected ? darkGreen : Colors.grey.shade400,
+                      size: 24,
+                    ),
+              // ✅ بادج حي لعدد الدعوات/الرسائل غير المقروءة على أيقونة
+              // "الإعجابات" و"المحادثات" فـ الشريط السفلي
+              if (badgeCount > 0)
+                Positioned(
+                  top: -6,
+                  right: -8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5),
+                    constraints: const BoxConstraints(minWidth: 17, minHeight: 17),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFF6B7A), Color(0xFFDE3B40)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: badgeCount > 9 ? BoxShape.rectangle : BoxShape.circle,
+                      borderRadius: badgeCount > 9 ? BorderRadius.circular(9) : null,
+                      border: Border.all(color: Colors.white, width: 1.6),
+                    ),
+                    child: Center(
+                      child: Text(
+                        badgeCount > 9 ? '9+' : '$badgeCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+              color: selected ? darkGreen : Colors.grey.shade400,
+            ),
+          ),
+          if (selected && !isProfile)
+            Container(
+              margin: const EdgeInsets.only(top: 2),
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: gold,
+                shape: BoxShape.circle,
               ),
             ),
         ],
@@ -1122,147 +1902,157 @@ class _HeroPointsButton extends StatelessWidget {
 }
 
 // ============================================================
-// كارت الكاروسيل الأفقي "شخص مقترح" — صورة كبيرة فوق تاخد أغلب
-// الكارت، تدرج غامق أسفلها للنص، بدل الكارت الصغير المربع القديم
+// 🧩 PARTICLE DATA
 // ============================================================
-class _SuggestedCarouselCard extends StatelessWidget {
+class _Particle {
+  final Offset startOffset;
+  final double angle;
+  final double distance;
+  final double size;
+  final double speed;
+  final double opacity;
+  final Color color;
+
+  _Particle({
+    required this.startOffset,
+    required this.angle,
+    required this.distance,
+    required this.size,
+    required this.speed,
+    required this.opacity,
+    required this.color,
+  });
+}
+
+// ============================================================
+// 🎨 PARTICLE PAINTER
+// ============================================================
+class _ParticlePainter extends CustomPainter {
+  final List<_Particle> particles;
+  final double progress;
+  final Size cardSize;
+
+  _ParticlePainter({
+    required this.particles,
+    required this.progress,
+    required this.cardSize,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+    final center = Offset(size.width / 2, size.height / 2);
+
+    for (final p in particles) {
+      final dx = p.startOffset.dx + cos(p.angle) * p.distance * progress * p.speed;
+      final dy = p.startOffset.dy + sin(p.angle) * p.distance * progress * p.speed;
+      final currentOffset = center + Offset(dx, dy);
+
+      final opacity = p.opacity * (1 - progress);
+      if (opacity <= 0) continue;
+
+      paint.color = p.color.withOpacity(opacity);
+      final radius = p.size * (1 - progress * 0.5);
+      canvas.drawCircle(currentOffset, radius, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ParticlePainter oldDelegate) => true;
+}
+
+// ============================================================
+// 🧩 NEARBY PERSON CARD (unchanged)
+// ============================================================
+class _NearbyPersonCard extends StatelessWidget {
   final _NearbyPerson person;
   final Color darkGreen;
   final Color gold;
-  final bool isLiked;
-  final VoidCallback onLikeTap;
-  final VoidCallback onViewProfile;
 
-  const _SuggestedCarouselCard({
+  const _NearbyPersonCard({
     required this.person,
     required this.darkGreen,
     required this.gold,
-    required this.isLiked,
-    required this.onLikeTap,
-    required this.onViewProfile,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onViewProfile,
-      child: Container(
-        width: 148,
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: darkGreen.withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: darkGreen.withValues(alpha: 0.2),
-              blurRadius: 16,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            _HomeScreenState.buildAvatar(
-              source: person.avatarAsset,
-              size: 148,
-              fallbackColor: Colors.white70,
-            ),
-            Positioned.fill(
-              child: DecoratedBox(
+    return Container(
+      width: 86,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: darkGreen.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Stack(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.transparent,
-                      darkGreen.withValues(alpha: 0.85),
-                      darkGreen.withValues(alpha: 0.96),
-                    ],
-                    stops: const [0.0, 0.45, 0.8, 1.0],
+                  shape: BoxShape.circle,
+                  border: Border.all(color: gold.withOpacity(0.3), width: 1.5),
+                ),
+                child: ClipOval(
+                  child: _HomeScreenState.buildAvatar(
+                    source: person.avatarAsset,
+                    size: 52,
+                    fallbackColor: darkGreen,
                   ),
                 ),
               ),
-            ),
-            Positioned(
-              top: 10,
-              right: 10,
-              child: GestureDetector(
-                onTap: onLikeTap,
-                child: Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    isLiked
-                        ? Icons.favorite_rounded
-                        : Icons.favorite_border_rounded,
-                    size: 15,
-                    color: isLiked ? Colors.red.shade400 : darkGreen,
-                  ),
-                ),
-              ),
-            ),
-            if (person.isOnline)
-              Positioned(
-                top: 12,
-                left: 10,
-                child: Container(
-                  width: 9,
-                  height: 9,
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade400,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 1.5),
-                  ),
-                ),
-              ),
-            Positioned(
-              left: 12,
-              right: 12,
-              bottom: 12,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    person.age != null
-                        ? '${person.name}، ${person.age}'
-                        : person.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 13.5,
+              if (person.isOnline)
+                Positioned(
+                  bottom: 2,
+                  right: 2,
+                  child: Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade400,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
                     ),
                   ),
-                  const SizedBox(height: 3),
-                  Row(
-                    children: [
-                      Icon(Icons.location_on_rounded, size: 11, color: gold),
-                      const SizedBox(width: 2),
-                      Expanded(
-                        child: Text(
-                          person.city,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            color: Colors.white.withValues(alpha: 0.75),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            person.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: darkGreen,
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 2),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.location_on, size: 10, color: gold),
+              const SizedBox(width: 2),
+              Text(
+                '1.2 كم',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey.shade500,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'report_user_screen.dart';
+import '../../services/likes_service.dart';
 
 class ProfileViewScreen extends StatefulWidget {
   final String userId;
@@ -31,6 +32,12 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
   int _unreadNotifCount = 0;
   String? _errorMessage;
 
+  // ✅ Profile Preview مفتوح أحياناً قبل وجود Match (من صفحة "الإعجابات")
+  // — فـ هاذ الحالة كنخبيو أدوات إدارة المحادثة (بحث/كتم/اختفاء/حذف)
+  // لأنها ماعندهاش معنى قبل قبول الطرفين (البند 5).
+  bool _hasMatch = false;
+  bool _checkingMatch = true;
+
   Map<String, dynamic>? _userData;
 
   String get _myUid => FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -47,6 +54,26 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
     _checkIfBlocked();
     _checkIfMuted();
     _loadChatSettings();
+    _checkMatch();
+  }
+
+  // ============================================================
+  // 💞 هل يوجد Match بيني وبين صاحب هذا البروفايل؟ — يتحكم فـ إظهار
+  // أدوات المحادثة (بحث/كتم/اختفاء/حذف) داخل هذه الشاشة (البند 5+7)
+  // ============================================================
+  Future<void> _checkMatch() async {
+    try {
+      final matched = await LikesService.instance.hasMatch(widget.userId);
+      if (!mounted) return;
+      setState(() {
+        _hasMatch = matched;
+        _checkingMatch = false;
+      });
+    } catch (e) {
+      debugPrint('❌ Check match failed: $e');
+      if (!mounted) return;
+      setState(() => _checkingMatch = false);
+    }
   }
 
   Future<void> _loadProfile() async {
@@ -433,28 +460,29 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
         elevation: 0.5,
         iconTheme: const IconThemeData(color: darkGreen),
         actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert_rounded, color: darkGreen),
-            onSelected: (value) {
-              if (value == 'delete') _deleteConversation();
-            },
-            itemBuilder: (ctx) => [
-              const PopupMenuItem(
-                value: 'delete',
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.delete_outline_rounded,
-                      color: Colors.red,
-                      size: 20,
-                    ),
-                    SizedBox(width: 10),
-                    Text('حذف المحادثة'),
-                  ],
+          if (_hasMatch)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert_rounded, color: darkGreen),
+              onSelected: (value) {
+                if (value == 'delete') _deleteConversation();
+              },
+              itemBuilder: (ctx) => [
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.delete_outline_rounded,
+                        color: Colors.red,
+                        size: 20,
+                      ),
+                      SizedBox(width: 10),
+                      Text('حذف المحادثة'),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
         ],
       ),
       body: _isLoading
@@ -613,31 +641,55 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
           const SizedBox(height: 22),
 
           // ============================================================
-          // ✅ صف الإجراءات السريعة: بحث / إشعارات
+          // ✅ صف الإجراءات السريعة: بحث / إشعارات — بعد وجود Match فقط
+          // (قبل ذلك، هذه الشاشة Profile Preview بحت — البند 5)
           // ============================================================
-          Row(
-            children: [
-              Expanded(
-                child: _QuickActionCard(
-                  icon: Icons.search_rounded,
-                  label: 'بحث في المحادثة',
-                  onTap: _openSearch,
+          if (_hasMatch) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: _QuickActionCard(
+                    icon: Icons.search_rounded,
+                    label: 'بحث في المحادثة',
+                    onTap: _openSearch,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _QuickActionCard(
-                  icon: _isMuted
-                      ? Icons.notifications_off_rounded
-                      : Icons.notifications_none_rounded,
-                  label: 'الإشعارات',
-                  badgeCount: _unreadNotifCount,
-                  onTap: _toggleMute,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _QuickActionCard(
+                    icon: _isMuted
+                        ? Icons.notifications_off_rounded
+                        : Icons.notifications_none_rounded,
+                    label: 'الإشعارات',
+                    badgeCount: _unreadNotifCount,
+                    onTap: _toggleMute,
+                  ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 22),
+          ] else if (!_checkingMatch) ...[
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: gold.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(16),
               ),
-            ],
-          ),
-          const SizedBox(height: 22),
+              child: Row(
+                children: [
+                  const Icon(Icons.favorite_border_rounded, color: gold, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'ستتمكن من المراسلة بعد أن يقبل الطرفان الإعجاب',
+                      style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 22),
+          ],
 
           // ============================================================
           // ✅ معلومات
@@ -662,7 +714,7 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
           const SizedBox(height: 22),
 
           // ============================================================
-          // ✅ إعدادات الخصوصية
+          // ✅ إعدادات الخصوصية — إعدادات المحادثة الفعلية بعد Match فقط
           // ============================================================
           const _SectionLabel('إعدادات الخصوصية'),
           const SizedBox(height: 8),
@@ -671,13 +723,15 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
             title: 'التشفير',
             value: 'الرسائل والمكالمات مشفرة تماماً',
           ),
-          const SizedBox(height: 10),
-          _InfoCard(
-            icon: Icons.timer_outlined,
-            title: 'الرسائل ذاتية الاختفاء',
-            value: _isDisappearing ? 'مفعّلة' : 'متوقفة',
-            onTap: _toggleDisappearing,
-          ),
+          if (_hasMatch) ...[
+            const SizedBox(height: 10),
+            _InfoCard(
+              icon: Icons.timer_outlined,
+              title: 'الرسائل ذاتية الاختفاء',
+              value: _isDisappearing ? 'مفعّلة' : 'متوقفة',
+              onTap: _toggleDisappearing,
+            ),
+          ],
 
           const SizedBox(height: 22),
 
