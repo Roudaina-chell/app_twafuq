@@ -414,15 +414,8 @@ class _EditHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 28),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [kGold.withValues(alpha: 0.10), kBg],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-      ),
       child: Column(
         children: [
           Row(
@@ -468,11 +461,7 @@ class _EditHeader extends StatelessWidget {
                   padding: const EdgeInsets.all(3.2),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: const LinearGradient(
-                      colors: [kGold, kMidGreen],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    border: Border.all(color: kGold, width: 2.6),
                   ),
                   child: Container(
                     padding: const EdgeInsets.all(3),
@@ -518,18 +507,13 @@ class _EditHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          ShaderMask(
-            shaderCallback: (rect) => const LinearGradient(
-              colors: [kDarkGreen, kGold],
-            ).createShader(rect),
-            child: Text(
-              name.isEmpty ? '—' : name,
-              style: const TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 20,
-                color: Colors.white,
-                letterSpacing: -0.4,
-              ),
+          Text(
+            name.isEmpty ? '—' : name,
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 20,
+              color: kDarkGreen,
+              letterSpacing: -0.4,
             ),
           ),
         ],
@@ -577,11 +561,7 @@ class _Card extends StatelessWidget {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [kGold.withValues(alpha: 0.22), kDarkGreen.withValues(alpha: 0.08)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  color: kDarkGreen.withValues(alpha: 0.08),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, size: 18, color: kDarkGreen),

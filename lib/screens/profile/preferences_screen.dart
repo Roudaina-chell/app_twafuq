@@ -189,14 +189,7 @@ class _PreferencesScreenState extends State<PreferencesScreen>
                       height: 76,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            darkGreen.withValues(alpha: 0.08),
-                            gold.withValues(alpha: 0.14),
-                          ],
-                        ),
+                        color: gold.withValues(alpha: 0.10),
                         border: Border.all(color: gold.withValues(alpha: 0.3)),
                         boxShadow: [
                           BoxShadow(
@@ -417,17 +410,13 @@ class _PreferencesScreenState extends State<PreferencesScreen>
                     duration: const Duration(milliseconds: 300),
                     height: 56,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: [darkGreen, Color(0xFF1A6B4A)],
-                      ),
+                      color: darkGreen,
                       borderRadius: BorderRadius.circular(18),
                       boxShadow: [
                         BoxShadow(
-                          color: darkGreen.withValues(alpha: 0.35),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
+                          color: darkGreen.withValues(alpha: 0.25),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
                         ),
                       ],
                     ),

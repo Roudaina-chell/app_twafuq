@@ -32,21 +32,19 @@ class ChatConversationScreen extends StatefulWidget {
 }
 
 // ============================================================
-// 🎨 ثيمات المحادثة — كل ثيم عندو خلفية + تدرّج فقاعة الرسائل المرسلة
+// 🎨 ثيمات المحادثة — كل ثيم عندو خلفية + لون فقاعة الرسائل المرسلة
 // (فقاعة الطرف الآخر تبقى بيضاء دائماً باش القراءة تبقى واضحة).
 // ============================================================
 class ChatThemeOption {
   final String id;
   final String label;
   final Color background;
-  final List<Color> sentBubbleGradient;
   final Color swatch;
 
   const ChatThemeOption({
     required this.id,
     required this.label,
     required this.background,
-    required this.sentBubbleGradient,
     required this.swatch,
   });
 }
@@ -56,36 +54,31 @@ const List<ChatThemeOption> kChatThemes = [
     id: 'classic',
     label: 'كلاسيكي',
     background: Color(0xFFFAF7F2),
-    sentBubbleGradient: [Color(0xFF0F3D2E), Color(0xFF1A6B4A)],
     swatch: Color(0xFF0F3D2E),
   ),
   ChatThemeOption(
     id: 'rose',
     label: 'وردي',
     background: Color(0xFFFDF3F4),
-    sentBubbleGradient: [Color(0xFFE0637A), Color(0xFFF08A9C)],
     swatch: Color(0xFFE0637A),
   ),
   ChatThemeOption(
     id: 'gold',
     label: 'ذهبي',
     background: Color(0xFFFBF6EA),
-    sentBubbleGradient: [Color(0xFFC9A24B), Color(0xFFE0BE6E)],
     swatch: Color(0xFFC9A24B),
   ),
   ChatThemeOption(
     id: 'ocean',
     label: 'أزرق',
     background: Color(0xFFF1F7FA),
-    sentBubbleGradient: [Color(0xFF1F5F7A), Color(0xFF3E8FAE)],
     swatch: Color(0xFF1F5F7A),
   ),
   ChatThemeOption(
     id: 'night',
     label: 'داكن',
     background: Color(0xFF15201C),
-    sentBubbleGradient: [Color(0xFFC9A24B), Color(0xFF0F3D2E)],
-    swatch: Color(0xFF15201C),
+    swatch: Color(0xFFC9A24B),
   ),
 ];
 
@@ -400,7 +393,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                           width: 56,
                           height: 56,
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(colors: theme.sentBubbleGradient),
+                            color: theme.swatch,
                             shape: BoxShape.circle,
                             border: Border.all(
                               color: selected ? gold : Colors.transparent,
@@ -1291,11 +1284,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(
-          colors: [gold.withValues(alpha: 0.9), darkGreen.withValues(alpha: 0.6)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        border: Border.all(color: gold, width: 2),
       ),
       child: avatarCore,
     );
@@ -1313,16 +1302,12 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
         preferredSize: const Size.fromHeight(72),
         child: Container(
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [theme.swatch.withValues(alpha: 0.10), Colors.white],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
+            color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: theme.swatch.withValues(alpha: 0.10),
-                blurRadius: 20,
-                offset: const Offset(0, 6),
+                color: theme.swatch.withValues(alpha: 0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
@@ -1773,14 +1758,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                         maxWidth: MediaQuery.of(context).size.width * 0.75,
                       ),
                       decoration: BoxDecoration(
-                        gradient: fromMe
-                            ? LinearGradient(
-                                colors: chatThemeById(_chatThemeId).sentBubbleGradient,
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              )
-                            : null,
-                        color: fromMe ? null : Colors.white,
+                        color: fromMe ? chatThemeById(_chatThemeId).swatch : Colors.white,
                         borderRadius: BorderRadius.only(
                           topLeft: const Radius.circular(18),
                           topRight: const Radius.circular(18),
@@ -2259,13 +2237,8 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: theme.sentBubbleGradient
-                      .map((c) => c.withValues(
-                          alpha: (_isSending || _isRecording) ? 0.5 : 1))
-                      .toList(),
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+                color: theme.swatch.withValues(
+                  alpha: (_isSending || _isRecording) ? 0.5 : 1,
                 ),
                 shape: BoxShape.circle,
                 boxShadow: (_isSending || _isRecording)

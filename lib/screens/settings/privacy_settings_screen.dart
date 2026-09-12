@@ -53,14 +53,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
                       width: 84,
                       height: 84,
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            kGold.withValues(alpha: 0.20),
-                            kDarkGreen.withValues(alpha: 0.08),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
+                        color: kDarkGreen.withValues(alpha: 0.08),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -70,18 +63,13 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    ShaderMask(
-                      shaderCallback: (rect) => const LinearGradient(
-                        colors: [kDarkGreen, kGold],
-                      ).createShader(rect),
-                      child: const Text(
-                        'الخصوصية',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: -0.4,
-                        ),
+                    const Text(
+                      'الخصوصية',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: kDarkGreen,
+                        letterSpacing: -0.4,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -148,14 +136,7 @@ class _PrivacySwitchTile extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  kGold.withValues(alpha: 0.20),
-                  kDarkGreen.withValues(alpha: 0.08),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: kDarkGreen.withValues(alpha: 0.08),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: kDarkGreen, size: 20),

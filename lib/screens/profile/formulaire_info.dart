@@ -283,14 +283,7 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                       height: 70,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            darkGreen.withValues(alpha: 0.08),
-                            gold.withValues(alpha: 0.12),
-                          ],
-                        ),
+                        color: gold.withValues(alpha: 0.10),
                         border: Border.all(color: gold.withValues(alpha: 0.3), width: 2),
                       ),
                       child: const Icon(

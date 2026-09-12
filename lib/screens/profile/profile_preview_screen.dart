@@ -394,17 +394,13 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
                         duration: const Duration(milliseconds: 300),
                         height: 54,
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                            colors: [darkGreen, Color(0xFF1A6B4A)],
-                          ),
+                          color: darkGreen,
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: darkGreen.withValues(alpha: 0.35),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
+                              color: darkGreen.withValues(alpha: 0.25),
+                              blurRadius: 12,
+                              offset: const Offset(0, 6),
                             ),
                           ],
                         ),

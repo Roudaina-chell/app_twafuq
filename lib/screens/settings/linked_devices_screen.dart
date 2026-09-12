@@ -179,14 +179,7 @@ class _DeviceTile extends StatelessWidget {
             height: 46,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  kGold.withValues(alpha: 0.20),
-                  kDarkGreen.withValues(alpha: 0.08),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: kDarkGreen.withValues(alpha: 0.08),
               shape: BoxShape.circle,
             ),
             child: Icon(device.icon, color: kDarkGreen, size: 21),
@@ -216,7 +209,7 @@ class _DeviceTile extends StatelessWidget {
                           vertical: 3,
                         ),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(colors: [kGold, kDarkGreen]),
+                          color: kDarkGreen,
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: const Text(
@@ -274,17 +267,13 @@ class _GradientTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ShaderMask(
-      shaderCallback: (rect) =>
-          const LinearGradient(colors: [kDarkGreen, kGold]).createShader(rect),
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: fontSize,
-          fontWeight: FontWeight.w800,
-          color: Colors.white,
-        ),
+    return Text(
+      text,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        fontSize: fontSize,
+        fontWeight: FontWeight.w800,
+        color: kDarkGreen,
       ),
     );
   }

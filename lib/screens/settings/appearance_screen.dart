@@ -198,19 +198,14 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                 onPressed: () => Navigator.maybePop(context),
               ),
               Expanded(
-                child: ShaderMask(
-                  shaderCallback: (rect) => LinearGradient(
-                    colors: [darkGreen, gold],
-                  ).createShader(rect),
-                  child: const Text(
-                    'المظهر',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: -0.4,
-                    ),
+                child: Text(
+                  'المظهر',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: darkGreen,
+                    letterSpacing: -0.4,
                   ),
                 ),
               ),
@@ -285,9 +280,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: selected
-                          ? LinearGradient(colors: [gold, darkGreen])
-                          : null,
+                      color: selected ? gold : null,
                       border: Border.all(
                         color: selected ? Colors.transparent : Colors.grey.shade400,
                         width: 1.4,
@@ -306,11 +299,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
               height: 44,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [gold.withValues(alpha: 0.22), darkGreen.withValues(alpha: 0.08)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                color: darkGreen.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: darkGreen, size: 22),

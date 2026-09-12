@@ -111,14 +111,7 @@ class _LanguageScreenState extends State<LanguageScreen> {
                         width: 84,
                         height: 84,
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              kGold.withValues(alpha: 0.20),
-                              kDarkGreen.withValues(alpha: 0.08),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
+                          color: kDarkGreen.withValues(alpha: 0.08),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -128,19 +121,14 @@ class _LanguageScreenState extends State<LanguageScreen> {
                         ),
                       ),
                       const SizedBox(height: 14),
-                      ShaderMask(
-                        shaderCallback: (rect) => const LinearGradient(
-                          colors: [kDarkGreen, kGold],
-                        ).createShader(rect),
-                        child: const Text(
-                          'اللغة',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                            letterSpacing: -0.5,
-                          ),
+                      const Text(
+                        'اللغة',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          color: kDarkGreen,
+                          letterSpacing: -0.5,
                         ),
                       ),
                       const Text(
@@ -263,9 +251,7 @@ class _LanguageTile extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: selected
-                      ? const LinearGradient(colors: [kGold, kDarkGreen])
-                      : null,
+                  color: selected ? kDarkGreen : null,
                   border: Border.all(
                     color: selected ? Colors.transparent : Colors.grey.shade300,
                     width: 1.6,

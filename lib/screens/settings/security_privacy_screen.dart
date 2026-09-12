@@ -55,19 +55,14 @@ class SecurityPrivacyScreen extends StatelessWidget {
               const SizedBox(height: 6),
               const _ShieldBadge(),
               const SizedBox(height: 18),
-              ShaderMask(
-                shaderCallback: (rect) => const LinearGradient(
-                  colors: [kDarkGreen, kGold],
-                ).createShader(rect),
-                child: const Text(
-                  'الأمان والخصوصية',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 27,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    letterSpacing: -0.5,
-                  ),
+              const Text(
+                'الأمان والخصوصية',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 27,
+                  fontWeight: FontWeight.w800,
+                  color: kDarkGreen,
+                  letterSpacing: -0.5,
                 ),
               ),
               const SizedBox(height: 4),
@@ -155,14 +150,7 @@ class _ShieldBadge extends StatelessWidget {
             height: 150,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [
-                  kGold.withValues(alpha: 0.16),
-                  kDarkGreen.withValues(alpha: 0.06),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: kMint.withValues(alpha: 0.55),
             ),
           ),
           Container(
@@ -280,14 +268,7 @@ class _SettingsTile extends StatelessWidget {
                 height: 46,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      kGold.withValues(alpha: 0.20),
-                      kDarkGreen.withValues(alpha: 0.08),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  color: kDarkGreen.withValues(alpha: 0.08),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, color: kDarkGreen, size: 21),

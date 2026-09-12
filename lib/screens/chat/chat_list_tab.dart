@@ -1,10 +1,25 @@
 // screens/chat/chat_list_tab.dart
+//
+// ✅ قائمة المحادثات (Inbox) — نفس التصميم لي فـ الصورة المرجعية
+// (عنوان "الدردشات" + شريط بحث + ليستة مسطحة بخطوط فاصلة)، لكن
+// دابا مربوطة بـ Firestore حقيقي (ماشي بيانات ثابتة).
+//
+// كتجمع آخر رسالة فـ كل محادثة (chatId) لي أنت طرف فيها
+// (fromUserId == me أو toUserId == me)، كتجيب معلومات الطرف الآخر
+// (name/avatar/city) من collection('users')، وكتفتح
+// ChatConversationScreen الحقيقي كي تدوس على واحد.
+//
+// عداد الرسائل غير المقروءة (badge) لكل محادثة مبني على حقل "read"
+// فـ كل document من collection('messages').
+
 import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'chat_conversation_screen.dart';
 import '../../services/likes_service.dart';
+
 class _ConversationPreview {
   final String chatId;
   final String otherUid;
@@ -42,14 +57,7 @@ Widget buildAvatarImage({
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(
-          colors: [
-            fallbackColor.withValues(alpha: 0.18),
-            fallbackColor.withValues(alpha: 0.08),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: fallbackColor.withValues(alpha: 0.12),
       ),
       child: Text(
         letter,
@@ -400,7 +408,7 @@ class _ChatsListTabState extends State<ChatsListTab> {
         conversations.fold(0, (sum, c) => sum + c.unreadCount);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -408,18 +416,13 @@ class _ChatsListTabState extends State<ChatsListTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ShaderMask(
-                  shaderCallback: (rect) => const LinearGradient(
-                    colors: [darkGreen, gold],
-                  ).createShader(rect),
-                  child: const Text(
-                    'المحادثات',
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: -0.5,
-                    ),
+                const Text(
+                  'المحادثات',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    color: darkGreen,
+                    letterSpacing: -0.5,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -439,17 +442,13 @@ class _ChatsListTabState extends State<ChatsListTab> {
               margin: const EdgeInsets.only(left: 10),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [darkGreen, darkGreenLight],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                color: darkGreen,
                 borderRadius: BorderRadius.circular(18),
                 boxShadow: [
                   BoxShadow(
-                    color: darkGreen.withValues(alpha: 0.30),
-                    blurRadius: 14,
-                    offset: const Offset(0, 6),
+                    color: darkGreen.withValues(alpha: 0.22),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
                   ),
                 ],
               ),
@@ -775,7 +774,7 @@ class _ConversationRow extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(colors: [gold, gold.withValues(alpha: 0.8)]),
+                            color: gold,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: const Text(
@@ -805,19 +804,8 @@ class _ConversationRow extends StatelessWidget {
                           height: 21,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [gold, darkGreen],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
+                            color: darkGreen,
                             shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: darkGreen.withValues(alpha: 0.35),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
                           ),
                           child: Text(
                             unreadCount > 9 ? '9+' : '$unreadCount',
@@ -880,12 +868,9 @@ class _ConversationRow extends StatelessWidget {
                       padding: const EdgeInsets.all(2.4),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          colors: highlight
-                              ? [gold, darkGreenLight]
-                              : [Colors.grey.shade200, Colors.grey.shade200],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+                        border: Border.all(
+                          color: highlight ? gold : Colors.grey.shade200,
+                          width: 2,
                         ),
                       ),
                       child: Container(

@@ -202,7 +202,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
 // ================================================================
 // ✅ رأس الصفحة: نفس لغة هيدرات باقي الصفحات (تدرّج خفيف + حلقة
-// ذهبية حول الصورة + عنوان بتدرّج لوني ShaderMask)
+// ذهبية حول الصورة + عنوان بسيط)
 // ================================================================
 class _AccountHeader extends StatelessWidget {
   final String name;
@@ -219,16 +219,8 @@ class _AccountHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
+    return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 36),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [kGold.withValues(alpha: 0.10), kBg],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -251,11 +243,7 @@ class _AccountHeader extends StatelessWidget {
                 padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [kGold, kDarkGreenLight],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  border: Border.all(color: kGold, width: 2.6),
                 ),
                 child: Container(
                   padding: const EdgeInsets.all(4),
@@ -277,20 +265,15 @@ class _AccountHeader extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ShaderMask(
-                      shaderCallback: (rect) => const LinearGradient(
-                        colors: [kDarkGreen, kGold],
-                      ).createShader(rect),
-                      child: Text(
-                        name.isEmpty ? '—' : name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 25,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: -0.5,
-                        ),
+                    Text(
+                      name.isEmpty ? '—' : name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 25,
+                        fontWeight: FontWeight.w800,
+                        color: kDarkGreen,
+                        letterSpacing: -0.5,
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -416,13 +399,9 @@ class _SettingsTile extends StatelessWidget {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: isDanger
-                            ? [accent.withValues(alpha: 0.16), accent.withValues(alpha: 0.06)]
-                            : [kGold.withValues(alpha: 0.20), kDarkGreen.withValues(alpha: 0.08)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                      color: isDanger
+                          ? accent.withValues(alpha: 0.10)
+                          : kDarkGreen.withValues(alpha: 0.08),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(icon, color: accent, size: 22),

@@ -186,7 +186,7 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
                 child: const Text('حظر', style: TextStyle(color: Colors.white)),
@@ -322,10 +322,10 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(18),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.grey.withValues(alpha: 0.06),
+                      color: darkGreen.withValues(alpha: 0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 3),
                     ),
@@ -350,7 +350,7 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: darkGreen,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(20),
                     ),
                   ),
                   icon: _isSubmitting
@@ -380,7 +380,7 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(color: Colors.red.shade300),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(20),
                     ),
                   ),
                   child: Text(
@@ -446,14 +446,14 @@ class _ReasonTile extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
         color: selected ? darkGreen.withValues(alpha: 0.06) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           child: Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: selected ? darkGreen : Colors.transparent,
                 width: 1.4,
@@ -462,7 +462,7 @@ class _ReasonTile extends StatelessWidget {
                   ? []
                   : [
                       BoxShadow(
-                        color: Colors.grey.withValues(alpha: 0.06),
+                        color: darkGreen.withValues(alpha: 0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 3),
                       ),

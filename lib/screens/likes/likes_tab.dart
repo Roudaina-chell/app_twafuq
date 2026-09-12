@@ -257,18 +257,13 @@ class _LikesTabState extends State<LikesTab> {
               children: [
                 Row(
                   children: [
-                    ShaderMask(
-                      shaderCallback: (rect) => const LinearGradient(
-                        colors: [darkGreen, gold],
-                      ).createShader(rect),
-                      child: const Text(
-                        'الإعجابات',
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: -0.5,
-                        ),
+                    const Text(
+                      'الإعجابات',
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        color: darkGreen,
+                        letterSpacing: -0.5,
                       ),
                     ),
                   ],
@@ -289,17 +284,13 @@ class _LikesTabState extends State<LikesTab> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [darkGreen, darkGreenLight],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                color: darkGreen,
                 borderRadius: BorderRadius.circular(18),
                 boxShadow: [
                   BoxShadow(
-                    color: darkGreen.withOpacity(0.30),
-                    blurRadius: 14,
-                    offset: const Offset(0, 6),
+                    color: darkGreen.withOpacity(0.22),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
                   ),
                 ],
               ),
@@ -353,11 +344,7 @@ class _LikesTabState extends State<LikesTab> {
               ),
               child: Container(
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [darkGreen.withOpacity(0.10), gold.withOpacity(0.10)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  color: darkGreen.withOpacity(0.08),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, size: 38, color: darkGreen),
@@ -433,13 +420,7 @@ class _InvitationCard extends StatelessWidget {
   Widget _buildPhoto() {
     Widget fallback() => Container(
           alignment: Alignment.center,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [darkGreen, darkGreenLight],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
+          color: darkGreen,
           child: Text(
             name.trim().isNotEmpty ? name.trim()[0] : '؟',
             style: const TextStyle(
@@ -523,11 +504,8 @@ class _InvitationCard extends StatelessWidget {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(colors: [gold, gold.withOpacity(0.8)]),
+                            color: gold,
                             borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(color: gold.withOpacity(0.45), blurRadius: 10),
-                            ],
                           ),
                           child: const Text(
                             'جديد',
@@ -665,11 +643,7 @@ class _InvitationCard extends StatelessWidget {
                     icon: Icons.favorite_rounded,
                     size: 64,
                     onTap: isBusy ? null : onAccept,
-                    gradient: LinearGradient(
-                      colors: [gold, darkGreen],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    background: darkGreen,
                     iconColor: Colors.white,
                     glowColor: darkGreen,
                     isBusy: isBusy,
@@ -730,9 +704,9 @@ class _InvitationCard extends StatelessWidget {
           border: border != null ? Border.all(color: border, width: 1.4) : null,
           boxShadow: [
             BoxShadow(
-              color: (glowColor ?? Colors.black).withOpacity(glowColor != null ? 0.38 : 0.10),
-              blurRadius: glowColor != null ? 20 : 12,
-              offset: const Offset(0, 8),
+              color: (glowColor ?? Colors.black).withOpacity(glowColor != null ? 0.25 : 0.10),
+              blurRadius: glowColor != null ? 14 : 12,
+              offset: const Offset(0, 5),
             ),
           ],
         ),

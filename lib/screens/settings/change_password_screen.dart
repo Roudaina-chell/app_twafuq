@@ -192,19 +192,14 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 children: [
                   const SizedBox(width: 44),
                   Expanded(
-                    child: ShaderMask(
-                      shaderCallback: (rect) => const LinearGradient(
-                        colors: [kDarkGreen, kGold],
-                      ).createShader(rect),
-                      child: Text(
-                        _hasPasswordProvider ? 'كلمة المرور' : 'إنشاء كلمة مرور',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: -0.4,
-                        ),
+                    child: Text(
+                      _hasPasswordProvider ? 'كلمة المرور' : 'إنشاء كلمة مرور',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: kDarkGreen,
+                        letterSpacing: -0.4,
                       ),
                     ),
                   ),
@@ -312,56 +307,37 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               SizedBox(
                 width: double.infinity,
                 height: 52,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [kDarkGreen, Color(0xFF1A6B4A)],
-                      begin: Alignment.centerRight,
-                      end: Alignment.centerLeft,
+                child: ElevatedButton(
+                  onPressed: _isSaving
+                      ? null
+                      : (_hasPasswordProvider
+                            ? _savePassword
+                            : _createPassword),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kDarkGreen,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
                     ),
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                        color: kDarkGreen.withValues(alpha: 0.30),
-                        blurRadius: 16,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
                   ),
-                  child: ElevatedButton(
-                    onPressed: _isSaving
-                        ? null
-                        : (_hasPasswordProvider
-                              ? _savePassword
-                              : _createPassword),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                    ),
-                    child: _isSaving
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2.4,
-                            ),
-                          )
-                        : Text(
-                            _hasPasswordProvider
-                                ? 'حفظ التغييرات'
-                                : 'إنشاء كلمة المرور',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2.4,
                           ),
-                  ),
+                        )
+                      : Text(
+                          _hasPasswordProvider
+                              ? 'حفظ التغييرات'
+                              : 'إنشاء كلمة المرور',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
                 ),
               ),
             ],

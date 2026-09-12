@@ -321,7 +321,7 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: confirmColor,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
               ),
             ),
             child: Text(
@@ -513,7 +513,7 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: darkGreen,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
               child: const Text('إعادة المحاولة'),
@@ -567,8 +567,7 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // ============================================================
-          // ✅ الأفاتار + الاسم + الحالة (بحال الصورة المرجعية بالضبط)
-          // ملاحظة: الصورة المرجعية كتبان "أونلاين" فقط بلا نقطة خضراء
+          // ✅ الأفاتار + الاسم + الحالة (بحال الصورة المرجعية)
           // ============================================================
           Center(
             child: Column(
@@ -588,6 +587,20 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
                         child: _buildAvatarImage(avatarAsset, 96),
                       ),
                     ),
+                    if (isOnline)
+                      Positioned(
+                        bottom: 2,
+                        right: 2,
+                        child: Container(
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade500,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2.5),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -600,10 +613,28 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  isOnline ? 'أونلاين' : 'غير متصل',
-                  style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600),
-                ),
+                if (isOnline)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        'متصل الآن',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -642,7 +673,7 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: gold.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
                 children: [
@@ -804,10 +835,10 @@ class _QuickActionCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withValues(alpha: 0.08),
+              color: darkGreen.withValues(alpha: 0.06),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -884,17 +915,17 @@ class _InfoCard extends StatelessWidget {
     const darkGreen = Color(0xFF0F3D2E);
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.grey.withValues(alpha: 0.06),
+                color: darkGreen.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 3),
               ),
@@ -962,10 +993,10 @@ class _ActionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.red.withValues(alpha: 0.06),
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
