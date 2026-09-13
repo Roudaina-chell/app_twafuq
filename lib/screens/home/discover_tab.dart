@@ -168,7 +168,12 @@ class _DiscoverTabState extends State<DiscoverTab>
 
       final snapshot = await query.limit(30).get();
 
-      final profiles = snapshot.docs.where((d) => d.id != myUid).map((d) {
+      // ✅ نحيدو أي شخص عندي معاه علاقة إعجاب حالية (بحال Home)
+      final interactedIds = await LikesService.instance.myInteractedUserIds();
+
+      final profiles = snapshot.docs
+          .where((d) => d.id != myUid && !interactedIds.contains(d.id))
+          .map((d) {
         final data = d.data();
         final rawAge = data['age'];
         return _DiscoverProfile(

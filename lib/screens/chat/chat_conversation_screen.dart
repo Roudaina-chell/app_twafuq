@@ -378,10 +378,11 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
               ),
               const SizedBox(height: 20),
               Wrap(
-                spacing: 16,
+                spacing: 14,
                 runSpacing: 16,
                 children: kChatThemes.map((theme) {
                   final selected = theme.id == _chatThemeId;
+                  final bool dark = theme.id == 'night';
                   return GestureDetector(
                     onTap: () {
                       _changeChatTheme(theme.id);
@@ -389,29 +390,93 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                     },
                     child: Column(
                       children: [
-                        Container(
-                          width: 56,
-                          height: 56,
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          width: 78,
+                          height: 96,
+                          padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: theme.swatch,
-                            shape: BoxShape.circle,
+                            color: theme.background,
+                            borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: selected ? gold : Colors.transparent,
-                              width: 3,
+                              color: selected ? gold : Colors.black.withValues(alpha: 0.05),
+                              width: selected ? 2.5 : 1,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: theme.swatch.withValues(alpha: 0.35),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
+                                color: theme.swatch.withValues(alpha: selected ? 0.28 : 0.12),
+                                blurRadius: selected ? 14 : 8,
+                                offset: const Offset(0, 5),
                               ),
                             ],
                           ),
-                          child: selected
-                              ? const Icon(Icons.check_rounded, color: Colors.white)
-                              : null,
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              // 🫧 معاينة صغيرة: فقاعة الطرف الآخر (باهتة) + فقاعتي (بلون الثيم)
+                              Align(
+                                alignment: Alignment.topLeft,
+                                child: Container(
+                                  width: 34,
+                                  height: 10,
+                                  decoration: BoxDecoration(
+                                    color: dark
+                                        ? Colors.white.withValues(alpha: 0.14)
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: dark
+                                        ? null
+                                        : Border.all(
+                                            color: Colors.black.withValues(alpha: 0.05),
+                                          ),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                top: 16,
+                                right: 0,
+                                child: Container(
+                                  width: 26,
+                                  height: 10,
+                                  decoration: BoxDecoration(
+                                    color: theme.swatch,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                left: 0,
+                                child: Container(
+                                  width: 44,
+                                  height: 10,
+                                  decoration: BoxDecoration(
+                                    color: theme.swatch,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                ),
+                              ),
+                              if (selected)
+                                Positioned(
+                                  bottom: -2,
+                                  right: -2,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(3),
+                                    decoration: const BoxDecoration(
+                                      color: gold,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.check_rounded,
+                                      color: Colors.white,
+                                      size: 12,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 7),
                         Text(
                           theme.label,
                           style: TextStyle(
@@ -1231,7 +1296,15 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   // ============================================================
   Widget _buildAvatar({double size = 40, bool withRing = true}) {
     Widget avatarCore;
-    if (widget.personAvatarAsset == null || widget.personAvatarAsset!.isEmpty) {
+    // 🚫 كي نكونو حاظرين هاذ الشخص، تختفي صورة البروفيل الحقيقية ونبينو
+    // أفاتار محايدة بدالها (بحال WhatsApp بالضبط).
+    if (_isBlocked) {
+      avatarCore = CircleAvatar(
+        radius: size / 2,
+        backgroundColor: Colors.grey.shade200,
+        child: Icon(Icons.person, color: Colors.grey.shade400, size: size * 0.55),
+      );
+    } else if (widget.personAvatarAsset == null || widget.personAvatarAsset!.isEmpty) {
       avatarCore = CircleAvatar(
         radius: size / 2,
         backgroundColor: darkGreen.withValues(alpha: 0.08),
@@ -1284,9 +1357,46 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: gold, width: 2),
+        border: Border.all(
+          color: _isBlocked ? Colors.grey.shade300 : gold,
+          width: 2,
+        ),
       ),
       child: avatarCore,
+    );
+  }
+
+  // ============================================================
+  // 🍔 صف موحّد لعناصر قائمة (⋮): أيقونة داخل شيبة ملوّنة + نص —
+  // شكل modern بدل الأيقونة العارية القديمة.
+  // ============================================================
+  Widget _buildMenuRow({
+    required IconData icon,
+    required Color color,
+    required String label,
+    bool destructive = false,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Icon(icon, color: color, size: 18),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
+            color: destructive ? Colors.red.shade700 : darkGreen,
+          ),
+        ),
+      ],
     );
   }
 
@@ -1372,9 +1482,63 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                       color: darkGreen, size: 20),
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                elevation: 6,
+                color: Colors.white,
+                elevation: 8,
+                offset: const Offset(0, 8),
+                itemBuilder: (ctx) => [
+                  PopupMenuItem(
+                    value: 'theme',
+                    height: 46,
+                    child: _buildMenuRow(
+                      icon: Icons.palette_rounded,
+                      color: gold,
+                      label: 'تغيير شكل المحادثة',
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'nickname',
+                    height: 46,
+                    child: _buildMenuRow(
+                      icon: Icons.badge_rounded,
+                      color: darkGreen,
+                      label: 'اسم مستعار',
+                    ),
+                  ),
+                  const PopupMenuDivider(height: 10),
+                  PopupMenuItem(
+                    value: 'report',
+                    height: 46,
+                    child: _buildMenuRow(
+                      icon: Icons.flag_rounded,
+                      color: Colors.orange.shade700,
+                      label: 'الإبلاغ عن المستخدم',
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'block',
+                    height: 46,
+                    child: _buildMenuRow(
+                      icon: _isBlocked
+                          ? Icons.check_circle_rounded
+                          : Icons.block_rounded,
+                      color: Colors.red.shade600,
+                      destructive: true,
+                      label: _isBlocked ? 'إلغاء حظر المستخدم' : 'حظر المستخدم',
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    height: 46,
+                    child: _buildMenuRow(
+                      icon: Icons.delete_rounded,
+                      color: Colors.red.shade600,
+                      destructive: true,
+                      label: 'حذف المحادثة',
+                    ),
+                  ),
+                ],
                 onSelected: (value) {
                   if (value == 'report') {
                     if (widget.personId != null) {
@@ -1398,69 +1562,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                     _openNicknameDialog();
                   }
                 },
-                itemBuilder: (ctx) => [
-                  PopupMenuItem(
-                    value: 'theme',
-                    child: Row(
-                      children: [
-                        Icon(Icons.palette_rounded, color: gold, size: 20),
-                        const SizedBox(width: 10),
-                        const Text('تغيير شكل المحادثة'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'nickname',
-                    child: Row(
-                      children: [
-                        Icon(Icons.badge_outlined, color: darkGreen, size: 20),
-                        SizedBox(width: 10),
-                        Text('اسم مستعار'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuDivider(),
-                  const PopupMenuItem(
-                    value: 'report',
-                    child: Row(
-                      children: [
-                        Icon(Icons.flag_rounded, color: Colors.orange, size: 20),
-                        SizedBox(width: 10),
-                        Text('الإبلاغ عن المستخدم'),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'block',
-                    child: Row(
-                      children: [
-                        Icon(
-                          _isBlocked
-                              ? Icons.check_circle_rounded
-                              : Icons.block_rounded,
-                          color: Colors.red,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 10),
-                        Text(_isBlocked ? 'إلغاء حظر المستخدم' : 'حظر المستخدم'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.delete_outline_rounded,
-                          color: Colors.red,
-                          size: 20,
-                        ),
-                        SizedBox(width: 10),
-                        Text('حذف المحادثة'),
-                      ],
-                    ),
-                  ),
-                ],
               ),
               const SizedBox(width: 6),
             ],
@@ -1492,6 +1593,21 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     final otherId = widget.personId;
     if (otherId == null) {
       return const SizedBox.shrink();
+    }
+    // 🚫 كي نكونو حاظرينو، ما كنعرضوش حالته الحقيقية (متصل/غير متصل) —
+    // كتبان ليك دايماً "غير متاح" بلا ما تتبدل لايف.
+    if (_isBlocked) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.circle, size: 6, color: Colors.grey.shade400),
+          const SizedBox(width: 6),
+          Text(
+            'غير متاح',
+            style: TextStyle(fontSize: 11.5, color: Colors.grey.shade500),
+          ),
+        ],
+      );
     }
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
@@ -1651,10 +1767,10 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
 
     if (_isBlocked) {
       return _buildInfoState(
-        icon: Icons.block_rounded,
-        iconColor: Colors.red.shade400,
-        title: 'لقد قمت بحظر هذا المستخدم',
-        subtitle: 'لن تظهر لك رسائله، ويمكنك إلغاء الحظر من ملفه الشخصي',
+        icon: Icons.person_off_rounded,
+        iconColor: Colors.grey.shade400,
+        title: 'هذا المستخدم غير متاح',
+        subtitle: 'لقد قمت بحظره — يمكنك إلغاء الحظر فـ أي وقت من قائمة (⋮)',
       );
     }
 
@@ -2105,6 +2221,29 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   // ============================================================
   // 📝 شريط إدخال النص
   // ============================================================
+  // 🔘 شكل موحّد لأزرار الإيموجي/الميكرو: دائرة صغيرة بلون خفيف بدل
+  // الأيقونة العارية — هاذ الشي كيعطي لمسة "modern" بلا ما نبدلو الألوان.
+  Widget _buildRoundChipButton({
+    required Widget icon,
+    required VoidCallback? onTap,
+    required Color background,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: background,
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: icon,
+      ),
+    );
+  }
+
   Widget _buildInputBar() {
     final theme = chatThemeById(_chatThemeId);
     return Container(
@@ -2118,27 +2257,34 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: theme.swatch.withValues(alpha: 0.08),
+                  width: 1,
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: theme.swatch.withValues(alpha: 0.14),
-                    blurRadius: 20,
+                    color: theme.swatch.withValues(alpha: 0.16),
+                    blurRadius: 22,
                     offset: const Offset(0, 8),
                   ),
                 ],
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
               child: Row(
                 children: [
-                  // 😊 زر الـ emoji
-                  IconButton(
-                    icon: const Icon(
-                      Icons.emoji_emotions_outlined,
-                      color: darkGreen,
-                      size: 22,
+                  // 😊 زر الـ emoji — شكل دائرة معبأة بدل أيقونة عارية
+                  _buildRoundChipButton(
+                    icon: Icon(
+                      Icons.emoji_emotions_rounded,
+                      color: _isRecording
+                          ? Colors.grey.shade300
+                          : theme.swatch,
+                      size: 21,
                     ),
-                    onPressed: _isRecording ? null : _openEmojiPicker,
-                    visualDensity: VisualDensity.compact,
+                    background: theme.swatch.withValues(alpha: 0.08),
+                    onTap: _isRecording ? null : _openEmojiPicker,
                   ),
+                  const SizedBox(width: 4),
                   Expanded(
                     child: _isRecording
                         ? Row(
@@ -2199,12 +2345,13 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                             style: const TextStyle(fontSize: 14.5),
                           ),
                   ),
-                  // 🎤 زر التسجيل الصوتي
-                  IconButton(
+                  const SizedBox(width: 4),
+                  // 🎤 زر التسجيل الصوتي — دائرة تتلوّن بالأحمر أثناء التسجيل
+                  _buildRoundChipButton(
                     icon: _isUploadingVoice
                         ? const SizedBox(
-                            width: 18,
-                            height: 18,
+                            width: 16,
+                            height: 16,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               color: darkGreen,
@@ -2212,13 +2359,15 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                           )
                         : Icon(
                             _isRecording
-                                ? Icons.stop_circle_rounded
-                                : Icons.mic_none_rounded,
-                            color: _isRecording ? Colors.red : darkGreen,
-                            size: 22,
+                                ? Icons.stop_rounded
+                                : Icons.mic_rounded,
+                            color: _isRecording ? Colors.white : theme.swatch,
+                            size: 20,
                           ),
-                    onPressed: _isUploadingVoice ? null : _toggleRecording,
-                    visualDensity: VisualDensity.compact,
+                    background: _isRecording
+                        ? Colors.red.shade400
+                        : theme.swatch.withValues(alpha: 0.08),
+                    onTap: _isUploadingVoice ? null : _toggleRecording,
                   ),
                 ],
               ),
@@ -2232,38 +2381,51 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                     replyToId: _replyToId,
                     replyToText: _replyToText,
                   ),
-            child: AnimatedContainer(
+            child: AnimatedScale(
               duration: const Duration(milliseconds: 150),
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: theme.swatch.withValues(
-                  alpha: (_isSending || _isRecording) ? 0.5 : 1,
-                ),
-                shape: BoxShape.circle,
-                boxShadow: (_isSending || _isRecording)
-                    ? []
-                    : [
-                        BoxShadow(
-                          color: theme.swatch.withValues(alpha: 0.35),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-              ),
-              child: _isSending
-                  ? const Padding(
-                      padding: EdgeInsets.all(14),
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
+              scale: (_isSending || _isRecording) ? 0.94 : 1,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      theme.swatch.withValues(
+                        alpha: (_isSending || _isRecording) ? 0.5 : 1,
                       ),
-                    )
-                  : const Icon(
-                      Icons.send_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
+                      darkGreen.withValues(
+                        alpha: (_isSending || _isRecording) ? 0.5 : 1,
+                      ),
+                    ],
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: (_isSending || _isRecording)
+                      ? []
+                      : [
+                          BoxShadow(
+                            color: theme.swatch.withValues(alpha: 0.38),
+                            blurRadius: 12,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                ),
+                child: _isSending
+                    ? const Padding(
+                        padding: EdgeInsets.all(15),
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.send_rounded,
+                        color: Colors.white,
+                        size: 21,
+                      ),
+              ),
             ),
           ),
         ],

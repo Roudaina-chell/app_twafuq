@@ -132,8 +132,9 @@ class _HomeScreenState extends State<HomeScreen>
         _myGender = data['gender'] as String?;
         _isOnline = data['isOnline'] as bool? ?? true;
         _points = (data['points'] as num?)?.toInt() ?? 0;
-        _hiddenUids =
-            (data['hiddenUserIds'] as List<dynamic>?)?.cast<String>().toSet() ??
+        _hiddenUids = (data['hiddenUserIds'] as List<dynamic>?)
+                ?.cast<String>()
+                .toSet() ??
             {};
         _isLoading = false;
       });
@@ -165,8 +166,8 @@ class _HomeScreenState extends State<HomeScreen>
       final String? oppositeGender = _myGender == 'male'
           ? 'female'
           : _myGender == 'female'
-          ? 'male'
-          : null;
+              ? 'male'
+              : null;
 
       Query<Map<String, dynamic>> query = FirebaseFirestore.instance
           .collection('users')
@@ -178,8 +179,17 @@ class _HomeScreenState extends State<HomeScreen>
 
       final snapshot = await query.limit(15).get();
 
+      // ✅ نحيدو أي شخص عندي معاه علاقة إعجاب حالية (بعثت ليه، بعث
+      // ليا، أو Match) — ما يعاودش يبان ليا للـ swipe مرة ثانية
+      // (بحال Facebook: شخص عندك معاه دعوة معلّقة ما يبانش لك تاني
+      // فـ "أشخاص تعرفهم").
+      final interactedIds = await LikesService.instance.myInteractedUserIds();
+
       final List<_NearbyPerson> people = snapshot.docs
-          .where((d) => d.id != myUid && !_hiddenUids.contains(d.id))
+          .where((d) =>
+              d.id != myUid &&
+              !_hiddenUids.contains(d.id) &&
+              !interactedIds.contains(d.id))
           .map((d) {
             final data = d.data();
             return _NearbyPerson(
@@ -297,29 +307,27 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
-    _dissolveController =
-        AnimationController(
-          vsync: this,
-          duration: const Duration(milliseconds: 600),
-        )..addListener(() {
-          if (mounted) {
-            setState(() {
-              _dissolveValue = _dissolveController.value;
-            });
-          }
-        });
+    _dissolveController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    )..addListener(() {
+        if (mounted) {
+          setState(() {
+            _dissolveValue = _dissolveController.value;
+          });
+        }
+      });
 
-    _appearController =
-        AnimationController(
-          vsync: this,
-          duration: const Duration(milliseconds: 400),
-        )..addListener(() {
-          if (mounted) {
-            setState(() {
-              _appearValue = _appearController.value;
-            });
-          }
-        });
+    _appearController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    )..addListener(() {
+        if (mounted) {
+          setState(() {
+            _appearValue = _appearController.value;
+          });
+        }
+      });
 
     WidgetsBinding.instance.addObserver(this);
     _loadUserData();
@@ -334,12 +342,13 @@ class _HomeScreenState extends State<HomeScreen>
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
-    _invitationsSub = LikesService.instance.receivedInvitationsStream().listen((
-      list,
-    ) {
-      if (!mounted) return;
-      setState(() => _pendingInvitationsCount = list.length);
-    }, onError: (e) => debugPrint('❌ Invitations badge stream failed: $e'));
+    _invitationsSub = LikesService.instance.receivedInvitationsStream().listen(
+      (list) {
+        if (!mounted) return;
+        setState(() => _pendingInvitationsCount = list.length);
+      },
+      onError: (e) => debugPrint('❌ Invitations badge stream failed: $e'),
+    );
 
     _unreadMsgsSub = FirebaseFirestore.instance
         .collection('messages')
@@ -347,13 +356,12 @@ class _HomeScreenState extends State<HomeScreen>
         .where('read', isEqualTo: false)
         .snapshots()
         .listen(
-          (snap) {
-            if (!mounted) return;
-            setState(() => _unreadMessagesCount = snap.docs.length);
-          },
-          onError: (e) =>
-              debugPrint('❌ Unread messages badge stream failed: $e'),
-        );
+      (snap) {
+        if (!mounted) return;
+        setState(() => _unreadMessagesCount = snap.docs.length);
+      },
+      onError: (e) => debugPrint('❌ Unread messages badge stream failed: $e'),
+    );
   }
 
   @override
@@ -438,9 +446,7 @@ class _HomeScreenState extends State<HomeScreen>
     if (borderRadius != null) {
       return ClipRRect(borderRadius: borderRadius, child: image);
     }
-    return ClipOval(
-      child: SizedBox(width: size, height: size, child: image),
-    );
+    return ClipOval(child: SizedBox(width: size, height: size, child: image));
   }
 
   // ============================================================
@@ -499,8 +505,8 @@ class _HomeScreenState extends State<HomeScreen>
             .collection('users')
             .doc(user.uid)
             .update({
-              'hiddenUserIds': FieldValue.arrayUnion([uid]),
-            });
+          'hiddenUserIds': FieldValue.arrayUnion([uid]),
+        });
       }
     } catch (e) {
       debugPrint('❌ Failed to update hidden users: $e');
@@ -617,9 +623,9 @@ class _HomeScreenState extends State<HomeScreen>
       }
     } on LikeActionException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
       }
     } catch (e) {
       debugPrint('❌ Send like failed: $e');
@@ -655,17 +661,15 @@ class _HomeScreenState extends State<HomeScreen>
       final speed = 0.5 + random.nextDouble() * 0.5;
       final startX = (random.nextDouble() - 0.5) * 40;
       final startY = (random.nextDouble() - 0.5) * 40;
-      particles.add(
-        _Particle(
-          startOffset: Offset(startX, startY),
-          angle: angle,
-          distance: distance,
-          size: size,
-          speed: speed,
-          opacity: 0.5 + random.nextDouble() * 0.5,
-          color: random.nextBool() ? gold : Colors.white,
-        ),
-      );
+      particles.add(_Particle(
+        startOffset: Offset(startX, startY),
+        angle: angle,
+        distance: distance,
+        size: size,
+        speed: speed,
+        opacity: 0.5 + random.nextDouble() * 0.5,
+        color: random.nextBool() ? gold : Colors.white,
+      ));
     }
     return particles;
   }
@@ -758,7 +762,11 @@ class _HomeScreenState extends State<HomeScreen>
           bottom: false,
           child: IndexedStack(
             index: _selectedIndex,
-            children: [_buildHomeTab(), LikesTab(), const ChatsListTab()],
+            children: [
+              _buildHomeTab(),
+              LikesTab(),
+              const ChatsListTab(),
+            ],
           ),
         ),
         bottomNavigationBar: SafeArea(top: false, child: _buildBottomNav()),
@@ -784,14 +792,10 @@ class _HomeScreenState extends State<HomeScreen>
               _buildHeader(),
               const SizedBox(height: 16),
               _buildSearchBar(),
-              const SizedBox(height: 18),
-              _buildDiscoveryTabs(),
               const SizedBox(height: 22),
               _buildMainProfileCard(),
               const SizedBox(height: 20),
               _buildNearbySection(),
-              const SizedBox(height: 20),
-              _buildLikesBanner(),
               const SizedBox(height: 16),
             ],
           ),
@@ -809,23 +813,16 @@ class _HomeScreenState extends State<HomeScreen>
         Stack(
           children: [
             Container(
-              width: 58,
-              height: 58,
-              padding: const EdgeInsets.all(2.6),
+              width: 56,
+              height: 56,
+              padding: const EdgeInsets.all(2),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [gold, darkGreenLight],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                border: Border.all(color: gold, width: 2),
               ),
               child: Container(
                 padding: const EdgeInsets.all(2),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
+                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
                 child: ClipOval(
                   child: _HomeScreenState.buildAvatar(
                     source: _avatarAsset,
@@ -842,9 +839,7 @@ class _HomeScreenState extends State<HomeScreen>
                 width: 14,
                 height: 14,
                 decoration: BoxDecoration(
-                  color: _isOnline
-                      ? Colors.green.shade400
-                      : Colors.grey.shade400,
+                  color: _isOnline ? Colors.green.shade400 : Colors.grey.shade400,
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2),
                 ),
@@ -889,17 +884,9 @@ class _HomeScreenState extends State<HomeScreen>
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    gradient: _pendingInvitationsCount > 0
-                        ? LinearGradient(
-                            colors: [
-                              gold.withOpacity(0.20),
-                              gold.withOpacity(0.08),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          )
-                        : null,
-                    color: _pendingInvitationsCount > 0 ? null : Colors.white,
+                    color: _pendingInvitationsCount > 0
+                        ? gold.withOpacity(0.14)
+                        : Colors.white,
                     shape: BoxShape.circle,
                     border: _pendingInvitationsCount > 0
                         ? Border.all(color: gold.withOpacity(0.35), width: 1.4)
@@ -937,16 +924,9 @@ class _HomeScreenState extends State<HomeScreen>
                       curve: Curves.elasticOut,
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 5),
-                        constraints: const BoxConstraints(
-                          minWidth: 19,
-                          minHeight: 19,
-                        ),
+                        constraints: const BoxConstraints(minWidth: 19, minHeight: 19),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFFF6B7A), Color(0xFFDE3B40)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
+                          color: const Color(0xFFDE3B40),
                           shape: _pendingInvitationsCount > 9
                               ? BoxShape.rectangle
                               : BoxShape.circle,
@@ -954,19 +934,10 @@ class _HomeScreenState extends State<HomeScreen>
                               ? BorderRadius.circular(10)
                               : null,
                           border: Border.all(color: cream, width: 2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFDE3B40).withOpacity(0.4),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
                         ),
                         child: Center(
                           child: Text(
-                            _pendingInvitationsCount > 9
-                                ? '9+'
-                                : '$_pendingInvitationsCount',
+                            _pendingInvitationsCount > 9 ? '9+' : '$_pendingInvitationsCount',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,
@@ -979,28 +950,6 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
               ],
-            ),
-            const SizedBox(width: 6),
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.08),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.tune, color: darkGreen, size: 22),
-                onPressed: () {},
-                padding: EdgeInsets.zero,
-                splashRadius: 20,
-              ),
             ),
           ],
         ),
@@ -1029,17 +978,16 @@ class _HomeScreenState extends State<HomeScreen>
       child: Row(
         children: [
           const SizedBox(width: 18),
-          Icon(
-            Icons.search_rounded,
-            color: darkGreen.withOpacity(0.55),
-            size: 22,
-          ),
+          Icon(Icons.search_rounded, color: darkGreen.withOpacity(0.55), size: 22),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
               decoration: InputDecoration(
                 hintText: 'ابحث عن أصدقاء، أشخاص قريبين...',
-                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                hintStyle: TextStyle(
+                  color: Colors.grey.shade400,
+                  fontSize: 14,
+                ),
                 border: InputBorder.none,
                 isDense: true,
               ),
@@ -1051,11 +999,7 @@ class _HomeScreenState extends State<HomeScreen>
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [gold.withOpacity(0.18), gold.withOpacity(0.08)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: gold.withOpacity(0.12),
               shape: BoxShape.circle,
             ),
             child: IconButton(
@@ -1066,82 +1010,6 @@ class _HomeScreenState extends State<HomeScreen>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // 3️⃣ DISCOVERY TABS (unchanged)
-  // ============================================================
-  int _selectedTab = 0;
-
-  Widget _buildDiscoveryTabs() {
-    final tabs = [
-      {'label': 'لك', 'icon': Icons.whatshot_rounded},
-      {'label': 'قريب منك', 'icon': Icons.location_on_rounded},
-      {'label': 'جديد', 'icon': Icons.people_alt_rounded},
-      {'label': 'مفضلين', 'icon': Icons.star_rounded},
-    ];
-    return SizedBox(
-      height: 44,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: tabs.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, index) {
-          final isSelected = _selectedTab == index;
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedTab = index;
-              });
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-              decoration: BoxDecoration(
-                gradient: isSelected
-                    ? LinearGradient(colors: [darkGreen, darkGreenLight])
-                    : null,
-                color: isSelected ? null : Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: isSelected ? Colors.transparent : Colors.grey.shade200,
-                  width: 1.2,
-                ),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: darkGreen.withOpacity(0.28),
-                          blurRadius: 12,
-                          offset: const Offset(0, 5),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    tabs[index]['icon'] as IconData,
-                    color: isSelected ? Colors.white : darkGreen,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    tabs[index]['label'] as String,
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : darkGreen,
-                      fontSize: 14,
-                      fontWeight: isSelected
-                          ? FontWeight.w700
-                          : FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
       ),
     );
   }
@@ -1267,309 +1135,264 @@ class _HomeScreenState extends State<HomeScreen>
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withOpacity(0.12),
-            blurRadius: 34,
-            offset: const Offset(0, 16),
-          ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(32),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
-              children: [
-                SizedBox(
-                  height: 320,
-                  width: double.infinity,
-                  child: _HomeScreenState.buildAvatar(
-                    source: person.avatarAsset,
-                    size: 320,
-                    fallbackColor: darkGreen,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(32),
-                      topRight: Radius.circular(32),
-                    ),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Stack(
+            children: [
+              SizedBox(
+                height: 320,
+                width: double.infinity,
+                child: _HomeScreenState.buildAvatar(
+                  source: person.avatarAsset,
+                  size: 320,
+                  fallbackColor: darkGreen,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(32),
+                    topRight: Radius.circular(32),
                   ),
                 ),
-                // Online pill
-                Positioned(
-                  top: 16,
-                  left: 16,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: person.isOnline
-                            ? [Colors.green.shade400, Colors.green.shade600]
-                            : [Colors.grey.shade400, Colors.grey.shade500],
+              ),
+              // Online pill
+              Positioned(
+                top: 16,
+                left: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: person.isOnline ? Colors.green.shade500 : Colors.grey.shade500,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.18),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
                       ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.18),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        if (person.isOnline)
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        if (person.isOnline) const SizedBox(width: 6),
-                        Text(
-                          person.isOnline ? 'متصل الآن' : 'غير متصل',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
+                    ],
                   ),
-                ),
-                // Image counter
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.38),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withOpacity(0.25)),
-                    ),
-                    child: const Text(
-                      '1/1',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-                // Gradient overlay — تدرّج بثلاث درجات لعمق أكثر
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    height: 170,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.35),
-                          Colors.black.withOpacity(0.72),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                // Info overlay
-                Positioned(
-                  bottom: 16,
-                  left: 16,
-                  right: 16,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          Text(
-                            person.name,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 23,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.3,
-                              shadows: [
-                                Shadow(
-                                  offset: Offset(0, 2),
-                                  blurRadius: 6,
-                                  color: Colors.black38,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.all(3),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [gold, gold.withOpacity(0.7)],
-                              ),
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: gold.withOpacity(0.5),
-                                  blurRadius: 6,
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.verified,
-                              color: Colors.white,
-                              size: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 5),
-                      Row(
-                        children: [
-                          if (person.age != null)
-                            Text(
-                              '${person.age} سنة',
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          if (person.age != null && person.city.isNotEmpty)
-                            const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 6),
-                              child: Text(
-                                '•',
-                                style: TextStyle(color: Colors.white54),
-                              ),
-                            ),
-                          if (person.city.isNotEmpty)
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.location_on_rounded,
-                                  color: Colors.white70,
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  person.city,
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.18),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
+                      if (person.isOnline)
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
                           ),
                         ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.school_rounded,
-                              color: Colors.white70,
-                              size: 14,
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              'طالب جامعي',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 9),
+                      if (person.isOnline) const SizedBox(width: 6),
                       Text(
-                        'ثق بنفسك دائماً.. لأنك تستحق الأفضل',
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          fontStyle: FontStyle.italic,
-                          color: Colors.white.withOpacity(0.9),
-                          fontWeight: FontWeight.w500,
-                          shadows: const [
-                            Shadow(
-                              offset: Offset(0, 1),
-                              blurRadius: 4,
-                              color: Colors.black26,
-                            ),
-                          ],
+                        person.isOnline ? 'متصل الآن' : 'غير متصل',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-            if (showButtons)
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
+              ),
+              // Image counter
+              Positioned(
+                top: 16,
+                right: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.38),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white.withOpacity(0.25)),
+                  ),
+                  child: const Text(
+                    '1/1',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              ),
+              // Gradient overlay — تدرّج بثلاث درجات لعمق أكثر
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  height: 170,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.35),
+                        Colors.black.withOpacity(0.72),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              // Info overlay
+              Positioned(
+                bottom: 16,
+                left: 16,
+                right: 16,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _actionButton(
-                      icon: Icons.close_rounded,
-                      color: Colors.grey.shade400,
-                      onTap: _swipePass,
-                      size: 54,
+                    Row(
+                      children: [
+                        Text(
+                          person.name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 23,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.3,
+                            shadows: [
+                              Shadow(
+                                offset: Offset(0, 2),
+                                blurRadius: 6,
+                                color: Colors.black38,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: gold,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(color: gold.withOpacity(0.5), blurRadius: 6),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.verified,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                        ),
+                      ],
                     ),
-                    _actionButton(
-                      icon: Icons.favorite_rounded,
-                      color: isLiked ? darkGreen : gold,
-                      onTap: _heartLike,
-                      size: 68,
-                      hasGlow: true,
-                      isLiked: isLiked,
-                      isPrimary: true,
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        if (person.age != null)
+                          Text(
+                            '${person.age} سنة',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        if (person.age != null && person.city.isNotEmpty)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 6),
+                            child: Text('•', style: TextStyle(color: Colors.white54)),
+                          ),
+                        if (person.city.isNotEmpty)
+                          Row(
+                            children: [
+                              const Icon(Icons.location_on_rounded, color: Colors.white70, size: 16),
+                              const SizedBox(width: 4),
+                              Text(
+                                person.city,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
                     ),
-                    _actionButton(
-                      icon: Icons.star_rounded,
-                      color: gold,
-                      onTap: _heartLike,
-                      size: 54,
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.18),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white.withOpacity(0.2)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.school_rounded, color: Colors.white70, size: 14),
+                          SizedBox(width: 4),
+                          Text(
+                            'طالب جامعي',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 9),
+                    Text(
+                      'ثق بنفسك دائماً.. لأنك تستحق الأفضل',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontStyle: FontStyle.italic,
+                        color: Colors.white.withOpacity(0.9),
+                        fontWeight: FontWeight.w500,
+                        shadows: const [
+                          Shadow(
+                            offset: Offset(0, 1),
+                            blurRadius: 4,
+                            color: Colors.black26,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-            if (!showButtons) const SizedBox(height: 20),
-          ],
+            ],
+          ),
+          if (showButtons)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _actionButton(
+                    icon: Icons.close_rounded,
+                    color: Colors.grey.shade500,
+                    onTap: _swipePass,
+                    size: 62,
+                  ),
+                  _actionButton(
+                    icon: Icons.favorite_rounded,
+                    color: isLiked ? darkGreen : gold,
+                    onTap: _heartLike,
+                    size: 62,
+                    hasGlow: true,
+                    isLiked: isLiked,
+                    isPrimary: true,
+                  ),
+                ],
+              ),
+            ),
+          if (!showButtons) const SizedBox(height: 20),
+        ],
         ),
       ),
     );
@@ -1591,16 +1414,7 @@ class _HomeScreenState extends State<HomeScreen>
         width: size,
         height: size,
         decoration: BoxDecoration(
-          gradient: isPrimary
-              ? LinearGradient(
-                  colors: isLiked
-                      ? [darkGreen, darkGreenLight]
-                      : [gold, gold.withOpacity(0.75)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          color: isPrimary ? null : Colors.white,
+          color: isPrimary ? (isLiked ? darkGreen : gold) : Colors.white,
           shape: BoxShape.circle,
           border: isPrimary
               ? null
@@ -1608,9 +1422,9 @@ class _HomeScreenState extends State<HomeScreen>
           boxShadow: hasGlow
               ? [
                   BoxShadow(
-                    color: color.withOpacity(0.45),
-                    blurRadius: 22,
-                    offset: const Offset(0, 10),
+                    color: color.withOpacity(0.35),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
                   ),
                 ]
               : [
@@ -1662,7 +1476,10 @@ class _HomeScreenState extends State<HomeScreen>
             const SizedBox(height: 8),
             Text(
               'سنخبرك عندما نجد أشخاصاً مناسبين لك.',
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade500,
+              ),
             ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
@@ -1673,10 +1490,7 @@ class _HomeScreenState extends State<HomeScreen>
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30),
                 ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
               icon: const Icon(Icons.refresh),
               label: const Text('تحديث'),
@@ -1756,67 +1570,6 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // ============================================================
-  // 6️⃣ NEW LIKES BANNER (unchanged)
-  // ============================================================
-  Widget _buildLikesBanner() {
-    if (_likes == 0) return const SizedBox.shrink();
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: cream,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: gold.withOpacity(0.2)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.favorite, color: darkGreen, size: 24),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'لديك $_likes إعجابات جديدة',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: darkGreen,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'اكتشف من أعجب بك',
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-                ),
-              ],
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: darkGreen,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              elevation: 0,
-            ),
-            child: const Text('مشاهدة >'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
   // 🧭 BOTTOM NAVIGATION (removed "اكتشف")
   // ============================================================
   Widget _buildBottomNav() {
@@ -1837,33 +1590,12 @@ class _HomeScreenState extends State<HomeScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _navItem(
-            Icons.home,
-            'الرئيسية',
-            _selectedIndex == 0,
-            () => _onNavTap(0),
-          ),
-          _navItem(
-            Icons.favorite,
-            'الإعجابات',
-            _selectedIndex == 1,
-            () => _onNavTap(1),
-            badgeCount: _pendingInvitationsCount,
-          ),
-          _navItem(
-            Icons.chat,
-            'المحادثات',
-            _selectedIndex == 2,
-            () => _onNavTap(2),
-            badgeCount: _unreadMessagesCount,
-          ),
-          _navItem(
-            Icons.person,
-            'حسابي',
-            false,
-            () => _onNavTap(3),
-            isProfile: true,
-          ),
+          _navItem(Icons.home, 'الرئيسية', _selectedIndex == 0, () => _onNavTap(0)),
+          _navItem(Icons.favorite, 'الإعجابات', _selectedIndex == 1, () => _onNavTap(1),
+              badgeCount: _pendingInvitationsCount),
+          _navItem(Icons.chat, 'المحادثات', _selectedIndex == 2, () => _onNavTap(2),
+              badgeCount: _unreadMessagesCount),
+          _navItem(Icons.person, 'حسابي', false, () => _onNavTap(3), isProfile: true),
         ],
       ),
     );
@@ -1892,10 +1624,7 @@ class _HomeScreenState extends State<HomeScreen>
                       height: 28,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: selected ? gold : Colors.grey.shade300,
-                          width: 2,
-                        ),
+                        border: Border.all(color: selected ? gold : Colors.grey.shade300, width: 2),
                       ),
                       child: ClipOval(
                         child: _HomeScreenState.buildAvatar(
@@ -1918,22 +1647,11 @@ class _HomeScreenState extends State<HomeScreen>
                   right: -8,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 5),
-                    constraints: const BoxConstraints(
-                      minWidth: 17,
-                      minHeight: 17,
-                    ),
+                    constraints: const BoxConstraints(minWidth: 17, minHeight: 17),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFF6B7A), Color(0xFFDE3B40)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      shape: badgeCount > 9
-                          ? BoxShape.rectangle
-                          : BoxShape.circle,
-                      borderRadius: badgeCount > 9
-                          ? BorderRadius.circular(9)
-                          : null,
+                      color: const Color(0xFFDE3B40),
+                      shape: badgeCount > 9 ? BoxShape.rectangle : BoxShape.circle,
+                      borderRadius: badgeCount > 9 ? BorderRadius.circular(9) : null,
                       border: Border.all(color: Colors.white, width: 1.6),
                     ),
                     child: Center(
@@ -1965,7 +1683,10 @@ class _HomeScreenState extends State<HomeScreen>
               margin: const EdgeInsets.only(top: 2),
               width: 6,
               height: 6,
-              decoration: BoxDecoration(color: gold, shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                color: gold,
+                shape: BoxShape.circle,
+              ),
             ),
         ],
       ),
@@ -2016,10 +1737,8 @@ class _ParticlePainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
 
     for (final p in particles) {
-      final dx =
-          p.startOffset.dx + cos(p.angle) * p.distance * progress * p.speed;
-      final dy =
-          p.startOffset.dy + sin(p.angle) * p.distance * progress * p.speed;
+      final dx = p.startOffset.dx + cos(p.angle) * p.distance * progress * p.speed;
+      final dy = p.startOffset.dy + sin(p.angle) * p.distance * progress * p.speed;
       final currentOffset = center + Offset(dx, dy);
 
       final opacity = p.opacity * (1 - progress);
@@ -2119,7 +1838,10 @@ class _NearbyPersonCard extends StatelessWidget {
               const SizedBox(width: 2),
               Text(
                 '1.2 كم',
-                style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey.shade500,
+                ),
               ),
             ],
           ),

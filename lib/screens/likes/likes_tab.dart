@@ -6,11 +6,9 @@
 //   - قبول الدعوة ✅ → ينشئ Match ثم يظهر فـ "المحادثات"
 //   - رفض الدعوة ❌ → تختفي، بلا Match وبلا Chat
 //
-// 🎨 تصميم v3 — بطاقة "الصورة هي البطل" (photo-hero)، نفس لغة كارت
-// الرئيسية بالضبط (صورة كبيرة + تدرّج + نص أبيض فوقها)، بدل بطاقة بيضاء
-// صغيرة بأفاتار دائري. زوج أزرار دائرية عائمة (قبول/رفض) يركبان على
-// حافة الصورة السفلية — نفس منطق تطبيقات المواعدة المعروفة، بألوان
-// التطبيق (أخضر داكن/ذهبي) فقط، بلا أي تغيير فـ أي وظيفة أو استدعاء.
+// 🎨 تصميم v4 — Grid بعمودين، كارت بحال Facebook (صورة مربعة فوق +
+// اسم/تفاصيل + زر قبول مليان وزر رفض رمادي فاتح كاملين العرض فوق
+// بعضياتهم)، بألوان التطبيق (أخضر داكن/ذهبي).
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -420,13 +418,13 @@ class _InvitationCard extends StatelessWidget {
   Widget _buildPhoto() {
     Widget fallback() => Container(
           alignment: Alignment.center,
-          color: darkGreen,
+          color: darkGreen.withOpacity(0.10),
           child: Text(
             name.trim().isNotEmpty ? name.trim()[0] : '؟',
-            style: const TextStyle(
-              fontSize: 64,
+            style: TextStyle(
+              fontSize: 26,
               fontWeight: FontWeight.w800,
-              color: Colors.white24,
+              color: darkGreen.withOpacity(0.35),
             ),
           ),
         );
@@ -451,271 +449,184 @@ class _InvitationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ============================================================
+    // 🟦 صف "دعوة" بحال Facebook (Friend Requests) بالضبط: صف واحد
+    // بحجم ثابت — صورة صغيرة + اسم/تفاصيل — وتحته زوج أزرار كاملي
+    // العرض (قبول أخضر مليان، رفض رمادي فاتح). كل الصفوف بنفس الحجم
+    // بالضبط (بلا اختلاف فـ الطول حسب طول النص).
+    // ============================================================
     return Container(
-      margin: const EdgeInsets.only(bottom: 22),
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.black.withOpacity(0.06)),
         boxShadow: [
           BoxShadow(
-            color: darkGreen.withOpacity(0.14),
-            blurRadius: 26,
-            offset: const Offset(0, 14),
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ================= الصورة (البطل الأساسي فـ الكارت) =================
           GestureDetector(
             onTap: onTapProfile,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(30),
-                topRight: Radius.circular(30),
-              ),
-              child: AspectRatio(
-                aspectRatio: 1.05,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    _buildPhoto(),
-                    // تدرّج سفلي لقراءة النص
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          stops: const [0.45, 0.75, 1.0],
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withOpacity(0.38),
-                            Colors.black.withOpacity(0.78),
-                          ],
+            behavior: HitTestBehavior.opaque,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ================= التفاصيل النصية (يمين) =================
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        age != null ? '$name، $age' : name,
+                        textAlign: TextAlign.right,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w800,
+                          color: darkGreen,
                         ),
                       ),
+                      if (city != null && city!.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          city!,
+                          textAlign: TextAlign.right,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600),
+                        ),
+                      ],
+                      const SizedBox(height: 3),
+                      Text(
+                        isFresh ? 'أعجب بك الآن' : 'أعجب بك $timeLabel',
+                        textAlign: TextAlign.right,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11.5, color: Colors.grey.shade500),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // ================= الصورة (يسار، حجم ثابت) =================
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: SizedBox(
+                        width: 84,
+                        height: 84,
+                        child: _buildPhoto(),
+                      ),
                     ),
-                    // شارة "جديد" أعلى اليمين
                     if (isFresh)
                       Positioned(
-                        top: 14,
-                        right: 14,
+                        top: -6,
+                        right: -6,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: gold,
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(6),
                           ),
                           child: const Text(
                             'جديد',
                             style: TextStyle(
-                              fontSize: 10.5,
+                              fontSize: 9,
                               fontWeight: FontWeight.w800,
                               color: Colors.white,
                             ),
                           ),
                         ),
                       ),
-                    // وقت الإعجاب أعلى اليسار
-                    Positioned(
-                      top: 14,
-                      left: 14,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.35),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white.withOpacity(0.2)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text('❤️', style: TextStyle(fontSize: 10)),
-                            const SizedBox(width: 4),
-                            Text(
-                              timeLabel,
-                              style: const TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // معلومات الشخص فوق الصورة مباشرة
-                    Positioned(
-                      bottom: 34,
-                      left: 20,
-                      right: 20,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              if (isOnline)
-                                Container(
-                                  width: 9,
-                                  height: 9,
-                                  margin: const EdgeInsets.only(left: 6),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green.shade400,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white, width: 1.6),
-                                  ),
-                                ),
-                              Flexible(
-                                child: Text(
-                                  age != null ? '$name، $age' : name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 21,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.3,
-                                    shadows: [
-                                      Shadow(offset: Offset(0, 1), blurRadius: 6, color: Colors.black45),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
+                    if (isOnline)
+                      Positioned(
+                        bottom: 3,
+                        left: 3,
+                        child: Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade500,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
                           ),
-                          if (city != null && city!.isNotEmpty) ...[
-                            const SizedBox(height: 3),
-                            Row(
-                              children: [
-                                Icon(Icons.location_on_rounded, color: gold, size: 14),
-                                const SizedBox(width: 3),
-                                Text(
-                                  city!,
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                          if (bio != null && bio!.trim().isNotEmpty) ...[
-                            const SizedBox(height: 5),
-                            Text(
-                              bio!,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.85),
-                                fontSize: 12.5,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ],
-                        ],
+                        ),
                       ),
-                    ),
                   ],
                 ),
-              ),
+              ],
             ),
           ),
-          // ============ أزرار قبول/رفض عائمة على حافة الصورة السفلية ============
-          Transform.translate(
-            offset: const Offset(0, -26),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _circleButton(
-                    icon: Icons.close_rounded,
-                    size: 52,
-                    onTap: isBusy ? null : onReject,
-                    background: Colors.white,
-                    iconColor: rejectColor,
-                    border: rejectColor.withOpacity(0.35),
+          const SizedBox(height: 10),
+          // ============ زوج الأزرار (قبول / رفض) جنب بعضياتهم ============
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 36,
+                  child: ElevatedButton(
+                    onPressed: isBusy ? null : onReject,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey.shade200,
+                      foregroundColor: Colors.grey.shade800,
+                      elevation: 0,
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      'رفض',
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+                    ),
                   ),
-                  const SizedBox(width: 20),
-                  _circleButton(
-                    icon: Icons.favorite_rounded,
-                    size: 64,
-                    onTap: isBusy ? null : onAccept,
-                    background: darkGreen,
-                    iconColor: Colors.white,
-                    glowColor: darkGreen,
-                    isBusy: isBusy,
-                  ),
-                  const SizedBox(width: 20),
-                  _circleButton(
-                    icon: Icons.person_outline_rounded,
-                    size: 52,
-                    onTap: onTapProfile,
-                    background: Colors.white,
-                    iconColor: darkGreen,
-                    border: darkGreen.withOpacity(0.15),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // نص "قبول لبدء المحادثة" أسفل الأزرار — يعوّض الفراغ اللي خلاه
-          // الـTransform.translate بلا كسر أي تخطيط
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Center(
-              child: Text(
-                'اضغط ❤️ للقبول وبدء المحادثة',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey.shade400,
-                  fontWeight: FontWeight.w500,
                 ),
               ),
-            ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: SizedBox(
+                  height: 36,
+                  child: ElevatedButton(
+                    onPressed: isBusy ? null : onAccept,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: darkGreen,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: isBusy
+                        ? const SizedBox(
+                            width: 15,
+                            height: 15,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'قبول',
+                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+                          ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _circleButton({
-    required IconData icon,
-    required double size,
-    required VoidCallback? onTap,
-    Color? background,
-    Gradient? gradient,
-    required Color iconColor,
-    Color? border,
-    Color? glowColor,
-    bool isBusy = false,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: background,
-          gradient: gradient,
-          shape: BoxShape.circle,
-          border: border != null ? Border.all(color: border, width: 1.4) : null,
-          boxShadow: [
-            BoxShadow(
-              color: (glowColor ?? Colors.black).withOpacity(glowColor != null ? 0.25 : 0.10),
-              blurRadius: glowColor != null ? 14 : 12,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: isBusy
-            ? const Padding(
-                padding: EdgeInsets.all(16),
-                child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white),
-              )
-            : Icon(icon, color: iconColor, size: size * 0.42),
       ),
     );
   }

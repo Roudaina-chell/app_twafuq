@@ -118,6 +118,22 @@ class LikesService {
     // إذا كان هناك Match مسبق، لا فائدة من إعجاب جديد
     if (await hasMatch(toUserId)) return false;
 
+    // ✅ إذا كان الطرف الآخر قد أرسل ليا إعجاباً بالفعل (دعوة معلّقة
+    // موجّهة ليا)، فمعنى هذا أن الاثنين معجبين ببعضهم — نقبلها مباشرة
+    // بدل إنشاء دعوة ثانية بالاتجاه المعاكس (بحال Facebook: لا يمكن
+    // لشخصين إرسال دعوة لبعضهم فـ نفس الوقت؛ من وصلت له دعوة يتصرف
+    // فيها بالقبول أو الرفض فقط).
+    final reverseRef = _likes.doc(_likeId(toUserId, me));
+    final reverseSnap = await reverseRef.get();
+    if (reverseSnap.exists) {
+      final reverseStatus =
+          statusFromString(reverseSnap.data()?['status'] as String?);
+      if (reverseStatus == LikeStatus.pending) {
+        await acceptInvitation(reverseRef.id);
+        return true;
+      }
+    }
+
     final likeRef = _likes.doc(_likeId(me, toUserId));
     final snap = await likeRef.get();
 
@@ -142,6 +158,44 @@ class LikesService {
       'updatedAt': FieldValue.serverTimestamp(),
     });
     return true;
+  }
+
+  // ============================================================
+  // 🙈 كل الـ UIDs التي عندي معها أي علاقة إعجاب حالية (أرسلت ليهم،
+  // وصلاتني منهم، أو Match) — باش نحيدهم من "الرئيسية" ولا يبانوش
+  // ليا مرة ثانية للـ swipe (بحال Facebook: ما يعاودش يبان ليك شخص
+  // عندك معاه دعوة معلّقة أو Match قائم).
+  // ============================================================
+  Future<Set<String>> myInteractedUserIds() async {
+    final me = _myUid;
+    if (me == null) return {};
+
+    final results = await Future.wait([
+      _likes.where('fromUserId', isEqualTo: me).get(),
+      _likes.where('toUserId', isEqualTo: me).get(),
+      _matches.where('users', arrayContains: me).get(),
+    ]);
+
+    final ids = <String>{};
+    for (final doc in results[0].docs) {
+      final status = statusFromString(doc.data()['status'] as String?);
+      if (status == LikeStatus.pending || status == LikeStatus.accepted) {
+        ids.add(doc.data()['toUserId'] as String? ?? '');
+      }
+    }
+    for (final doc in results[1].docs) {
+      final status = statusFromString(doc.data()['status'] as String?);
+      if (status == LikeStatus.pending || status == LikeStatus.accepted) {
+        ids.add(doc.data()['fromUserId'] as String? ?? '');
+      }
+    }
+    for (final doc in results[2].docs) {
+      final users = (doc.data()['users'] as List<dynamic>?)?.cast<String>() ??
+          const <String>[];
+      ids.addAll(users.where((u) => u != me));
+    }
+    ids.remove('');
+    return ids;
   }
 
   // ============================================================
