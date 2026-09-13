@@ -8,6 +8,7 @@ import 'personal_info_edit_screen.dart';
 import '../settings/appearance_screen.dart';
 import '../settings/language_screen.dart';
 import '../settings/security_privacy_screen.dart';
+import '../auth/login_screen.dart';
 import '../../services/likes_service.dart';
 
 const Color kDarkGreen = Color(0xFF0F3D2E);
@@ -158,7 +159,11 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       return;
     }
     if (!mounted) return;
-    Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
   }
 
   void _openSecurityPrivacy() {

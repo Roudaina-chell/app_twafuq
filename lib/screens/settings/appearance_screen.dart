@@ -319,29 +319,6 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: textOnCard == Colors.white
-                        ? Colors.white.withValues(alpha: 0.85)
-                        : darkGreen,
-                  ),
-                  child: Icon(
-                    Icons.eco_rounded,
-                    size: 12,
-                    color: textOnCard == Colors.white
-                        ? darkGreen
-                        : Colors.white,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
             _previewLine(textOnCard, widthFactor: 0.35, filled: true),
             const SizedBox(height: 8),
             for (int i = 0; i < 3; i++) ...[
