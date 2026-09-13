@@ -1,15 +1,5 @@
 // screens/profile/profile_edit_screen.dart
-//
-// صفحة "حسابي" — تصميم v2: نفس لغة التصميم المستعملة فـ باقي التطبيق
-// بالضبط (هيدر بتدرّج خفيف + حلقة ذهبية حول الصورة + عنوان بتدرّج لوني
-// + بطاقات بظلال ناعمة وأيقونات دائرية بتدرّج + شريط سفلي مطابق
-// حرفياً لشريط الرئيسية، بلا اختلاف فـ العناصر ولا الترتيب).
-//
-// ✅ الضغط على "المعلومات الشخصية" يودّي لـ PersonalInfoEditScreen.
-// ✅ الضغط على "الخصوصية" كيودّي لـ SecurityPrivacyScreen.
-// ✅ الضغط على تبويب "الرئيسية/الإعجابات/المحادثات" فـ الشريط السفلي
-//    كيرجع لصفحة الرئيسية ويبدّل التبويب المطلوب فعلياً (Navigator.pop
-//    برجوع رقم التبويب، تقرأه home_screen.dart وتبدّل _selectedIndex).
+import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -18,6 +8,7 @@ import 'personal_info_edit_screen.dart';
 import '../settings/appearance_screen.dart';
 import '../settings/language_screen.dart';
 import '../settings/security_privacy_screen.dart';
+import '../../services/likes_service.dart';
 
 const Color kDarkGreen = Color(0xFF0F3D2E);
 const Color kDarkGreenLight = Color(0xFF1A6B4A);
@@ -33,22 +24,50 @@ class ProfileEditScreen extends StatefulWidget {
 }
 
 class _ProfileEditScreenState extends State<ProfileEditScreen> {
-  bool _isLoading = true;
-  String _name = '';
-  String? _avatarAsset;
+  // ============================================================
+  // 🗄️ CACHE بسيط على مستوى الـ class (static) — كيبقى محفوظ
+  // طول ما التطبيق خدام، باش كي نرجعو لـ "حسابي" مرة أخرى، الاسم
+  // والأفاتار يبانو دغيا (بلا فلاش أبيض / بلا سبينر) وقت لي
+  // Firestore كيرفريشي البيانات فالخلفية.
+  // ============================================================
+  static String? _cachedName;
+  static String? _cachedAvatarAsset;
+
+  late String _name = _cachedName ?? '';
+  late String? _avatarAsset = _cachedAvatarAsset;
+
+  // ✅ ماكاينش "isLoading" كيخبي الصفحة كاملها دابا. هاد الفلاغ
+  // كيتحكم غير فـ الهيدر (اسم/أفاتار) — الباقي (settings + bottom
+  // nav) يبان مباشرة، حتى قبل ما توصل البيانات.
+  bool _isHeaderLoading = true;
+
+  int _pendingInvitationsCount = 0;
+  int _unreadMessagesCount = 0;
+  StreamSubscription<List<LikeInvitation>>? _invitationsSub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _unreadMsgsSub;
 
   String get _uid => FirebaseAuth.instance.currentUser?.uid ?? '';
 
   @override
   void initState() {
     super.initState();
+    // إلا كان عندنا cache من قبل، الهيدر يبان مباشرة بلا "تحميل".
+    _isHeaderLoading = _cachedName == null;
     _loadAccount();
+    _attachLiveBadges();
+  }
+
+  @override
+  void dispose() {
+    _invitationsSub?.cancel();
+    _unreadMsgsSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadAccount() async {
     try {
       if (_uid.isEmpty) {
-        setState(() => _isLoading = false);
+        if (mounted) setState(() => _isHeaderLoading = false);
         return;
       }
       final doc = await FirebaseFirestore.instance
@@ -57,16 +76,50 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           .get();
       final data = doc.data() ?? {};
 
+      final name =
+          (data['fullName'] as String?) ?? (data['name'] as String?) ?? '';
+      final avatar =
+          (data['avatarAsset'] as String?) ?? (data['avatarPath'] as String?);
+
+      // نحدّثو الـ cache باش المرة الجاية يبان مباشرة.
+      _cachedName = name;
+      _cachedAvatarAsset = avatar;
+
+      if (!mounted) return;
       setState(() {
-        _name =
-            (data['fullName'] as String?) ?? (data['name'] as String?) ?? '';
-        _avatarAsset =
-            (data['avatarAsset'] as String?) ?? (data['avatarPath'] as String?);
-        _isLoading = false;
+        _name = name;
+        _avatarAsset = avatar;
+        _isHeaderLoading = false;
       });
     } catch (e) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isHeaderLoading = false);
     }
+  }
+
+  void _attachLiveBadges() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    _invitationsSub = LikesService.instance.receivedInvitationsStream().listen((
+      list,
+    ) {
+      if (!mounted) return;
+      setState(() => _pendingInvitationsCount = list.length);
+    }, onError: (e) => debugPrint('❌ Invitations badge stream failed: $e'));
+
+    _unreadMsgsSub = FirebaseFirestore.instance
+        .collection('messages')
+        .where('toUserId', isEqualTo: uid)
+        .where('read', isEqualTo: false)
+        .snapshots()
+        .listen(
+          (snap) {
+            if (!mounted) return;
+            setState(() => _unreadMessagesCount = snap.docs.length);
+          },
+          onError: (e) =>
+              debugPrint('❌ Unread messages badge stream failed: $e'),
+        );
   }
 
   Widget _buildAvatar({double size = 46}) {
@@ -76,28 +129,35 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     final isNetwork =
         _avatarAsset!.startsWith('http://') ||
         _avatarAsset!.startsWith('https://');
+    final fallback = Icon(Icons.person, size: size, color: kDarkGreen);
     final image = isNetwork
         ? Image.network(
             _avatarAsset!,
             fit: BoxFit.cover,
             alignment: Alignment.topCenter,
-            errorBuilder: (c, e, s) =>
-                Icon(Icons.person, size: size, color: kDarkGreen),
+            errorBuilder: (c, e, s) => fallback,
           )
         : Image.asset(
             _avatarAsset!,
             fit: BoxFit.cover,
             alignment: Alignment.topCenter,
-            errorBuilder: (c, e, s) =>
-                Icon(Icons.person, size: size, color: kDarkGreen),
+            errorBuilder: (c, e, s) => fallback,
           );
     return ClipOval(child: image);
   }
 
   Future<void> _signOut() async {
-    await FirebaseAuth.instance.signOut();
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('خطأ فـ تسجيل الخروج: $e')));
+      }
+      return;
+    }
     if (!mounted) return;
-    // ⚠️ بدّل الـ route هنا بالمسار الحقيقي لصفحة تسجيل الدخول عندك
     Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
   }
 
@@ -108,15 +168,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     );
   }
 
+  // ============================================================
+  // 🏗️ BUILD — دابا كترجع الصفحة كاملة (header + settings +
+  // bottom nav) من أول فريم، بلا "if (_isLoading) return Scaffold
+  // فارغ". الـ loading بقى محدود فـ الهيدر بَرك.
+  // ============================================================
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: kBg,
-        body: Center(child: CircularProgressIndicator(color: kDarkGreen)),
-      );
-    }
-
     return Scaffold(
       backgroundColor: kBg,
       body: SafeArea(
@@ -128,10 +186,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               _AccountHeader(
                 name: _name,
                 avatar: _buildAvatar(size: 44),
-                onBack: () => Navigator.maybePop(context),
-                onSettings: () {
-                  // TODO: اربطها بصفحة الإعدادات المتقدمة إذا كانت موجودة
-                },
+                isLoading: _isHeaderLoading,
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 22, 20, 24),
@@ -192,29 +247,174 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: _AccountBottomNav(avatar: _buildAvatar(size: 26)),
+      bottomNavigationBar: SafeArea(top: false, child: _buildBottomNav()),
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(40),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.15),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _navItem(
+            icon: Icons.home,
+            label: 'الرئيسية',
+            selected: false,
+            onTap: () => Navigator.pop(context, 0),
+          ),
+          _navItem(
+            icon: Icons.favorite,
+            label: 'الإعجابات',
+            selected: false,
+            onTap: () => Navigator.pop(context, 1),
+            badgeCount: _pendingInvitationsCount,
+          ),
+          _navItem(
+            icon: Icons.chat,
+            label: 'المحادثات',
+            selected: false,
+            onTap: () => Navigator.pop(context, 2),
+            badgeCount: _unreadMessagesCount,
+          ),
+          _navItem(
+            icon: Icons.person,
+            label: 'حسابي',
+            selected: true,
+            onTap: () {},
+            isProfile: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _navItem({
+    required IconData icon,
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+    bool isProfile = false,
+    int badgeCount = 0,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              isProfile
+                  ? Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: selected ? kGold : Colors.grey.shade300,
+                          width: 2,
+                        ),
+                      ),
+                      child: ClipOval(child: _buildAvatar(size: 28)),
+                    )
+                  : Icon(
+                      icon,
+                      color: selected ? kDarkGreen : Colors.grey.shade400,
+                      size: 24,
+                    ),
+              if (badgeCount > 0)
+                Positioned(
+                  top: -6,
+                  right: -8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5),
+                    constraints: const BoxConstraints(
+                      minWidth: 17,
+                      minHeight: 17,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFF6B7A), Color(0xFFDE3B40)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: badgeCount > 9
+                          ? BoxShape.rectangle
+                          : BoxShape.circle,
+                      borderRadius: badgeCount > 9
+                          ? BorderRadius.circular(9)
+                          : null,
+                      border: Border.all(color: Colors.white, width: 1.6),
+                    ),
+                    child: Center(
+                      child: Text(
+                        badgeCount > 9 ? '9+' : '$badgeCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+              color: selected ? kDarkGreen : Colors.grey.shade400,
+            ),
+          ),
+          // ✅ النقطة الذهبية تبان تحت أي عنصر مفعّل، بما فيه "حسابي"
+          // (قبل، كانت مخبية غير على البروفايل بـ "!isProfile").
+          if (selected)
+            Container(
+              margin: const EdgeInsets.only(top: 2),
+              width: 6,
+              height: 6,
+              decoration: const BoxDecoration(
+                color: kGold,
+                shape: BoxShape.circle,
+              ),
+            ),
+        ],
       ),
     );
   }
 }
 
-// ================================================================
-// ✅ رأس الصفحة: نفس لغة هيدرات باقي الصفحات (تدرّج خفيف + حلقة
-// ذهبية حول الصورة + عنوان بسيط)
-// ================================================================
+// ============================================================
+// 🧩 HEADER — دابا كيقبل isLoading باش يبين skeleton خفيف
+// (دائرة + خط رمادي) بلا ما يخبي الصفحة كاملها ولا bottom nav.
+// ============================================================
 class _AccountHeader extends StatelessWidget {
   final String name;
   final Widget avatar;
-  final VoidCallback onBack;
-  final VoidCallback onSettings;
+  final bool isLoading;
 
   const _AccountHeader({
     required this.name,
     required this.avatar,
-    required this.onBack,
-    required this.onSettings,
+    required this.isLoading,
   });
 
   @override
@@ -224,17 +424,6 @@ class _AccountHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _CircleIconButton(icon: Icons.arrow_back, onTap: onBack),
-              _CircleIconButton(
-                icon: Icons.settings_outlined,
-                onTap: onSettings,
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
           Row(
             children: [
               Container(
@@ -256,7 +445,15 @@ class _AccountHeader extends StatelessWidget {
                       shape: BoxShape.circle,
                       color: Colors.white,
                     ),
-                    child: avatar,
+                    child: isLoading
+                        ? const Padding(
+                            padding: EdgeInsets.all(28),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: kGold,
+                            ),
+                          )
+                        : avatar,
                   ),
                 ),
               ),
@@ -265,17 +462,26 @@ class _AccountHeader extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      name.isEmpty ? '—' : name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 25,
-                        fontWeight: FontWeight.w800,
-                        color: kDarkGreen,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
+                    isLoading
+                        ? Container(
+                            width: 140,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              color: kDarkGreen.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          )
+                        : Text(
+                            name.isEmpty ? '—' : name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 25,
+                              fontWeight: FontWeight.w800,
+                              color: kDarkGreen,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
                     const SizedBox(height: 6),
                     Row(
                       children: [
@@ -306,45 +512,6 @@ class _AccountHeader extends StatelessWidget {
   }
 }
 
-class _CircleIconButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _CircleIconButton({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      shape: const CircleBorder(),
-      elevation: 0,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: kDarkGreen.withValues(alpha: 0.08),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Icon(icon, color: kDarkGreen, size: 20),
-        ),
-      ),
-    );
-  }
-}
-
-// ================================================================
-// ✅ صف واحد من لائحة الإعدادات: أيقونة بتدرّج + عنوان + وصف + سهم
-// featured=true → العنصر الأول: حد ذهبي مميّز
-// isDanger=true → لون أحمر (تسجيل الخروج)
-// ================================================================
 class _SettingsTile extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -440,98 +607,6 @@ class _SettingsTile extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ================================================================
-// ✅ الشريط السفلي — مطابق حرفياً لشريط الرئيسية (نفس الحاوية العائمة،
-// نفس الظل، نفس الـ4 عناصر بنفس الترتيب). تبويب "حسابي" هو المفعّل،
-// وباقي التبويبات كترجع لصفحة الرئيسية وتبدّل التبويب فعلياً هناك
-// (عبر Navigator.pop مع رقم التبويب).
-// ================================================================
-class _AccountBottomNav extends StatelessWidget {
-  final Widget avatar;
-
-  const _AccountBottomNav({required this.avatar});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(40),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.15),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _navItem(context, Icons.home, 'الرئيسية', false, targetIndex: 0),
-          _navItem(context, Icons.favorite, 'الإعجابات', false, targetIndex: 1),
-          _navItem(context, Icons.chat, 'المحادثات', false, targetIndex: 2),
-          _navItem(context, Icons.person, 'حسابي', true, isProfile: true),
-        ],
-      ),
-    );
-  }
-
-  Widget _navItem(
-    BuildContext context,
-    IconData icon,
-    String label,
-    bool selected, {
-    int? targetIndex,
-    bool isProfile = false,
-  }) {
-    return GestureDetector(
-      onTap: () {
-        if (targetIndex != null) Navigator.pop(context, targetIndex);
-      },
-      behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          isProfile
-              ? Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: kGold, width: 2),
-                  ),
-                  child: ClipOval(child: avatar),
-                )
-              : Icon(
-                  icon,
-                  color: selected ? kDarkGreen : Colors.grey.shade400,
-                  size: 24,
-                ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
-              color: selected ? kDarkGreen : Colors.grey.shade400,
-            ),
-          ),
-          if (selected)
-            Container(
-              margin: const EdgeInsets.only(top: 2),
-              width: 6,
-              height: 6,
-              decoration: const BoxDecoration(color: kGold, shape: BoxShape.circle),
-            ),
-        ],
       ),
     );
   }

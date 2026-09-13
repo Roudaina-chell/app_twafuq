@@ -1,20 +1,10 @@
 // screens/profile/personal_info_edit_screen.dart
-//
-// ✅ حيّدت زخرفة خلفية الصفحة الكاملة (_PageBackgroundDecor: فروع
-// الورق فـ الزوايا + الخيوط الذهبية المنحنية) — دابا خلفية بسيطة
-// (kBg). بقاو فرعي الورق حول الأفاتار وفرع الزاوية فوق كل بطاقة
-// (هوما جزء من تصميم العنصر نفسه، ماشي "خلفية").
-//
-// المنطق (تعديل inline لكل حقل + ✅ حفظ / ❌ إلغاء) بقى بلا تغيير.
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'avatar_selection.dart';
 
-// ============================================================
-// ✅ نفس هوية الألوان متاع صفحة الحساب
-// ============================================================
+import 'avatar_picker_screen.dart';
+
 const Color kDarkGreen = Color(0xFF0F3D2E);
 const Color kMidGreen = Color(0xFF1A6B4A);
 const Color kGold = Color(0xFFC9A24B);
@@ -32,7 +22,6 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
   bool _isLoading = true;
   String? _errorMessage;
 
-  // القيم الحالية (لي كتبان فـ الصفحة)
   String _fullName = '';
   DateTime? _birthDate;
   String _occupation = '';
@@ -41,6 +30,7 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
   String? _maritalStatus;
   String _bio = '';
   String? _avatarAsset;
+  String _gender = 'female';
 
   int? _ageMin;
   int? _ageMax;
@@ -102,11 +92,11 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
         _educationLevel = data['educationLevel'] as String?;
         _city = data['city'] as String?;
         _maritalStatus = data['maritalStatus'] as String?;
-        // ✅ Fallback: بعض الحسابات القديمة تخزنو تحت "avatarPath" بدل
-        // "avatarAsset" (نسخة قديمة من avatar_selection.dart). نقرا
-        // الحقلين بجوج باش ما يبقاش حتى حساب بلا أفاتار.
         _avatarAsset =
             (data['avatarAsset'] as String?) ?? (data['avatarPath'] as String?);
+        _gender = (data['gender'] as String?)?.toLowerCase() == 'male'
+            ? 'male'
+            : 'female';
         _ageMin = preferences['ageMin'] as int?;
         _ageMax = preferences['ageMax'] as int?;
         _prefCity =
@@ -131,9 +121,6 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
     return age;
   }
 
-  // ============================================================
-  // ✅ يكتب حقل واحد بروحو فـ Firestore بـ merge:true (بلا ما يلمس الباقي)
-  // ============================================================
   Future<bool> _saveField(Map<String, dynamic> payload) async {
     try {
       if (_uid.isEmpty) return false;
@@ -153,17 +140,16 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
   }
 
   Future<void> _changeAvatar() async {
-    await Navigator.push(
+    final selected = await showAvatarPicker(
       context,
-      MaterialPageRoute(builder: (_) => const AvatarSelectionScreen()),
+      gender: _gender,
+      currentAvatarPath: _avatarAsset,
     );
-    if (!mounted) return;
-    await _loadProfile();
+    if (selected == null || selected == _avatarAsset) return;
+    final ok = await _saveField({'avatarAsset': selected});
+    if (ok) setState(() => _avatarAsset = selected);
   }
 
-  // ============================================================
-  // ✅ صورة الأفاتار — تدعم رابط شبكة (Firebase Storage) و asset محلي
-  // ============================================================
   static Widget _buildAvatarImage({
     required String? source,
     required double size,
@@ -178,19 +164,15 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
             source,
             fit: BoxFit.cover,
             alignment: Alignment.topCenter,
-            errorBuilder: (context, error, stack) {
-              debugPrint('❌ Avatar (network) load failed: $source -> $error');
-              return const Icon(Icons.person, size: 56, color: kDarkGreen);
-            },
+            errorBuilder: (context, error, stack) =>
+                const Icon(Icons.person, size: 56, color: kDarkGreen),
           )
         : Image.asset(
             source,
             fit: BoxFit.cover,
             alignment: Alignment.topCenter,
-            errorBuilder: (context, error, stack) {
-              debugPrint('❌ Avatar (asset) load failed: $source -> $error');
-              return const Icon(Icons.person, size: 56, color: kDarkGreen);
-            },
+            errorBuilder: (context, error, stack) =>
+                const Icon(Icons.person, size: 56, color: kDarkGreen),
           );
   }
 
@@ -222,7 +204,6 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // بطاقة المعلومات الأساسية
                     _Card(
                       title: 'المعلومات الأساسية',
                       icon: Icons.badge_outlined,
@@ -309,7 +290,6 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
 
                     const SizedBox(height: 18),
 
-                    // بطاقة التفضيلات
                     _Card(
                       title: 'تفضيلات البحث',
                       icon: Icons.tune_rounded,
@@ -387,18 +367,6 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
   }
 }
 
-// ================================================================
-// (تم حذف فرع الورق الزخرفي القديم من هنا — تصميم مسطّح حديث بلا
-// عناصر clip-art، بنفس روح باقي شاشات التطبيق)
-// ================================================================
-
-// ================================================================
-// ✅ رأس الصفحة — نسخة مبسطة واحترافية:
-// عنوان + وصف قصير، بعدها أفاتار نظيف بحلقة مينت خفيفة + badge
-// دائري صغير (كاميرا) فالزاوية السفلى لتبديل الأفاتار، بنفس هوية
-// الألوان ديال الفورم (أخضر غامق + أبيض). بلا أي زخرفة إضافية
-// (فروع ورق / لمعات) باش يبقى الهيدر بسيط ونظيف.
-// ================================================================
 class _EditHeader extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback onTapAvatar;
@@ -477,8 +445,6 @@ class _EditHeader extends StatelessWidget {
                     ),
                   ),
                 ),
-                // ✅ badge دائري احترافي لتبديل الأفاتار — بنفس هوية
-                // الألوان ديال الفورم (أخضر غامق + حلقة بيضاء)
                 Positioned(
                   bottom: 0,
                   right: 0,
@@ -495,7 +461,7 @@ class _EditHeader extends StatelessWidget {
                       child: const Padding(
                         padding: EdgeInsets.all(8),
                         child: Icon(
-                          Icons.camera_alt_rounded,
+                          Icons.edit_rounded,
                           size: 16,
                           color: Colors.white,
                         ),
@@ -522,10 +488,6 @@ class _EditHeader extends StatelessWidget {
   }
 }
 
-// ================================================================
-// بطاقة عامة (Container أبيض بعنوان + أيقونة فـ دائرة خفيفة + فرع ورق
-// زخرفي بارز من الزاوية العلوية اليمنى)
-// ================================================================
 class _Card extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -584,9 +546,6 @@ class _Card extends StatelessWidget {
   }
 }
 
-// ================================================================
-// ✅ زر ✏️ صغير يوضع بجانب صندوق القيمة (مو فوق التسمية)
-// ================================================================
 class _EditPencilButton extends StatelessWidget {
   final VoidCallback onTap;
   const _EditPencilButton({required this.onTap});
@@ -614,10 +573,6 @@ class _EditPencilButton extends StatelessWidget {
   }
 }
 
-// ================================================================
-// صندوق عرض القيمة (أيقونة فـ دائرة بيضاء + النص) — خلفية مينت خفيفة
-// بلا حدود، نفس شكل الصورة المرجعية
-// ================================================================
 class _ValueBox extends StatelessWidget {
   final IconData icon;
   final String text;
@@ -664,10 +619,6 @@ class _ValueBox extends StatelessWidget {
   }
 }
 
-// ================================================================
-// حقل نص قابل للتعديل inline: تسمية فوق، ثم صف [✏️] + [صندوق القيمة]
-// →  عند التعديل: TextField + ✅ ❌
-// ================================================================
 class InlineTextField extends StatefulWidget {
   final String label;
   final IconData icon;
@@ -841,9 +792,6 @@ class _InlineTextFieldState extends State<InlineTextField> {
   }
 }
 
-// ================================================================
-// حقل Dropdown قابل للتعديل inline — نفس شكل [✏️] + [صندوق القيمة]
-// ================================================================
 class InlineDropdownField extends StatefulWidget {
   final String label;
   final IconData icon;
@@ -991,9 +939,6 @@ class _InlineDropdownFieldState extends State<InlineDropdownField> {
   }
 }
 
-// ================================================================
-// حقل تاريخ الميلاد قابل للتعديل inline — نفس شكل [✏️] + [صندوق القيمة]
-// ================================================================
 class InlineDateField extends StatefulWidget {
   final String label;
   final DateTime? value;

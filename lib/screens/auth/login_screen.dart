@@ -57,10 +57,16 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
+
+      final user = credential.user;
+      if (user != null) {
+        await DeviceService.registerSession(uid: user.uid, method: 'email');
+      }
+
       if (mounted) {
         Navigator.pushAndRemoveUntil(
           context,
@@ -165,6 +171,8 @@ class _LoginScreenState extends State<LoginScreen> {
           'createdAt': FieldValue.serverTimestamp(),
         });
       }
+
+      await DeviceService.registerSession(uid: user.uid, method: 'google');
 
       if (mounted) {
         Navigator.pushAndRemoveUntil(
@@ -294,7 +302,6 @@ class _LoginScreenState extends State<LoginScreen> {
               Center(
                 child: Column(
                   children: [
-                    // ========== الشعار الحقيقي ==========
                     Image.asset(
                       'assets/images/logo_tawafuq.png',
                       width: 88,
@@ -427,7 +434,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  // ====== الشعار: صورة من الإنترنت مع بديل احتياطي ======
                   icon: Image.network(
                     'https://developers.google.com/identity/images/g-logo.png',
                     width: 20,
@@ -478,7 +484,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-// دالة مساعدة موجودة في register_screen.dart، نضيفها هنا لتجنب الأخطاء
 String friendlyAuthError(String code) {
   switch (code) {
     case 'email-already-in-use':

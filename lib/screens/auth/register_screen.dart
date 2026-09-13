@@ -5,8 +5,6 @@ import 'package:flutter/material.dart';
 import 'login_screen.dart';
 import '../../services/device_service.dart';
 
-// نفس دالة friendlyAuthError موجودة أعلاه، نستخدمها من login_screen.dart أو نعيد تعريفها هنا.
-// لتجنب التكرار، يمكن استيرادها من login_screen.dart، لكننا سنعيد تعريفها هنا للاستقلالية.
 String friendlyAuthError(String code) {
   switch (code) {
     case 'email-already-in-use':
@@ -121,6 +119,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
             'createdAt': FieldValue.serverTimestamp(),
           });
 
+      await DeviceService.registerSession(
+        uid: credential.user!.uid,
+        method: 'email',
+      );
+
       if (!mounted) return;
 
       Navigator.pushReplacement(
@@ -206,7 +209,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
               Center(
                 child: Column(
                   children: [
-                    // ========== الشعار الحقيقي ==========
                     Image.asset(
                       'assets/images/logo_tawafuq.png',
                       width: 88,

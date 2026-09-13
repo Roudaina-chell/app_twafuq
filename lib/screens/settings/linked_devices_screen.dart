@@ -1,20 +1,8 @@
 // screens/settings/linked_devices_screen.dart
-//
-// ✅ شاشة "الأجهزة المرتبطة" — الوصول ليها من كارت "الأجهزة
-// المرتبطة" فـ SecurityPrivacyScreen. لائحة الأجهزة اللي تسجل
-// فيهم الدخول، مع تمييز الجهاز الحالي وزر تسجيل خروج للباقي.
-//
-// ✅ ماعادش كتعتمد على widget/page_background_decor.dart (تحذفات) —
-// الألوان وCircleIconButton دابا معرّفين محليا هنا.
-//
-// ✅ تعديل جديد: زر الرجوع دابا مثبت فعليا عل اليسار (بدّلنا مكانو
-// فـ الـ Row لآخر العناصر) — باقي العنوان مركّز بالضبط بفضل
-// SizedBox(width: 44) اللي كتعادل حجم الزر.
-//
-// ⚠️ اللائحة هنا mock (بيانات وهمية) — فـ المشروع الحقيقي بدّلها
-// بقراءة من Firestore (users/{uid}/devices) أو من الـ backend.
-
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../services/device_service.dart';
 
 const Color kDarkGreen = Color(0xFF0F3D2E);
 const Color kGold = Color(0xFFC9A24B);
@@ -22,19 +10,40 @@ const Color kBg = Color(0xFFFAF7F2);
 const Color kMint = Color(0xFFE9F3EC);
 
 class _DeviceInfo {
+  final String id;
   final String name;
-  final String location;
-  final String lastActive;
-  final IconData icon;
+  final String platform;
+  final Timestamp? lastActive;
   final bool isCurrent;
 
   const _DeviceInfo({
+    required this.id,
     required this.name,
-    required this.location,
+    required this.platform,
     required this.lastActive,
-    required this.icon,
-    this.isCurrent = false,
+    required this.isCurrent,
   });
+
+  IconData get icon {
+    switch (platform) {
+      case 'android':
+        return Icons.smartphone_rounded;
+      case 'ios':
+        return Icons.phone_iphone_rounded;
+      default:
+        return Icons.devices_other_rounded;
+    }
+  }
+
+  String get lastActiveLabel {
+    if (isCurrent) return 'متصل الآن';
+    if (lastActive == null) return '';
+    final diff = DateTime.now().difference(lastActive!.toDate());
+    if (diff.inMinutes < 1) return 'نشط الآن';
+    if (diff.inMinutes < 60) return 'آخر نشاط قبل ${diff.inMinutes} دقيقة';
+    if (diff.inHours < 24) return 'آخر نشاط قبل ${diff.inHours} ساعة';
+    return 'آخر نشاط قبل ${diff.inDays} يوم';
+  }
 }
 
 class LinkedDevicesScreen extends StatefulWidget {
@@ -45,28 +54,20 @@ class LinkedDevicesScreen extends StatefulWidget {
 }
 
 class _LinkedDevicesScreenState extends State<LinkedDevicesScreen> {
-  // TODO: بدّلها بقراءة حقيقية من Firestore/Backend
-  final List<_DeviceInfo> _devices = const [
-    _DeviceInfo(
-      name: 'هاتفك الحالي',
-      location: 'الجزائر العاصمة، الجزائر',
-      lastActive: 'متصل الآن',
-      icon: Icons.smartphone_rounded,
-      isCurrent: true,
-    ),
-    _DeviceInfo(
-      name: 'iPhone 13',
-      location: 'البليدة، الجزائر',
-      lastActive: 'آخر نشاط قبل يومين',
-      icon: Icons.phone_iphone_rounded,
-    ),
-    _DeviceInfo(
-      name: 'Chrome - Windows',
-      location: 'قسنطينة، الجزائر',
-      lastActive: 'آخر نشاط قبل أسبوع',
-      icon: Icons.laptop_mac_rounded,
-    ),
-  ];
+  String? _currentDeviceId;
+
+  String get _uid => FirebaseAuth.instance.currentUser?.uid ?? '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentDeviceId();
+  }
+
+  Future<void> _loadCurrentDeviceId() async {
+    final id = await DeviceService.getDeviceId();
+    if (mounted) setState(() => _currentDeviceId = id);
+  }
 
   Future<void> _confirmSignOut(_DeviceInfo device) async {
     final confirmed = await showDialog<bool>(
@@ -98,8 +99,7 @@ class _LinkedDevicesScreenState extends State<LinkedDevicesScreen> {
       ),
     );
     if (confirmed == true) {
-      setState(() => _devices.remove(device));
-      // TODO: نفّذ تسجيل الخروج الحقيقي من هاذ الجهاز (revoke session)
+      await DeviceService.signOutDevice(uid: _uid, deviceId: device.id);
     }
   }
 
@@ -110,37 +110,90 @@ class _LinkedDevicesScreenState extends State<LinkedDevicesScreen> {
       child: Scaffold(
         backgroundColor: kBg,
         body: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
-            children: [
-              Row(
-                children: [
-                  const SizedBox(width: 44),
-                  const Expanded(
-                    child: _GradientTitle(text: 'الأجهزة المرتبطة'),
-                  ),
-                  _CircleIconButton(
-                    icon: Icons.arrow_back,
-                    onTap: () => Navigator.maybePop(context),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'إدارة الأجهزة التي تم تسجيل دخولك منها',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-              ),
-              const SizedBox(height: 26),
-              for (final device in _devices) ...[
-                _DeviceTile(
-                  device: device,
-                  onSignOut: () => _confirmSignOut(device),
+          child: _currentDeviceId == null || _uid.isEmpty
+              ? const Center(
+                  child: CircularProgressIndicator(color: kDarkGreen),
+                )
+              : StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(_uid)
+                      .collection('devices')
+                      .orderBy('lastActive', descending: true)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    final docs = snapshot.data?.docs ?? [];
+                    final devices =
+                        docs.map((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          return _DeviceInfo(
+                            id: doc.id,
+                            name: (data['name'] as String?) ?? 'جهاز غير معروف',
+                            platform:
+                                (data['platform'] as String?) ?? 'unknown',
+                            lastActive: data['lastActive'] as Timestamp?,
+                            isCurrent: doc.id == _currentDeviceId,
+                          );
+                        }).toList()..sort(
+                          (a, b) => a.isCurrent ? -1 : (b.isCurrent ? 1 : 0),
+                        );
+
+                    return ListView(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+                      children: [
+                        Row(
+                          children: [
+                            const SizedBox(width: 44),
+                            const Expanded(
+                              child: _GradientTitle(text: 'الأجهزة المرتبطة'),
+                            ),
+                            _CircleIconButton(
+                              icon: Icons.arrow_back,
+                              onTap: () => Navigator.maybePop(context),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'إدارة الأجهزة التي تم تسجيل دخولك منها',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                        const SizedBox(height: 26),
+                        if (snapshot.connectionState == ConnectionState.waiting)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 40),
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: kDarkGreen,
+                              ),
+                            ),
+                          )
+                        else if (devices.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 40),
+                            child: Center(
+                              child: Text(
+                                'ماكاين حتى جهاز مسجل',
+                                style: TextStyle(color: Colors.grey.shade500),
+                              ),
+                            ),
+                          )
+                        else
+                          for (final device in devices) ...[
+                            _DeviceTile(
+                              device: device,
+                              onSignOut: () => _confirmSignOut(device),
+                            ),
+                            const SizedBox(height: 14),
+                          ],
+                      ],
+                    );
+                  },
                 ),
-                const SizedBox(height: 14),
-              ],
-            ],
-          ),
         ),
       ),
     );
@@ -193,7 +246,7 @@ class _DeviceTile extends StatelessWidget {
                   children: [
                     Flexible(
                       child: Text(
-                        device.name,
+                        device.isCurrent ? 'هاتفك الحالي' : device.name,
                         style: const TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 15,
@@ -225,13 +278,14 @@ class _DeviceTile extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 3),
-                Text(
-                  device.location,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                ),
+                if (device.isCurrent)
+                  Text(
+                    device.name,
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  ),
                 const SizedBox(height: 2),
                 Text(
-                  device.lastActive,
+                  device.lastActiveLabel,
                   style: TextStyle(fontSize: 11.5, color: Colors.grey.shade400),
                 ),
                 if (!device.isCurrent) ...[
@@ -257,9 +311,6 @@ class _DeviceTile extends StatelessWidget {
   }
 }
 
-// ================================================================
-// ✅ عنوان بتدرّج لوني (نفس هوية باقي شاشات "حسابي")
-// ================================================================
 class _GradientTitle extends StatelessWidget {
   final String text;
   final double fontSize;
@@ -279,9 +330,6 @@ class _GradientTitle extends StatelessWidget {
   }
 }
 
-// ================================================================
-// ✅ زر دائري (رجوع) — معرّف محليا، بلا اعتماد على أي ملف مشترك
-// ================================================================
 class _CircleIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;

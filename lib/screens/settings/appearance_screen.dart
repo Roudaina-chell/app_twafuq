@@ -1,28 +1,13 @@
 // screens/settings/appearance_screen.dart
-//
-// ✅ شاشة "المظهر" — دابا كتستعمل Theme.of(context) بدل الألوان
-// الثابتة (darkGreen/gold/bg كانو hardcoded بحال الوضع النهاري
-// دائما). هاذشي هو السبب اللي كان خلي الشاشة (وكل الشاشات الأخرى)
-// ما كتبدلش شكلها حتى ولو AppThemeController.themeMode تبدل فعليا:
-// MaterialApp كيبدل الثيم، لكن أي Container/Text بلون ثابت
-// (const Color) ما عندوش علاقة بالثيم — خاصو يقرا Theme.of(context).
-//
-// ⚠️ باش الوضع الليلي يبان فـ كامل التطبيق، خاص نفس التغيير (قراءة
-// Theme.of(context) بدل الألوان الثابتة) يتدار فـ باقي الشاشات
-// (profile_edit_screen.dart، privacy_settings_screen.dart...).
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum AppAppearanceMode { day, night }
 
-// ================================================================
-// ✅ AppThemeController: مصدر وحيد للحقيقة لوضع الثيم الحالي.
-// ================================================================
 class AppThemeController {
   AppThemeController._();
 
-  static const String prefsModeKey = 'appearance_mode'; // 'day' | 'night'
+  static const String prefsModeKey = 'appearance_mode';
 
   static final ValueNotifier<ThemeMode> themeMode = ValueNotifier(
     ThemeMode.light,
@@ -34,7 +19,7 @@ class AppThemeController {
       final saved = prefs.getString(prefsModeKey);
       themeMode.value = saved == 'night' ? ThemeMode.dark : ThemeMode.light;
     } catch (e) {
-      debugPrint('❌ AppThemeController.load failed: $e');
+      debugPrint('AppThemeController.load failed: $e');
     }
   }
 
@@ -50,7 +35,7 @@ class AppThemeController {
         mode == AppAppearanceMode.night ? 'night' : 'day',
       );
     } catch (e) {
-      debugPrint('❌ AppThemeController.setMode save failed: $e');
+      debugPrint('AppThemeController.setMode save failed: $e');
     }
   }
 }
@@ -89,7 +74,6 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      debugPrint('❌ Appearance: prefs load failed: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -105,18 +89,15 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_prefsAutoKey, value);
     } catch (e) {
-      debugPrint('❌ Appearance: save auto-switch failed: $e');
+      debugPrint('Appearance: save auto-switch failed: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // ✅ نقراو الألوان من الثيم الحالي (نهاري أو ليلي) بدل ما نثبتهم.
-    // هاذشي هو اللي كيخلي الصفحة تبدل شكلها فعليا مع الوضع الليلي.
     final scheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final darkGreen = scheme.primary;
-    final gold = scheme.secondary;
     final bg = Theme.of(context).scaffoldBackgroundColor;
     final cardColor = scheme.surface;
     final subtitleColor = isDark ? Colors.grey.shade400 : Colors.grey.shade500;
@@ -129,7 +110,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
             : ListView(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 40),
                 children: [
-                  _buildHeader(context, darkGreen, gold, subtitleColor),
+                  _buildHeader(context, darkGreen, subtitleColor),
                   const SizedBox(height: 22),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -143,7 +124,6 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                           cardBg: const Color(0xFFFAF7F2),
                           statusBarDark: true,
                           darkGreen: darkGreen,
-                          gold: gold,
                           cardColor: cardColor,
                         ),
                       ),
@@ -157,14 +137,13 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                           cardBg: const Color(0xFF0F3D2E),
                           statusBarDark: false,
                           darkGreen: darkGreen,
-                          gold: gold,
                           cardColor: cardColor,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 20),
-                  _buildAutoSwitchTile(darkGreen, cardColor, subtitleColor),
+                  _buildAutoSwitchTile(darkGreen, subtitleColor),
                   const SizedBox(height: 14),
                   _buildInfoBanner(darkGreen, cardColor, subtitleColor),
                 ],
@@ -173,13 +152,9 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     );
   }
 
-  // ============================================================
-  // 🔝 الهيدر: سهم رجوع + عنوان "المظهر" فـ الوسط + وصف قصير
-  // ============================================================
   Widget _buildHeader(
     BuildContext context,
     Color darkGreen,
-    Color gold,
     Color subtitleColor,
   ) {
     return Column(
@@ -223,9 +198,6 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     );
   }
 
-  // ============================================================
-  // 🃏 كارت اختيار وضع (نهاري/ليلي)
-  // ============================================================
   Widget _buildModeCard({
     required AppAppearanceMode mode,
     required String title,
@@ -234,7 +206,6 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     required Color cardBg,
     required bool statusBarDark,
     required Color darkGreen,
-    required Color gold,
     required Color cardColor,
   }) {
     final bool selected = _selectedMode == mode;
@@ -249,7 +220,9 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
           color: cardColor,
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
-            color: selected ? gold : Colors.grey.shade400.withValues(alpha: 0.4),
+            color: selected
+                ? darkGreen
+                : Colors.grey.shade400.withValues(alpha: 0.4),
             width: selected ? 1.6 : 1,
           ),
           boxShadow: selected
@@ -269,7 +242,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                 _buildPhonePreview(
                   cardBg: cardBg,
                   textOnCard: textOnCard,
-                  gold: gold,
+                  darkGreen: darkGreen,
                 ),
                 Positioned(
                   top: 4,
@@ -280,9 +253,11 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: selected ? gold : null,
+                      color: selected ? darkGreen : null,
                       border: Border.all(
-                        color: selected ? Colors.transparent : Colors.grey.shade400,
+                        color: selected
+                            ? Colors.transparent
+                            : Colors.grey.shade400,
                         width: 1.4,
                       ),
                     ),
@@ -330,14 +305,10 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     );
   }
 
-  // ============================================================
-  // 📱 معاينة مصغرة لواجهة الهاتف داخل الكارت — بقات ثابتة عمدا
-  // (كتوري شكل النهاري/الليلي بحال هوما، بصح فـ الواقع)
-  // ============================================================
   Widget _buildPhonePreview({
     required Color cardBg,
     required Color textOnCard,
-    required Color gold,
+    required Color darkGreen,
   }) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),
@@ -356,12 +327,16 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                   height: 20,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: gold.withValues(alpha: 0.85),
+                    color: textOnCard == Colors.white
+                        ? Colors.white.withValues(alpha: 0.85)
+                        : darkGreen,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.eco_rounded,
                     size: 12,
-                    color: Colors.white,
+                    color: textOnCard == Colors.white
+                        ? darkGreen
+                        : Colors.white,
                   ),
                 ),
               ],
@@ -426,14 +401,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     );
   }
 
-  // ============================================================
-  // 🔁 كارت "التبديل التلقائي"
-  // ============================================================
-  Widget _buildAutoSwitchTile(
-    Color darkGreen,
-    Color cardColor,
-    Color subtitleColor,
-  ) {
+  Widget _buildAutoSwitchTile(Color darkGreen, Color subtitleColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
@@ -484,9 +452,6 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     );
   }
 
-  // ============================================================
-  // ℹ️ بانر معلومة أسفل الشاشة
-  // ============================================================
   Widget _buildInfoBanner(
     Color darkGreen,
     Color cardColor,

@@ -29,7 +29,6 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
   bool _isMuted = false;
   bool _isDisappearing = false;
   bool _isSubmitting = false;
-  int _unreadNotifCount = 0;
   String? _errorMessage;
 
   // ✅ Profile Preview مفتوح أحياناً قبل وجود Match (من صفحة "الإعجابات")
@@ -40,6 +39,8 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
 
   Map<String, dynamic>? _userData;
 
+  final _firestore = FirebaseFirestore.instance;
+
   String get _myUid => FirebaseAuth.instance.currentUser?.uid ?? '';
 
   String get _chatId {
@@ -47,14 +48,46 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
     return ids.join('_');
   }
 
+  // ---- Firestore shortcuts (avoid repeating long collection paths) ----
+  DocumentReference<Map<String, dynamic>> get _userDoc =>
+      _firestore.collection('users').doc(widget.userId);
+
+  DocumentReference<Map<String, dynamic>> get _blockedDoc => _firestore
+      .collection('users')
+      .doc(_myUid)
+      .collection('blocked')
+      .doc(widget.userId);
+
+  DocumentReference<Map<String, dynamic>> get _mutedDoc => _firestore
+      .collection('users')
+      .doc(_myUid)
+      .collection('muted')
+      .doc(widget.userId);
+
+  DocumentReference<Map<String, dynamic>> get _chatSettingsDoc =>
+      _firestore.collection('chatSettings').doc(_chatId);
+
+  Query<Map<String, dynamic>> get _chatMessagesQuery =>
+      _firestore.collection('messages').where('chatId', isEqualTo: _chatId);
+
   @override
   void initState() {
     super.initState();
-    _loadProfile();
-    _checkIfBlocked();
-    _checkIfMuted();
-    _loadChatSettings();
-    _checkMatch();
+    _loadAll();
+  }
+
+  // ============================================================
+  // 🚀 تحميل كل بيانات الشاشة دفعة واحدة (بروفايل + حظر + كتم +
+  // إعدادات المحادثة + التحقق من الـ Match)
+  // ============================================================
+  Future<void> _loadAll() async {
+    await Future.wait([
+      _loadProfile(),
+      _checkIfBlocked(),
+      _checkIfMuted(),
+      _loadChatSettings(),
+      _checkMatch(),
+    ]);
   }
 
   // ============================================================
@@ -71,18 +104,14 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
       });
     } catch (e) {
       debugPrint('❌ Check match failed: $e');
-      if (!mounted) return;
-      setState(() => _checkingMatch = false);
+      if (mounted) setState(() => _checkingMatch = false);
     }
   }
 
   Future<void> _loadProfile() async {
-    setState(() => _isLoading = true);
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.userId)
-          .get();
+      final doc = await _userDoc.get();
+      if (!mounted) return;
 
       if (!doc.exists) {
         setState(() {
@@ -97,24 +126,20 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      setState(() {
-        _errorMessage = 'حدث خطأ أثناء التحميل';
-        _isLoading = false;
-      });
+      debugPrint('❌ Load profile failed: $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'حدث خطأ أثناء التحميل';
+          _isLoading = false;
+        });
+      }
     }
   }
 
   Future<void> _checkIfBlocked() async {
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(_myUid)
-          .collection('blocked')
-          .doc(widget.userId)
-          .get();
-      if (mounted && doc.exists) {
-        setState(() => _isBlocked = true);
-      }
+      final doc = await _blockedDoc.get();
+      if (mounted && doc.exists) setState(() => _isBlocked = true);
     } catch (e) {
       debugPrint('❌ Check blocked failed: $e');
     }
@@ -125,15 +150,8 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
   // ============================================================
   Future<void> _checkIfMuted() async {
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(_myUid)
-          .collection('muted')
-          .doc(widget.userId)
-          .get();
-      if (mounted && doc.exists) {
-        setState(() => _isMuted = true);
-      }
+      final doc = await _mutedDoc.get();
+      if (mounted && doc.exists) setState(() => _isMuted = true);
     } catch (e) {
       debugPrint('❌ Check muted failed: $e');
     }
@@ -141,24 +159,15 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
 
   Future<void> _toggleMute() async {
     try {
-      final ref = FirebaseFirestore.instance
-          .collection('users')
-          .doc(_myUid)
-          .collection('muted')
-          .doc(widget.userId);
       if (_isMuted) {
-        await ref.delete();
+        await _mutedDoc.delete();
       } else {
-        await ref.set({'mutedAt': FieldValue.serverTimestamp()});
+        await _mutedDoc.set({'mutedAt': FieldValue.serverTimestamp()});
       }
       if (!mounted) return;
       setState(() => _isMuted = !_isMuted);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _isMuted ? '🔕 تم كتم إشعارات هذه المحادثة' : '🔔 تم إلغاء الكتم',
-          ),
-        ),
+      _showSnack(
+        _isMuted ? '🔕 تم كتم إشعارات هذه المحادثة' : '🔔 تم إلغاء الكتم',
       );
     } catch (e) {
       debugPrint('❌ Toggle mute failed: $e');
@@ -170,10 +179,7 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
   // ============================================================
   Future<void> _loadChatSettings() async {
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('chatSettings')
-          .doc(_chatId)
-          .get();
+      final doc = await _chatSettingsDoc.get();
       if (mounted && doc.exists) {
         setState(() => _isDisappearing = doc.data()?['disappearing'] == true);
       }
@@ -184,12 +190,10 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
 
   Future<void> _toggleDisappearing() async {
     try {
-      await FirebaseFirestore.instance
-          .collection('chatSettings')
-          .doc(_chatId)
-          .set({'disappearing': !_isDisappearing}, SetOptions(merge: true));
-      if (!mounted) return;
-      setState(() => _isDisappearing = !_isDisappearing);
+      await _chatSettingsDoc.set({
+        'disappearing': !_isDisappearing,
+      }, SetOptions(merge: true));
+      if (mounted) setState(() => _isDisappearing = !_isDisappearing);
     } catch (e) {
       debugPrint('❌ Toggle disappearing failed: $e');
     }
@@ -199,23 +203,11 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
     if (_isSubmitting) return;
     setState(() => _isSubmitting = true);
     try {
-      final ref = FirebaseFirestore.instance
-          .collection('users')
-          .doc(_myUid)
-          .collection('blocked')
-          .doc(widget.userId);
-
       if (_isBlocked) {
-        await ref.delete();
+        await _blockedDoc.delete();
+        if (!mounted) return;
         setState(() => _isBlocked = false);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('تم إلغاء حظر المستخدم'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
+        _showSnack('تم إلغاء حظر المستخدم', color: Colors.green);
       } else {
         final confirm = await _confirmDialog(
           title: 'حظر المستخدم',
@@ -225,31 +217,18 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
         );
         if (confirm != true) return;
 
-        await ref.set({
+        await _blockedDoc.set({
           'blockedUserId': widget.userId,
           'blockedAt': FieldValue.serverTimestamp(),
         });
+        if (!mounted) return;
         setState(() => _isBlocked = true);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('تم حظر المستخدم بنجاح'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          Navigator.pop(context);
-        }
+        _showSnack('تم حظر المستخدم بنجاح', color: Colors.red);
+        Navigator.pop(context);
       }
     } catch (e) {
       debugPrint('❌ Block toggle failed: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('حدث خطأ، عاود المحاولة'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (mounted) _showSnack('حدث خطأ، عاود المحاولة', color: Colors.red);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -268,32 +247,28 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
     if (confirm != true) return;
 
     try {
-      final snap = await FirebaseFirestore.instance
-          .collection('messages')
-          .where('chatId', isEqualTo: _chatId)
-          .get();
-      final batch = FirebaseFirestore.instance.batch();
+      final snap = await _chatMessagesQuery.get();
+      final batch = _firestore.batch();
       for (final doc in snap.docs) {
         batch.delete(doc.reference);
       }
       await batch.commit();
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('🗑️ تم حذف المحادثة')));
-        // ✅ نرجعو 2 pops: هاذي الصفحة (profile view) + المحادثة لي
-        // تحذفات — كنرجعو لقائمة المحادثات، ماشي لأول صفحة فـ التطبيق
-        Navigator.pop(context);
-        if (mounted) Navigator.pop(context);
-      }
+      if (!mounted) return;
+      _showSnack('🗑️ تم حذف المحادثة');
+      // ✅ نرجعو 2 pops: هاذي الصفحة (profile view) + المحادثة لي
+      // تحذفات — كنرجعو لقائمة المحادثات، ماشي لأول صفحة فـ التطبيق
+      Navigator.pop(context);
+      if (mounted) Navigator.pop(context);
     } catch (e) {
       debugPrint('❌ Delete conversation failed: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('❌ فشل الحذف: $e')));
-      }
+      if (mounted) _showSnack('❌ فشل الحذف: $e');
     }
+  }
+
+  void _showSnack(String message, {Color? color}) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
   }
 
   Future<bool?> _confirmDialog({
@@ -341,9 +316,7 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
     final controller = TextEditingController();
     List<QueryDocumentSnapshot<Map<String, dynamic>>> allDocs = [];
     try {
-      final snap = await FirebaseFirestore.instance
-          .collection('messages')
-          .where('chatId', isEqualTo: _chatId)
+      final snap = await _chatMessagesQuery
           .orderBy('timestamp', descending: true)
           .get();
       allDocs = snap.docs;
@@ -466,8 +439,8 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
               onSelected: (value) {
                 if (value == 'delete') _deleteConversation();
               },
-              itemBuilder: (ctx) => [
-                const PopupMenuItem(
+              itemBuilder: (ctx) => const [
+                PopupMenuItem(
                   value: 'delete',
                   child: Row(
                     children: [
@@ -530,29 +503,28 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
     }
     final isNetwork =
         source.startsWith('http://') || source.startsWith('https://');
+    final fallback = Icon(Icons.person, size: size * 0.55, color: darkGreen);
     return isNetwork
         ? Image.network(
             source,
             fit: BoxFit.cover,
             alignment: Alignment.topCenter,
-            errorBuilder: (context, error, stack) =>
-                Icon(Icons.person, size: size * 0.55, color: darkGreen),
+            errorBuilder: (context, error, stack) => fallback,
           )
         : Image.asset(
             source,
             fit: BoxFit.cover,
             alignment: Alignment.topCenter,
-            errorBuilder: (context, error, stack) =>
-                Icon(Icons.person, size: size * 0.55, color: darkGreen),
+            errorBuilder: (context, error, stack) => fallback,
           );
   }
 
   Widget _buildProfileContent() {
-    if (_userData == null) {
+    final data = _userData;
+    if (data == null) {
       return const Center(child: Text('لا توجد بيانات'));
     }
 
-    final data = _userData!;
     final String name =
         data['fullName'] as String? ?? data['name'] as String? ?? 'مستخدم';
     final String city = data['city'] as String? ?? '';
@@ -661,7 +633,6 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
                         ? Icons.notifications_off_rounded
                         : Icons.notifications_none_rounded,
                     label: 'الإشعارات',
-                    badgeCount: _unreadNotifCount,
                     onTap: _toggleMute,
                   ),
                 ),
@@ -677,12 +648,19 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.favorite_border_rounded, color: gold, size: 20),
+                  const Icon(
+                    Icons.favorite_border_rounded,
+                    color: gold,
+                    size: 20,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'ستتمكن من المراسلة بعد أن يقبل الطرفان الإعجاب',
-                      style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700),
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: Colors.grey.shade700,
+                      ),
                     ),
                   ),
                 ],
@@ -703,13 +681,14 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
                 ? _formatMonthYear(joinedAt.toDate())
                 : 'غير محدد',
           ),
-          const SizedBox(height: 10),
-          if (city.isNotEmpty)
+          if (city.isNotEmpty) ...[
+            const SizedBox(height: 10),
             _InfoCard(
               icon: Icons.location_on_rounded,
               title: 'الموقع',
               value: city,
             ),
+          ],
 
           const SizedBox(height: 22),
 
@@ -771,23 +750,22 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
     );
   }
 
-  String _formatMonthYear(DateTime d) {
-    const months = [
-      'يناير',
-      'فبراير',
-      'مارس',
-      'أبريل',
-      'مايو',
-      'يونيو',
-      'يوليو',
-      'أغسطس',
-      'سبتمبر',
-      'أكتوبر',
-      'نوفمبر',
-      'ديسمبر',
-    ];
-    return '${months[d.month - 1]} ${d.year}';
-  }
+  static const _months = [
+    'يناير',
+    'فبراير',
+    'مارس',
+    'أبريل',
+    'مايو',
+    'يونيو',
+    'يوليو',
+    'أغسطس',
+    'سبتمبر',
+    'أكتوبر',
+    'نوفمبر',
+    'ديسمبر',
+  ];
+
+  String _formatMonthYear(DateTime d) => '${_months[d.month - 1]} ${d.year}';
 }
 
 // ============================================================
@@ -811,19 +789,17 @@ class _SectionLabel extends StatelessWidget {
 }
 
 // ============================================================
-// بطاقة إجراء سريع (بحث / إشعارات / وسائط)
+// بطاقة إجراء سريع (بحث / إشعارات)
 // ============================================================
 class _QuickActionCard extends StatelessWidget {
   final IconData icon;
   final String label;
-  final int badgeCount;
   final VoidCallback onTap;
 
   const _QuickActionCard({
     required this.icon,
     required this.label,
     required this.onTap,
-    this.badgeCount = 0,
   });
 
   @override
@@ -846,35 +822,7 @@ class _QuickActionCard extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Icon(icon, color: darkGreen, size: 22),
-                if (badgeCount > 0)
-                  Positioned(
-                    top: -6,
-                    right: -8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 5,
-                        vertical: 1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.green.shade600,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        '$badgeCount',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+            Icon(icon, color: darkGreen, size: 22),
             const SizedBox(height: 6),
             Text(
               label,
@@ -965,8 +913,6 @@ class _InfoCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (onTap != null)
-                Icon(Icons.chevron_left_rounded, color: Colors.grey.shade400),
             ],
           ),
         ),
