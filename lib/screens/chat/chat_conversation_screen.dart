@@ -52,38 +52,52 @@ class ChatThemeOption {
 const List<ChatThemeOption> kChatThemes = [
   ChatThemeOption(
     id: 'classic',
-    label: 'كلاسيكي',
-    background: Color(0xFFFAF7F2),
-    swatch: Color(0xFF0F3D2E),
+    label: 'أنيق',
+    background: Color(0xFFF7F3ED),
+    swatch: Color(0xFF22333B),
   ),
   ChatThemeOption(
     id: 'rose',
-    label: 'وردي',
-    background: Color(0xFFFDF3F4),
-    swatch: Color(0xFFE0637A),
+    label: 'خمري',
+    background: Color(0xFFFBF1F3),
+    swatch: Color(0xFF9D3F5E),
   ),
   ChatThemeOption(
     id: 'gold',
-    label: 'ذهبي',
-    background: Color(0xFFFBF6EA),
-    swatch: Color(0xFFC9A24B),
+    label: 'ذهبي فاخر',
+    background: Color(0xFFFBF7EC),
+    swatch: Color(0xFF8A6A2F),
   ),
   ChatThemeOption(
     id: 'ocean',
-    label: 'أزرق',
-    background: Color(0xFFF1F7FA),
-    swatch: Color(0xFF1F5F7A),
+    label: 'تركوازي',
+    background: Color(0xFFEFF7F7),
+    swatch: Color(0xFF0E5C64),
+  ),
+  ChatThemeOption(
+    id: 'sunset',
+    label: 'غروب',
+    background: Color(0xFFFFF3EC),
+    swatch: Color(0xFFC1592E),
   ),
   ChatThemeOption(
     id: 'night',
-    label: 'داكن',
-    background: Color(0xFF15201C),
-    swatch: Color(0xFFC9A24B),
+    label: 'ليلي',
+    background: Color(0xFF14141C),
+    swatch: Color(0xFF7C5CFC),
   ),
 ];
 
 ChatThemeOption chatThemeById(String id) =>
     kChatThemes.firstWhere((t) => t.id == id, orElse: () => kChatThemes.first);
+
+// 🎨 يغمّق أي لون بنسبة معيّنة (مستعمل باش نبنيو gradient خفيف فـ فقاعة
+// رسائلي وزر الإرسال، بلون كل ثيم بروحو بدل لون ثابت).
+Color _darkenColor(Color color, [double amount = 0.16]) {
+  final hsl = HSLColor.fromColor(color);
+  final lightness = (hsl.lightness - amount).clamp(0.0, 1.0);
+  return hsl.withLightness(lightness).toColor();
+}
 
 class _ChatConversationScreenState extends State<ChatConversationScreen> {
   static const Color darkGreen = Color(0xFF0F3D2E);
@@ -98,6 +112,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
 
   bool _isSending = false;
   bool _isBlocked = false;
+  bool _theyBlockedMe = false;
   bool _checkingBlock = true;
   bool _isMarkingRead = false;
   bool _isTogglingBlock = false;
@@ -129,38 +144,16 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   String? _playingMessageId;
 
   static const List<String> _quickEmojis = [
-    '😀',
-    '😂',
-    '😍',
-    '😊',
-    '😉',
-    '😢',
-    '😮',
-    '😡',
-    '👍',
-    '👎',
-    '🙏',
-    '👏',
-    '💪',
-    '🎉',
-    '🔥',
-    '✨',
-    '❤️',
-    '💚',
-    '💛',
-    '💔',
-    '😴',
-    '🤔',
-    '😅',
-    '😎',
-    '🥰',
-    '😘',
-    '🤗',
-    '😇',
-    '🙂',
-    '☺️',
-    '😁',
-    '🤩',
+    // 😀 وجوه
+    '😀', '😂', '🥹', '😍', '🥰', '😘', '😊',
+    '😉', '😅', '😢', '😭', '😮', '😡', '🤔',
+    '😴', '😎', '🤩', '😇', '🙈', '🙊', '😏',
+    // ❤️ قلوب
+    '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤',
+    // 👍 إيمات/حركات
+    '👍', '👎', '🙏', '👏', '💪', '👌', '🤝',
+    // ✨ احتفال / إضافات
+    '🔥', '✨', '🎉', '🥳', '🌹', '💍', '💯',
   ];
 
   // متغيرات للرد المعلق
@@ -263,6 +256,10 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   static const Set<String> _blockedEmojis = {'📞', '📱', '👻'};
 
   String? get _myUid => FirebaseAuth.instance.currentUser?.uid;
+
+  // 🔒 محظور فـ أي اتجاه: أنا حظريته أو هو حظرني — فـ الحالتين خاصنا
+  // نمنعو المراسلة ونخبيو الصورة وحالة "متصل الآن"
+  bool get _blockedEitherWay => _isBlocked || _theyBlockedMe;
   String? get _chatId {
     final me = _myUid;
     final other = widget.personId;
@@ -439,7 +436,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                                   width: 26,
                                   height: 10,
                                   decoration: BoxDecoration(
-                                    color: theme.swatch,
+                                    gradient: LinearGradient(
+                                      colors: [theme.swatch, _darkenColor(theme.swatch)],
+                                    ),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                 ),
@@ -451,7 +450,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                                   width: 44,
                                   height: 10,
                                   decoration: BoxDecoration(
-                                    color: theme.swatch,
+                                    gradient: LinearGradient(
+                                      colors: [theme.swatch, _darkenColor(theme.swatch)],
+                                    ),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                 ),
@@ -523,29 +524,126 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     final otherId = widget.personId;
     final me = _myUid;
     if (otherId == null || me == null) return;
+    final theme = chatThemeById(_chatThemeId);
 
     final controller = TextEditingController(text: _nickname ?? '');
     final result = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('اسم مستعار', style: TextStyle(color: darkGreen, fontWeight: FontWeight.w800)),
-        content: TextField(
-          controller: controller,
-          textDirection: TextDirection.rtl,
-          decoration: InputDecoration(
-            hintText: widget.personName,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+      barrierColor: Colors.black.withValues(alpha: 0.35),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 26),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(24, 26, 24, 18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(26),
+            boxShadow: [
+              BoxShadow(
+                color: darkGreen.withValues(alpha: 0.18),
+                blurRadius: 28,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 🏷️ أيقونة معبّأة بلون الثيم بدل عنوان عادي
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [theme.swatch, _darkenColor(theme.swatch)],
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: theme.swatch.withValues(alpha: 0.35),
+                      blurRadius: 14,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.badge_rounded, color: Colors.white, size: 26),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'اسم مستعار',
+                style: TextStyle(color: darkGreen, fontWeight: FontWeight.w800, fontSize: 17),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                'خاص بيك وحدك، ما يشوفوه لا هو ولا حتى الطرف الآخر',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+              ),
+              const SizedBox(height: 18),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                textAlign: TextAlign.center,
+                textDirection: TextDirection.rtl,
+                style: const TextStyle(fontWeight: FontWeight.w700, color: darkGreen),
+                decoration: InputDecoration(
+                  hintText: widget.personName,
+                  hintStyle: TextStyle(color: Colors.grey.shade400, fontWeight: FontWeight.w500),
+                  filled: true,
+                  fillColor: bg,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: theme.swatch, width: 1.6),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        backgroundColor: bg,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(ctx),
+                      child: Text('إلغاء',
+                          style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        backgroundColor: theme.swatch,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+                      child: const Text('حفظ', style: TextStyle(fontWeight: FontWeight.w800)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: darkGreen, foregroundColor: Colors.white),
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('حفظ'),
-          ),
-        ],
       ),
     );
 
@@ -626,18 +724,32 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
       return;
     }
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(myUid)
-          .collection('blocked')
-          .doc(otherId)
-          .get();
+      // ✅ نتحقّقو مع الجوج اتجاهات فـ نفس الوقت: أنا حظريته، ولا هو
+      // حظرني — باش المنع/الإخفاء يخدم عند الطرفين، ماشي غير عند لي حظر
+      final results = await Future.wait([
+        FirebaseFirestore.instance
+            .collection('users')
+            .doc(myUid)
+            .collection('blocked')
+            .doc(otherId)
+            .get(),
+        FirebaseFirestore.instance
+            .collection('users')
+            .doc(otherId)
+            .collection('blocked')
+            .doc(myUid)
+            .get()
+            .catchError((_) => null), // ✅ ممكن ما عندناش صلاحية قراءة، نتعامل معاها كـ "ماشي محظور" بدل ما نكسرو الشاشة
+      ]);
+      if (!mounted) return;
       setState(() {
-        _isBlocked = doc.exists;
+        _isBlocked = results[0]?.exists == true;
+        _theyBlockedMe = results[1]?.exists == true;
         _checkingBlock = false;
       });
     } catch (e) {
       debugPrint('❌ Check blocked failed: $e');
+      if (!mounted) return;
       setState(() => _checkingBlock = false);
     }
   }
@@ -831,6 +943,13 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
 
     if (text.isEmpty || _isSending) return;
 
+    // 🔒 منع الإرسال نهائياً كي يكون كاين حظر فـ أي اتجاه (أنا حظريته
+    // أو هو حظرني) — حتى لو بقات الرسالة مكتوبة فـ الحقل بالصدفة
+    if (_blockedEitherWay) {
+      _showFloatingSnack('🚫 ما تقدرش تبعث رسالة لهذا المستخدم', isError: true);
+      return;
+    }
+
     if (_containsBlockedContent(text)) {
       _controller.clear();
       _clearReplyState();
@@ -939,51 +1058,83 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   // 😊 اختيار Emoji — bottom sheet بسيط، كيدخل الـ emoji فـ الـ TextField
   // ============================================================
   void _openEmojiPicker() {
+    final theme = chatThemeById(_chatThemeId);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (ctx) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildSheetHandle(),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: theme.swatch.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: Icon(Icons.emoji_emotions_rounded, color: theme.swatch, size: 18),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'اختر إيموجي',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: darkGreen),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(ctx),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+                        child: Icon(Icons.close_rounded, size: 16, color: Colors.grey.shade600),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
                 GridView.builder(
                   shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 8,
-                    mainAxisSpacing: 6,
-                    crossAxisSpacing: 6,
+                    crossAxisCount: 6,
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                    childAspectRatio: 1,
                   ),
                   itemCount: _quickEmojis.length,
                   itemBuilder: (context, index) {
                     final emoji = _quickEmojis[index];
-                    return GestureDetector(
-                      onTap: () {
-                        final text = _controller.text;
-                        final selection = _controller.selection;
-                        final cursor = selection.start >= 0
-                            ? selection.start
-                            : text.length;
-                        final newText = text.replaceRange(cursor, cursor, emoji);
-                        _controller.text = newText;
-                        _controller.selection = TextSelection.collapsed(
-                          offset: cursor + emoji.length,
-                        );
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          color: bg,
-                        ),
+                    return Material(
+                      color: theme.swatch.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(14),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        splashColor: theme.swatch.withValues(alpha: 0.2),
+                        highlightColor: theme.swatch.withValues(alpha: 0.1),
+                        onTap: () {
+                          final text = _controller.text;
+                          final selection = _controller.selection;
+                          final cursor = selection.start >= 0
+                              ? selection.start
+                              : text.length;
+                          final newText = text.replaceRange(cursor, cursor, emoji);
+                          _controller.text = newText;
+                          _controller.selection = TextSelection.collapsed(
+                            offset: cursor + emoji.length,
+                          );
+                        },
                         child: Center(
-                          child: Text(emoji, style: const TextStyle(fontSize: 24)),
+                          child: Text(emoji, style: const TextStyle(fontSize: 26)),
                         ),
                       ),
                     );
@@ -1298,7 +1449,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     Widget avatarCore;
     // 🚫 كي نكونو حاظرين هاذ الشخص، تختفي صورة البروفيل الحقيقية ونبينو
     // أفاتار محايدة بدالها (بحال WhatsApp بالضبط).
-    if (_isBlocked) {
+    if (_blockedEitherWay) {
       avatarCore = CircleAvatar(
         radius: size / 2,
         backgroundColor: Colors.grey.shade200,
@@ -1578,7 +1729,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
               child: _replyToId != null ? _buildReplyBanner() : const SizedBox.shrink(),
             ),
             // ✅ لا نعرض شريط الكتابة إلا بعد التأكد من وجود Match فعلي
-            if (!_checkingMatch && _hasMatch) _buildInputBar(),
+            if (!_checkingMatch && _hasMatch && !_blockedEitherWay) _buildInputBar(),
           ],
         ),
       ),
@@ -1596,7 +1747,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     }
     // 🚫 كي نكونو حاظرينو، ما كنعرضوش حالته الحقيقية (متصل/غير متصل) —
     // كتبان ليك دايماً "غير متاح" بلا ما تتبدل لايف.
-    if (_isBlocked) {
+    if (_blockedEitherWay) {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1765,12 +1916,14 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
       );
     }
 
-    if (_isBlocked) {
+    if (_blockedEitherWay) {
       return _buildInfoState(
         icon: Icons.person_off_rounded,
         iconColor: Colors.grey.shade400,
         title: 'هذا المستخدم غير متاح',
-        subtitle: 'لقد قمت بحظره — يمكنك إلغاء الحظر فـ أي وقت من قائمة (⋮)',
+        subtitle: _isBlocked
+            ? 'لقد قمت بحظره — يمكنك إلغاء الحظر فـ أي وقت من قائمة (⋮)'
+            : 'ما عادش تقدر تتواصل مع هذا الشخص',
       );
     }
 
@@ -1874,7 +2027,17 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                         maxWidth: MediaQuery.of(context).size.width * 0.75,
                       ),
                       decoration: BoxDecoration(
-                        color: fromMe ? chatThemeById(_chatThemeId).swatch : Colors.white,
+                        color: fromMe ? null : Colors.white,
+                        gradient: fromMe
+                            ? LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  chatThemeById(_chatThemeId).swatch,
+                                  _darkenColor(chatThemeById(_chatThemeId).swatch),
+                                ],
+                              )
+                            : null,
                         borderRadius: BorderRadius.only(
                           topLeft: const Radius.circular(18),
                           topRight: const Radius.circular(18),
@@ -1887,7 +2050,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                         boxShadow: [
                           BoxShadow(
                             color: (fromMe ? chatThemeById(_chatThemeId).swatch : Colors.grey)
-                                .withValues(alpha: fromMe ? 0.18 : 0.08),
+                                .withValues(alpha: fromMe ? 0.22 : 0.08),
                             blurRadius: 10,
                             offset: const Offset(0, 3),
                           ),
@@ -2396,7 +2559,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                       theme.swatch.withValues(
                         alpha: (_isSending || _isRecording) ? 0.5 : 1,
                       ),
-                      darkGreen.withValues(
+                      _darkenColor(theme.swatch).withValues(
                         alpha: (_isSending || _isRecording) ? 0.5 : 1,
                       ),
                     ],

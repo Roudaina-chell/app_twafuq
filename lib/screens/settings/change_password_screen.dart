@@ -1,30 +1,20 @@
 // screens/settings/change_password_screen.dart
 //
-// ✅ شاشة "كلمة المرور" — الوصول ليها من كارت "كلمة المرور" فـ
-// SecurityPrivacyScreen.
-//
-// ✅ زدت case "Continuer avec Google": إلا كان الحساب دخل بـ Google
-// وماعندوش provider "password" (يعني حتى بمرة ماخلق كلمة مرور
-// للتطبيق)، الشاشة كتبدل تلقائيا لفورم "إنشاء كلمة مرور" (بلا حقل
-// كلمة المرور الحالية — لأن ماكايناش)، وكتستعمل linkWithCredential
-// باش تزيد provider "password" فوق حساب Google.
-// من بعد ما يخلق كلمة المرور، الحساب كيولي عندو جوج طرق دخول
-// (Google + Email/كلمة مرور)، وفـ زيارة جاية للشاشة كيبان تلقائيا
-// الفورم العادي "تعديل كلمة المرور" (current + new + confirm) لأن
-// دابا provider "password" كاين.
-//
-// ✅ ماعادش كتعتمد على widget/page_background_decor.dart — الألوان
-// وCircleIconButton معرّفين محليا هنا.
-//
-// ✅ تعديل جديد: زر الرجوع دابا مثبت فعليا عل اليسار (بدّلنا مكانو
-// فـ الـ Row لآخر العناصر).
+// شاشة "كلمة المرور". تدعم حالتين:
+// - الحساب عندو provider "password" → فورم تعديل عادي (كلمة مرور
+//   حالية + جديدة + تأكيد) مع reauthenticate قبل updatePassword.
+// - الحساب دخل بـ Google فقط (ماعندوش provider "password") → فورم
+//   إنشاء كلمة مرور (بلا حقل الكلمة الحالية) عبر linkWithCredential،
+//   ومن بعد كينجاح كينتقل تلقائيا لفورم التعديل العادي.
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-const Color kDarkGreen = Color(0xFF0F3D2E);
-const Color kBg = Color(0xFFFAF7F2);
-const Color kGold = Color(0xFFC9A24B);
+class AppColors {
+  static const darkGreen = Color(0xFF0F3D2E);
+  static const background = Color(0xFFFAF7F2);
+  static const gold = Color(0xFFC9A24B);
+}
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -35,28 +25,32 @@ class ChangePasswordScreen extends StatefulWidget {
 
 class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _currentCtrl = TextEditingController();
-  final _newCtrl = TextEditingController();
-  final _confirmCtrl = TextEditingController();
+  final _currentPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
   bool _obscureCurrent = true;
   bool _obscureNew = true;
   bool _obscureConfirm = true;
   bool _isSaving = false;
   bool _isLoading = true;
-
-  // ✅ true = الحساب عندو provider "password" (دخل بـ email/كلمة
-  // مرور، ولو زاد Google من بعد). false = دخل غير بـ Google وماعندو
-  // حتى كلمة مرور — خاصو "ينشئ" وحدة قبل ما "يبدلها".
   bool _hasPasswordProvider = true;
 
   @override
   void initState() {
     super.initState();
-    _checkPasswordProvider();
+    _loadPasswordProviderState();
   }
 
-  void _checkPasswordProvider() {
+  @override
+  void dispose() {
+    _currentPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  void _loadPasswordProviderState() {
     final user = FirebaseAuth.instance.currentUser;
     final hasPassword =
         user?.providerData.any((p) => p.providerId == 'password') ?? true;
@@ -66,214 +60,148 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     });
   }
 
-  @override
-  void dispose() {
-    _currentCtrl.dispose();
-    _newCtrl.dispose();
-    _confirmCtrl.dispose();
-    super.dispose();
-  }
-
-  // ============================================================
-  // ✅ Cas 1: الحساب عندو password provider من قبل → تعديل عادي
-  // (يخص reauthenticate بكلمة المرور الحالية قبل updatePassword)
-  // ============================================================
   Future<void> _savePassword() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
+
     try {
       final user = FirebaseAuth.instance.currentUser;
       final email = user?.email;
       if (user != null && email != null) {
-        final cred = EmailAuthProvider.credential(
+        final credential = EmailAuthProvider.credential(
           email: email,
-          password: _currentCtrl.text,
+          password: _currentPasswordController.text,
         );
-        await user.reauthenticateWithCredential(cred);
-        await user.updatePassword(_newCtrl.text);
+        await user.reauthenticateWithCredential(credential);
+        await user.updatePassword(_newPasswordController.text);
       }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم تحديث كلمة المرور بنجاح')),
-      );
+      _showMessage('تم تحديث كلمة المرور بنجاح');
       Navigator.maybePop(context);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      final msg = switch (e.code) {
-        'wrong-password' => 'كلمة المرور الحالية غير صحيحة',
-        'weak-password' => 'كلمة المرور الجديدة ضعيفة جدا',
-        _ => 'حدث خطأ، حاول مرة أخرى',
-      };
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      _showMessage(_errorMessageFor(e.code, isCreate: false));
     } catch (e) {
-      debugPrint('❌ ChangePassword: $e');
+      debugPrint('ChangePasswordScreen._savePassword error: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('حدث خطأ، حاول مرة أخرى')));
+      _showMessage('حدث خطأ، حاول مرة أخرى');
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
   }
 
-  // ============================================================
-  // ✅ Cas 2: الحساب دخل بـ Google وماعندوش كلمة مرور → linkWithCredential
-  // باش يزيد provider "password" فوق نفس الحساب (بلا ما يمسح Google).
-  // من بعد هاذي، الحساب يقدر يدخل بجوج الطرق: Google أو Email+كلمة مرور.
-  // ============================================================
   Future<void> _createPassword() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
+
     try {
       final user = FirebaseAuth.instance.currentUser;
       final email = user?.email;
       if (user == null || email == null) {
         throw FirebaseAuthException(
           code: 'no-user',
-          message: 'ماكاين حتى مستخدم مسجل الدخول',
+          message: 'لا يوجد مستخدم مسجل الدخول',
         );
       }
-      final cred = EmailAuthProvider.credential(
+
+      final credential = EmailAuthProvider.credential(
         email: email,
-        password: _newCtrl.text,
+        password: _newPasswordController.text,
       );
-      await user.linkWithCredential(cred);
+      await user.linkWithCredential(credential);
+
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم إنشاء كلمة المرور بنجاح')),
-      );
-      // ✅ دابا الحساب عندو provider "password" — نبدلو الفورم للوضع
-      // العادي (تعديل) بلا ما نخرجو من الشاشة.
+      _showMessage('تم إنشاء كلمة المرور بنجاح');
+
+      // الحساب دابا عندو provider "password" → نبدلو للفورم العادي
       setState(() {
         _hasPasswordProvider = true;
-        _currentCtrl.clear();
-        _newCtrl.clear();
-        _confirmCtrl.clear();
+        _currentPasswordController.clear();
+        _newPasswordController.clear();
+        _confirmPasswordController.clear();
       });
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      final msg = switch (e.code) {
-        'weak-password' => 'كلمة المرور ضعيفة جدا',
-        'provider-already-linked' => 'عندك كلمة مرور محددة من قبل',
-        'credential-already-in-use' =>
-          'هاذي الكلمة مستعملة من حساب آخر، جرب وحدة أخرى',
-        _ => 'حدث خطأ، حاول مرة أخرى',
-      };
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      _showMessage(_errorMessageFor(e.code, isCreate: true));
     } catch (e) {
-      debugPrint('❌ CreatePassword: $e');
+      debugPrint('ChangePasswordScreen._createPassword error: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('حدث خطأ، حاول مرة أخرى')));
+      _showMessage('حدث خطأ، حاول مرة أخرى');
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
+  }
+
+  String _errorMessageFor(String code, {required bool isCreate}) {
+    if (isCreate) {
+      return switch (code) {
+        'weak-password' => 'كلمة المرور ضعيفة جدًا',
+        'provider-already-linked' => 'لديك كلمة مرور محددة مسبقًا',
+        'credential-already-in-use' =>
+          'كلمة المرور هذه مستخدمة من قبل حساب آخر، جرّب كلمة مرور أخرى',
+        _ => 'حدث خطأ، حاول مرة أخرى',
+      };
+    }
+    return switch (code) {
+      'wrong-password' => 'كلمة المرور الحالية غير صحيحة',
+      'weak-password' => 'كلمة المرور الجديدة ضعيفة جدًا',
+      _ => 'حدث خطأ، حاول مرة أخرى',
+    };
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        backgroundColor: kBg,
-        body: Center(child: CircularProgressIndicator(color: kDarkGreen)),
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.darkGreen),
+        ),
       );
     }
 
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: kBg,
+        backgroundColor: AppColors.background,
         body: SafeArea(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
             children: [
-              Row(
-                children: [
-                  const SizedBox(width: 44),
-                  Expanded(
-                    child: Text(
-                      _hasPasswordProvider ? 'كلمة المرور' : 'إنشاء كلمة مرور',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: kDarkGreen,
-                        letterSpacing: -0.4,
-                      ),
-                    ),
-                  ),
-                  _CircleIconButton(
-                    icon: Icons.arrow_back,
-                    onTap: () => Navigator.maybePop(context),
-                  ),
-                ],
-              ),
+              _Header(hasPasswordProvider: _hasPasswordProvider),
               const SizedBox(height: 6),
-              Text(
-                _hasPasswordProvider
-                    ? 'حدّث كلمة مرورك للحفاظ على أمان حسابك'
-                    : 'أنشئ كلمة مرور لحسابك',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-              ),
-              if (!_hasPasswordProvider) ...[
-                const SizedBox(height: 4),
-                Container(
-                  margin: const EdgeInsets.only(top: 10),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: kGold.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.info_outline_rounded,
-                        color: kDarkGreen,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'دخلتي بحساب Google، ماعندكش كلمة مرور محددة '
-                          'بعد. أنشئ وحدة باش تقدر تدخل بالإيميل وكلمة '
-                          'المرور أيضا.',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            color: Colors.grey.shade700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              _Subtitle(hasPasswordProvider: _hasPasswordProvider),
+              if (!_hasPasswordProvider) const _GoogleAccountNotice(),
               const SizedBox(height: 22),
               Form(
                 key: _formKey,
                 child: Column(
                   children: [
-                    if (_hasPasswordProvider)
+                    if (_hasPasswordProvider) ...[
                       _PasswordField(
                         label: 'كلمة المرور الحالية',
-                        controller: _currentCtrl,
+                        controller: _currentPasswordController,
                         obscure: _obscureCurrent,
-                        onToggle: () =>
-                            setState(() => _obscureCurrent = !_obscureCurrent),
+                        onToggle: () => setState(
+                          () => _obscureCurrent = !_obscureCurrent,
+                        ),
                         validator: (v) => (v == null || v.isEmpty)
                             ? 'أدخل كلمة المرور الحالية'
                             : null,
                       ),
-                    if (_hasPasswordProvider) const SizedBox(height: 14),
+                      const SizedBox(height: 14),
+                    ],
                     _PasswordField(
                       label: _hasPasswordProvider
                           ? 'كلمة المرور الجديدة'
                           : 'كلمة المرور',
-                      controller: _newCtrl,
+                      controller: _newPasswordController,
                       obscure: _obscureNew,
                       onToggle: () =>
                           setState(() => _obscureNew = !_obscureNew),
@@ -292,11 +220,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       label: _hasPasswordProvider
                           ? 'تأكيد كلمة المرور الجديدة'
                           : 'تأكيد كلمة المرور',
-                      controller: _confirmCtrl,
+                      controller: _confirmPasswordController,
                       obscure: _obscureConfirm,
                       onToggle: () =>
                           setState(() => _obscureConfirm = !_obscureConfirm),
-                      validator: (v) => v != _newCtrl.text
+                      validator: (v) => v != _newPasswordController.text
                           ? 'كلمتا المرور غير متطابقتين'
                           : null,
                     ),
@@ -304,45 +232,144 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _isSaving
-                      ? null
-                      : (_hasPasswordProvider
-                            ? _savePassword
-                            : _createPassword),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kDarkGreen,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                  ),
-                  child: _isSaving
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2.4,
-                          ),
-                        )
-                      : Text(
-                          _hasPasswordProvider
-                              ? 'حفظ التغييرات'
-                              : 'إنشاء كلمة المرور',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                ),
+              _SubmitButton(
+                isSaving: _isSaving,
+                hasPasswordProvider: _hasPasswordProvider,
+                onPressed: _hasPasswordProvider
+                    ? _savePassword
+                    : _createPassword,
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _Header extends StatelessWidget {
+  final bool hasPasswordProvider;
+
+  const _Header({required this.hasPasswordProvider});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const SizedBox(width: 44),
+        Expanded(
+          child: Text(
+            hasPasswordProvider ? 'كلمة المرور' : 'إنشاء كلمة مرور',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: AppColors.darkGreen,
+              letterSpacing: -0.4,
+            ),
+          ),
+        ),
+        _CircleIconButton(
+          icon: Icons.arrow_back,
+          onTap: () => Navigator.maybePop(context),
+        ),
+      ],
+    );
+  }
+}
+
+class _Subtitle extends StatelessWidget {
+  final bool hasPasswordProvider;
+
+  const _Subtitle({required this.hasPasswordProvider});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      hasPasswordProvider
+          ? 'حدّث كلمة مرورك للحفاظ على أمان حسابك'
+          : 'أنشئ كلمة مرور لحسابك',
+      textAlign: TextAlign.center,
+      style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+    );
+  }
+}
+
+class _GoogleAccountNotice extends StatelessWidget {
+  const _GoogleAccountNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.gold.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            color: AppColors.darkGreen,
+            size: 18,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'لقد سجّلت الدخول بحساب Google، وليس لديك كلمة مرور محددة '
+              'بعد. أنشئ واحدة حتى تتمكن من الدخول بالبريد الإلكتروني '
+              'وكلمة المرور أيضًا.',
+              style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SubmitButton extends StatelessWidget {
+  final bool isSaving;
+  final bool hasPasswordProvider;
+  final VoidCallback onPressed;
+
+  const _SubmitButton({
+    required this.isSaving,
+    required this.hasPasswordProvider,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: ElevatedButton(
+        onPressed: isSaving ? null : onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.darkGreen,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+        ),
+        child: isSaving
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2.4,
+                ),
+              )
+            : Text(
+                hasPasswordProvider ? 'حفظ التغييرات' : 'إنشاء كلمة المرور',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
       ),
     );
   }
@@ -370,7 +397,7 @@ class _PasswordField extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: kDarkGreen.withValues(alpha: 0.05),
+            color: AppColors.darkGreen.withValues(alpha: 0.05),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -380,7 +407,10 @@ class _PasswordField extends StatelessWidget {
         controller: controller,
         obscureText: obscure,
         validator: validator,
-        style: const TextStyle(color: kDarkGreen, fontWeight: FontWeight.w600),
+        style: const TextStyle(
+          color: AppColors.darkGreen,
+          fontWeight: FontWeight.w600,
+        ),
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(color: Colors.grey.shade500),
@@ -388,8 +418,10 @@ class _PasswordField extends StatelessWidget {
           fillColor: Colors.white,
           suffixIcon: IconButton(
             icon: Icon(
-              obscure ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-              color: kDarkGreen.withValues(alpha: 0.6),
+              obscure
+                  ? Icons.visibility_off_rounded
+                  : Icons.visibility_rounded,
+              color: AppColors.darkGreen.withValues(alpha: 0.6),
             ),
             onPressed: onToggle,
           ),
@@ -407,9 +439,6 @@ class _PasswordField extends StatelessWidget {
   }
 }
 
-// ================================================================
-// ✅ زر دائري (رجوع) — معرّف محليا، بلا اعتماد على أي ملف مشترك
-// ================================================================
 class _CircleIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
@@ -430,7 +459,7 @@ class _CircleIconButton extends StatelessWidget {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: kDarkGreen.withValues(alpha: 0.08),
+                color: AppColors.darkGreen.withValues(alpha: 0.08),
                 blurRadius: 10,
                 offset: const Offset(0, 3),
               ),
@@ -438,7 +467,7 @@ class _CircleIconButton extends StatelessWidget {
           ),
           child: Icon(
             icon,
-            color: kDarkGreen,
+            color: AppColors.darkGreen,
             size: 20,
             textDirection: TextDirection.ltr,
           ),

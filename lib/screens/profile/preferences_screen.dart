@@ -23,6 +23,14 @@ class _PreferencesScreenState extends State<PreferencesScreen>
   bool _isSubmitting = false;
   String? _errorMessage;
 
+  // ============================================================
+  // 👤 هاذي الخطوة (تفضيلات البحث) خاصة بالرجل بَرك — أساسها
+  // إنها تحدد شكون يبان للمستخدم فـ الاقتراحات. المرأة ماعندهاش
+  // تفضيلات بحث فـ هاذ التطبيق، فكي تكون امرأة كنقفزو هاذ الخطوة
+  // مباشرة لـ AboutYouScreen بلا ما نبينو الفورم.
+  // ============================================================
+  bool _checkingGender = true;
+
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -48,19 +56,54 @@ class _PreferencesScreenState extends State<PreferencesScreen>
     _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.05),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
-    );
-    _animationController.forward();
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
+    _checkGenderAndProceed();
   }
 
   @override
   void dispose() {
     _animationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkGenderAndProceed() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) {
+        if (mounted) setState(() => _checkingGender = false);
+        _animationController.forward();
+        return;
+      }
+
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      final gender = (doc.data()?['gender'] as String?)?.toLowerCase();
+
+      if (gender == 'female') {
+        if (!mounted) return;
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const AboutYouScreen()),
+          (route) => false,
+        );
+        return;
+      }
+
+      if (mounted) setState(() => _checkingGender = false);
+      _animationController.forward();
+    } catch (e) {
+      // إلا فشل التحقق، الأحوط نبينو الفورم عادي بدل ما نحبسو المستخدم.
+      if (mounted) setState(() => _checkingGender = false);
+      _animationController.forward();
+    }
   }
 
   Future<void> _submit() async {
@@ -112,6 +155,13 @@ class _PreferencesScreenState extends State<PreferencesScreen>
 
   @override
   Widget build(BuildContext context) {
+    if (_checkingGender) {
+      return const Scaffold(
+        backgroundColor: bg,
+        body: Center(child: CircularProgressIndicator(color: darkGreen)),
+      );
+    }
+
     return Scaffold(
       backgroundColor: bg,
       body: SafeArea(
@@ -170,8 +220,9 @@ class _PreferencesScreenState extends State<PreferencesScreen>
                             value: 1.0,
                             minHeight: 7,
                             backgroundColor: Colors.grey.shade300,
-                            valueColor:
-                                const AlwaysStoppedAnimation<Color>(gold),
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              gold,
+                            ),
                           ),
                         ),
                       ),
@@ -241,8 +292,9 @@ class _PreferencesScreenState extends State<PreferencesScreen>
                           enabledThumbRadius: 9,
                           elevation: 3,
                         ),
-                        overlayShape:
-                            const RoundSliderOverlayShape(overlayRadius: 18),
+                        overlayShape: const RoundSliderOverlayShape(
+                          overlayRadius: 18,
+                        ),
                         activeTrackColor: darkGreen,
                         inactiveTrackColor: darkGreen.withValues(alpha: 0.12),
                         thumbColor: darkGreen,
@@ -281,10 +333,13 @@ class _PreferencesScreenState extends State<PreferencesScreen>
                     child: SliderTheme(
                       data: SliderTheme.of(context).copyWith(
                         trackHeight: 5,
-                        thumbShape:
-                            const RoundSliderThumbShape(enabledThumbRadius: 9, elevation: 3),
-                        overlayShape:
-                            const RoundSliderOverlayShape(overlayRadius: 18),
+                        thumbShape: const RoundSliderThumbShape(
+                          enabledThumbRadius: 9,
+                          elevation: 3,
+                        ),
+                        overlayShape: const RoundSliderOverlayShape(
+                          overlayRadius: 18,
+                        ),
                         activeTrackColor: darkGreen,
                         inactiveTrackColor: darkGreen.withValues(alpha: 0.12),
                         thumbColor: darkGreen,
@@ -319,7 +374,10 @@ class _PreferencesScreenState extends State<PreferencesScreen>
                     child: DropdownButtonFormField<String>(
                       initialValue: _preferredWilaya ?? 'بدون تفضيل',
                       isExpanded: true,
-                      icon: const Icon(Icons.keyboard_arrow_down, color: darkGreen),
+                      icon: const Icon(
+                        Icons.keyboard_arrow_down,
+                        color: darkGreen,
+                      ),
                       dropdownColor: Colors.white,
                       borderRadius: BorderRadius.circular(14),
                       decoration: InputDecoration(
@@ -339,7 +397,9 @@ class _PreferencesScreenState extends State<PreferencesScreen>
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide(color: gold.withValues(alpha: 0.5)),
+                          borderSide: BorderSide(
+                            color: gold.withValues(alpha: 0.5),
+                          ),
                         ),
                       ),
                       style: const TextStyle(
@@ -351,7 +411,10 @@ class _PreferencesScreenState extends State<PreferencesScreen>
                           .map(
                             (w) => DropdownMenuItem<String>(
                               value: w,
-                              child: Text(w, style: const TextStyle(fontSize: 14)),
+                              child: Text(
+                                w,
+                                style: const TextStyle(fontSize: 14),
+                              ),
                             ),
                           )
                           .toList(),
@@ -374,10 +437,14 @@ class _PreferencesScreenState extends State<PreferencesScreen>
                               vertical: 10,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFDE3B40).withValues(alpha: 0.07),
+                              color: const Color(
+                                0xFFDE3B40,
+                              ).withValues(alpha: 0.07),
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                color: const Color(0xFFDE3B40).withValues(alpha: 0.18),
+                                color: const Color(
+                                  0xFFDE3B40,
+                                ).withValues(alpha: 0.18),
                               ),
                             ),
                             child: Row(
@@ -438,8 +505,11 @@ class _PreferencesScreenState extends State<PreferencesScreen>
                               : Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: const [
-                                    Icon(Icons.check_circle_outline_rounded,
-                                        color: Colors.white, size: 18),
+                                    Icon(
+                                      Icons.check_circle_outline_rounded,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
                                     SizedBox(width: 8),
                                     Text(
                                       'إنهاء',
@@ -459,7 +529,11 @@ class _PreferencesScreenState extends State<PreferencesScreen>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.shield_outlined, size: 13, color: darkGreen),
+                      const Icon(
+                        Icons.shield_outlined,
+                        size: 13,
+                        color: darkGreen,
+                      ),
                       const SizedBox(width: 6),
                       const Expanded(
                         child: Text(
@@ -541,7 +615,10 @@ class _PreferenceCard extends StatelessWidget {
               ),
               if (trailing != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: gold.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(10),

@@ -200,7 +200,7 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
                 name: _fullName,
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 30),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -288,55 +288,59 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
                       ],
                     ),
 
-                    const SizedBox(height: 18),
+                    if (_gender == 'male') ...[
+                      const SizedBox(height: 18),
 
-                    _Card(
-                      title: 'تفضيلات البحث',
-                      icon: Icons.tune_rounded,
-                      children: [
-                        InlineTextField(
-                          label: 'العمر من',
-                          icon: Icons.cake_outlined,
-                          value: _ageMin?.toString() ?? '',
-                          keyboardType: TextInputType.number,
-                          onSave: (v) async {
-                            final parsed = int.tryParse(v.trim());
-                            final ok = await _saveField({
-                              'preferences': {'ageMin': parsed},
-                            });
-                            if (ok) setState(() => _ageMin = parsed);
-                            return ok;
-                          },
-                        ),
-                        InlineTextField(
-                          label: 'العمر إلى',
-                          icon: Icons.cake_outlined,
-                          value: _ageMax?.toString() ?? '',
-                          keyboardType: TextInputType.number,
-                          onSave: (v) async {
-                            final parsed = int.tryParse(v.trim());
-                            final ok = await _saveField({
-                              'preferences': {'ageMax': parsed},
-                            });
-                            if (ok) setState(() => _ageMax = parsed);
-                            return ok;
-                          },
-                        ),
-                        InlineDropdownField(
-                          label: 'الولاية المفضلة',
-                          icon: Icons.map_outlined,
-                          value: _cities.contains(_prefCity) ? _prefCity : null,
-                          options: _cities,
-                          onSave: (v) async {
-                            final ok = await _saveField({
-                              'preferences': {'city': v},
-                            });
-                            if (ok) setState(() => _prefCity = v);
-                            return ok;
-                          },
-                        ),
-                      ],
-                    ),
+                      _Card(
+                        title: 'تفضيلات البحث',
+                        icon: Icons.tune_rounded,
+                        children: [
+                          InlineTextField(
+                            label: 'العمر من',
+                            icon: Icons.cake_outlined,
+                            value: _ageMin?.toString() ?? '',
+                            keyboardType: TextInputType.number,
+                            onSave: (v) async {
+                              final parsed = int.tryParse(v.trim());
+                              final ok = await _saveField({
+                                'preferences': {'ageMin': parsed},
+                              });
+                              if (ok) setState(() => _ageMin = parsed);
+                              return ok;
+                            },
+                          ),
+                          InlineTextField(
+                            label: 'العمر إلى',
+                            icon: Icons.cake_outlined,
+                            value: _ageMax?.toString() ?? '',
+                            keyboardType: TextInputType.number,
+                            onSave: (v) async {
+                              final parsed = int.tryParse(v.trim());
+                              final ok = await _saveField({
+                                'preferences': {'ageMax': parsed},
+                              });
+                              if (ok) setState(() => _ageMax = parsed);
+                              return ok;
+                            },
+                          ),
+                          InlineDropdownField(
+                            label: 'الولاية المفضلة',
+                            icon: Icons.map_outlined,
+                            value: _cities.contains(_prefCity)
+                                ? _prefCity
+                                : null,
+                            options: _cities,
+                            onSave: (v) async {
+                              final ok = await _saveField({
+                                'preferences': {'city': v},
+                              });
+                              if (ok) setState(() => _prefCity = v);
+                              return ok;
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
 
                     if (_errorMessage != null) ...[
                       const SizedBox(height: 16),
@@ -367,6 +371,11 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
   }
 }
 
+// ============================================================
+// 🧩 HEADER — الاسم دابا قريب من الأفاتار (gap صغير)، وزر التعديل
+// (القلم) بقى فـ الزاوية العليا من الأفاتار بدل السفلى — راه
+// "طالع" وحدا الأفاتار مباشرة، ماشي محتشم فـ الأسفل.
+// ============================================================
 class _EditHeader extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback onTapAvatar;
@@ -383,7 +392,7 @@ class _EditHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 28),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 22),
       child: Column(
         children: [
           Row(
@@ -416,37 +425,42 @@ class _EditHeader extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 18),
           SizedBox(
             width: 116,
-            height: 116,
+            height: 108,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                Container(
-                  width: 100,
-                  height: 100,
-                  padding: const EdgeInsets.all(3.2),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: kGold, width: 2.6),
-                  ),
+                Positioned(
+                  left: 8,
+                  top: 8,
                   child: Container(
-                    padding: const EdgeInsets.all(3),
-                    decoration: const BoxDecoration(
+                    width: 100,
+                    height: 100,
+                    padding: const EdgeInsets.all(3.2),
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.white,
+                      border: Border.all(color: kGold, width: 2.6),
                     ),
-                    child: ClipOval(
-                      child: Container(
-                        color: kDarkGreen.withValues(alpha: 0.08),
-                        child: avatarChild,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
+                      ),
+                      child: ClipOval(
+                        child: Container(
+                          color: kDarkGreen.withValues(alpha: 0.08),
+                          child: avatarChild,
+                        ),
                       ),
                     ),
                   ),
                 ),
+                // ✅ القلم دابا فـ الزاوية العليا، حدا الأفاتار مباشرة.
                 Positioned(
-                  bottom: 0,
+                  top: 0,
                   right: 0,
                   child: Material(
                     color: kDarkGreen,
@@ -472,7 +486,7 @@ class _EditHeader extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
           Text(
             name.isEmpty ? '—' : name,
             style: const TextStyle(
@@ -546,74 +560,80 @@ class _Card extends StatelessWidget {
   }
 }
 
-class _EditPencilButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const _EditPencilButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: onTap,
-        child: Container(
-          width: 34,
-          height: 34,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          child: const Icon(Icons.edit_outlined, size: 16, color: kGold),
-        ),
-      ),
-    );
-  }
-}
-
+// ============================================================
+// 🧩 VALUE BOX — دابا القلم بقى داخل نفس الصندوق (على اليسار فـ
+// RTL) بدل ما يكون زر منفصل قبل الصندوق. تصميم أنظف، بلا ما
+// نبدلو حتى لون.
+// ============================================================
 class _ValueBox extends StatelessWidget {
   final IconData icon;
   final String text;
   final bool isPlaceholder;
+  final VoidCallback onEdit;
   const _ValueBox({
     required this.icon,
     required this.text,
+    required this.onEdit,
     this.isPlaceholder = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-      decoration: BoxDecoration(
-        color: kMint.withValues(alpha: 0.65),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          color: kMint.withValues(alpha: 0.65),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 15, color: kDarkGreen),
             ),
-            child: Icon(icon, size: 15, color: kDarkGreen),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              text,
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                color: isPlaceholder ? Colors.grey.shade500 : Colors.black87,
-                fontSize: 14,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                text,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: isPlaceholder ? Colors.grey.shade500 : Colors.black87,
+                  fontSize: 14,
+                ),
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: 6),
+            Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: onEdit,
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: const Icon(
+                    Icons.edit_outlined,
+                    size: 15,
+                    color: kGold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -700,22 +720,11 @@ class _InlineTextFieldState extends State<InlineTextField> {
           ),
           const SizedBox(height: 8),
           if (!_editing)
-            Directionality(
-              textDirection: TextDirection.rtl,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _EditPencilButton(onTap: _startEdit),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _ValueBox(
-                      icon: widget.icon,
-                      text: widget.value.isEmpty ? '—' : widget.value,
-                      isPlaceholder: widget.value.isEmpty,
-                    ),
-                  ),
-                ],
-              ),
+            _ValueBox(
+              icon: widget.icon,
+              text: widget.value.isEmpty ? '—' : widget.value,
+              isPlaceholder: widget.value.isEmpty,
+              onEdit: _startEdit,
             )
           else
             Row(
@@ -835,27 +844,14 @@ class _InlineDropdownFieldState extends State<InlineDropdownField> {
           ),
           const SizedBox(height: 8),
           if (!_editing)
-            Directionality(
-              textDirection: TextDirection.rtl,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _EditPencilButton(
-                    onTap: () => setState(() {
-                      _pending = widget.value;
-                      _editing = true;
-                    }),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _ValueBox(
-                      icon: widget.icon,
-                      text: widget.value ?? '—',
-                      isPlaceholder: widget.value == null,
-                    ),
-                  ),
-                ],
-              ),
+            _ValueBox(
+              icon: widget.icon,
+              text: widget.value ?? '—',
+              isPlaceholder: widget.value == null,
+              onEdit: () => setState(() {
+                _pending = widget.value;
+                _editing = true;
+              }),
             )
           else
             Row(
@@ -1005,27 +1001,14 @@ class _InlineDateFieldState extends State<InlineDateField> {
           ),
           const SizedBox(height: 8),
           if (!_editing)
-            Directionality(
-              textDirection: TextDirection.rtl,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _EditPencilButton(
-                    onTap: () => setState(() {
-                      _pending = widget.value;
-                      _editing = true;
-                    }),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _ValueBox(
-                      icon: Icons.calendar_today_outlined,
-                      text: _fmt(widget.value),
-                      isPlaceholder: widget.value == null,
-                    ),
-                  ),
-                ],
-              ),
+            _ValueBox(
+              icon: Icons.calendar_today_outlined,
+              text: _fmt(widget.value),
+              isPlaceholder: widget.value == null,
+              onEdit: () => setState(() {
+                _pending = widget.value;
+                _editing = true;
+              }),
             )
           else
             Row(
