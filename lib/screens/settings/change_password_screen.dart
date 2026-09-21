@@ -1,11 +1,11 @@
 // screens/settings/change_password_screen.dart
 //
 // شاشة "كلمة المرور". تدعم حالتين:
-// - الحساب عندو provider "password" → فورم تعديل عادي (كلمة مرور
-//   حالية + جديدة + تأكيد) مع reauthenticate قبل updatePassword.
-// - الحساب دخل بـ Google فقط (ماعندوش provider "password") → فورم
-//   إنشاء كلمة مرور (بلا حقل الكلمة الحالية) عبر linkWithCredential،
-//   ومن بعد كينجاح كينتقل تلقائيا لفورم التعديل العادي.
+// - الحساب لديه مزوّد "password" ← نموذج تعديل عادي (كلمة المرور
+//   الحالية + الجديدة + التأكيد) مع reauthenticate قبل updatePassword.
+// - الحساب سجّل الدخول عبر Google فقط (بدون مزوّد "password") ← نموذج
+//   إنشاء كلمة مرور (بدون حقل الكلمة الحالية) عبر linkWithCredential،
+//   وعند النجاح ينتقل تلقائيًا إلى نموذج التعديل العادي.
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -100,7 +100,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       if (user == null || email == null) {
         throw FirebaseAuthException(
           code: 'no-user',
-          message: 'لا يوجد مستخدم مسجل الدخول',
+          message: 'لا يوجد مستخدم مسجّل الدخول',
         );
       }
 
@@ -113,7 +113,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       if (!mounted) return;
       _showMessage('تم إنشاء كلمة المرور بنجاح');
 
-      // الحساب دابا عندو provider "password" → نبدلو للفورم العادي
+      // الحساب الآن لديه مزوّد "password" ← نبدّل إلى النموذج العادي
       setState(() {
         _hasPasswordProvider = true;
         _currentPasswordController.clear();
@@ -138,7 +138,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         'weak-password' => 'كلمة المرور ضعيفة جدًا',
         'provider-already-linked' => 'لديك كلمة مرور محددة مسبقًا',
         'credential-already-in-use' =>
-          'كلمة المرور هذه مستخدمة من قبل حساب آخر، جرّب كلمة مرور أخرى',
+          'كلمة المرور هذه مستخدمة في حساب آخر، جرّب كلمة أخرى',
         _ => 'حدث خطأ، حاول مرة أخرى',
       };
     }
@@ -188,9 +188,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                         label: 'كلمة المرور الحالية',
                         controller: _currentPasswordController,
                         obscure: _obscureCurrent,
-                        onToggle: () => setState(
-                          () => _obscureCurrent = !_obscureCurrent,
-                        ),
+                        onToggle: () =>
+                            setState(() => _obscureCurrent = !_obscureCurrent),
                         validator: (v) => (v == null || v.isEmpty)
                             ? 'أدخل كلمة المرور الحالية'
                             : null,
@@ -317,9 +316,8 @@ class _GoogleAccountNotice extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'لقد سجّلت الدخول بحساب Google، وليس لديك كلمة مرور محددة '
-              'بعد. أنشئ واحدة حتى تتمكن من الدخول بالبريد الإلكتروني '
-              'وكلمة المرور أيضًا.',
+              'سجّلتَ الدخول بحساب Google ولا تملك كلمة مرور بعد. '
+              'أنشئ كلمة مرور لتتمكن من تسجيل الدخول بالبريد الإلكتروني وكلمة المرور أيضًا.',
               style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700),
             ),
           ),
@@ -418,9 +416,7 @@ class _PasswordField extends StatelessWidget {
           fillColor: Colors.white,
           suffixIcon: IconButton(
             icon: Icon(
-              obscure
-                  ? Icons.visibility_off_rounded
-                  : Icons.visibility_rounded,
+              obscure ? Icons.visibility_off_rounded : Icons.visibility_rounded,
               color: AppColors.darkGreen.withValues(alpha: 0.6),
             ),
             onPressed: onToggle,

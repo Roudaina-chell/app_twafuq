@@ -12,7 +12,7 @@ class ProfilePreviewScreen extends StatefulWidget {
 }
 
 class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   static const Color darkGreen = Color(0xFF0F3D2E);
   static const Color gold = Color(0xFFC9A24B);
   static const Color bg = Color(0xFFFAF7F2);
@@ -33,26 +33,63 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
   // ✅ مسار صورة الأفاتار الحقيقية
   String? _avatarAsset;
 
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
+  // كنترولر الدخول المتدرّج (staggered)
+  late final AnimationController _entranceController;
+  late final Animation<double> _headerFade;
+  late final Animation<double> _avatarScale;
+  late final Animation<double> _cardFade;
+  late final Animation<Offset> _cardSlide;
+  late final Animation<double> _buttonFade;
+
+  // كنترولر الحركة المستمرة للخلفية
+  late final AnimationController _ambientController;
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
+
+    _entranceController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 800),
     );
-    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
+    _headerFade = CurvedAnimation(
+      parent: _entranceController,
+      curve: const Interval(0.0, 0.35, curve: Curves.easeOut),
     );
-    _animationController.forward();
+    _avatarScale = Tween<double>(begin: 0.7, end: 1).animate(
+      CurvedAnimation(
+        parent: _entranceController,
+        curve: const Interval(0.10, 0.55, curve: Curves.easeOutBack),
+      ),
+    );
+    _cardFade = CurvedAnimation(
+      parent: _entranceController,
+      curve: const Interval(0.30, 0.75, curve: Curves.easeOut),
+    );
+    _cardSlide = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _entranceController,
+      curve: const Interval(0.30, 0.75, curve: Curves.easeOutCubic),
+    ));
+    _buttonFade = CurvedAnimation(
+      parent: _entranceController,
+      curve: const Interval(0.60, 1.0, curve: Curves.easeOut),
+    );
+
+    _ambientController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat(reverse: true);
+
     _loadProfile();
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
+    _entranceController.dispose();
+    _ambientController.dispose();
     super.dispose();
   }
 
@@ -61,7 +98,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) {
         setState(() {
-          _errorMessage = 'خطأ: ماكاين حتى مستخدم مسجل الدخول';
+          _errorMessage = 'خطأ: لا يوجد مستخدم مسجّل الدخول';
           _isLoading = false;
         });
         return;
@@ -93,11 +130,14 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
         _avatarAsset = data['avatarAsset'] as String?;
         _isLoading = false;
       });
+
+      _entranceController.forward();
     } catch (e) {
       setState(() {
-        _errorMessage = 'وقع خطأ فـ تحميل المعلومات';
+        _errorMessage = 'حدث خطأ أثناء تحميل المعلومات';
         _isLoading = false;
       });
+      _entranceController.forward();
     }
   }
 
@@ -111,7 +151,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) {
         setState(() {
-          _errorMessage = 'خطأ: ماكاين حتى مستخدم مسجل الدخول';
+          _errorMessage = 'خطأ: لا يوجد مستخدم مسجّل الدخول';
         });
         return;
       }
@@ -129,7 +169,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'وقع خطأ، عاود المحاولة';
+        _errorMessage = 'حدث خطأ، يرجى المحاولة مرة أخرى';
       });
     } finally {
       if (mounted) {
@@ -145,20 +185,52 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
   // ============================================================
   Widget _buildAvatar() {
     if (_avatarAsset == null || _avatarAsset!.isEmpty) {
-      return const Icon(Icons.person, color: Colors.white, size: 34);
+      return const Icon(Icons.person, color: Colors.white, size: 40);
     }
     return ClipOval(
       child: Image.asset(
         _avatarAsset!,
-        width: 64,
-        height: 64,
+        width: 84,
+        height: 84,
         fit: BoxFit.cover,
         alignment: Alignment.topCenter,
         errorBuilder: (context, error, stack) {
           debugPrint('❌ Profile avatar load failed: $_avatarAsset -> $error');
-          return const Icon(Icons.person, color: Colors.white, size: 34);
+          return const Icon(Icons.person, color: Colors.white, size: 40);
         },
       ),
+    );
+  }
+
+  // خلفية بدوائر ضبابية متحركة بهدوء (نفس هوية بقية الشاشات)
+  Widget _buildAmbientBackground() {
+    return AnimatedBuilder(
+      animation: _ambientController,
+      builder: (context, _) {
+        final t = _ambientController.value;
+        return Stack(
+          children: [
+            Positioned(
+              top: -70 + (t * 14),
+              left: -60,
+              child: _blurCircle(190, gold.withValues(alpha: 0.09)),
+            ),
+            Positioned(
+              bottom: -100 - (t * 12),
+              right: -70,
+              child: _blurCircle(220, darkGreen.withValues(alpha: 0.06)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _blurCircle(double size, Color color) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
     );
   }
 
@@ -166,270 +238,449 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: bg,
-      body: SafeArea(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: darkGreen))
-            : SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        children: [
-                          IconButton(
-                            onPressed: () => Navigator.maybePop(context),
-                            icon: const Icon(
-                              Icons.arrow_back,
-                              color: darkGreen,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: LinearProgressIndicator(
-                                value: 1.0,
-                                minHeight: 6,
-                                backgroundColor: Colors.grey.shade300,
-                                valueColor: const AlwaysStoppedAnimation<Color>(
-                                  gold,
+      body: Stack(
+        children: [
+          Positioned.fill(child: _buildAmbientBackground()),
+          SafeArea(
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(color: darkGreen),
+                  )
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // ==================================================
+                        // HEADER
+                        // ==================================================
+                        FadeTransition(
+                          opacity: _headerFade,
+                          child: Row(
+                            children: [
+                              _PressableScale(
+                                onTap: () => Navigator.maybePop(context),
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: darkGreen.withValues(alpha: 0.08),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    Icons.arrow_back,
+                                    color: darkGreen,
+                                    size: 18,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-
-                      const Text(
-                        'معاينة ملفك',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: darkGreen,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'تأكد من معلوماتك قبل الحفظ',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // بطاقة المعاينة
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.04),
-                              blurRadius: 16,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            // رأس البطاقة - بالصورة والاسم
-                            Container(
-                              padding: const EdgeInsets.all(18),
-                              decoration: const BoxDecoration(
-                                color: darkGreen,
-                                borderRadius: BorderRadius.only(
-                                  topLeft: Radius.circular(20),
-                                  topRight: Radius.circular(20),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: TweenAnimationBuilder<double>(
+                                    tween: Tween(begin: 0, end: 1),
+                                    duration: const Duration(milliseconds: 900),
+                                    curve: Curves.easeOutCubic,
+                                    builder: (context, v, _) =>
+                                        LinearProgressIndicator(
+                                      value: v,
+                                      minHeight: 6,
+                                      backgroundColor: Colors.grey.shade300,
+                                      valueColor:
+                                          const AlwaysStoppedAnimation<Color>(
+                                              gold),
+                                    ),
+                                  ),
                                 ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        FadeTransition(
+                          opacity: _headerFade,
+                          child: const Column(
+                            children: [
+                              Text(
+                                'معاينة ملفك',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: darkGreen,
+                                ),
+                              ),
+                              SizedBox(height: 6),
+                              Text(
+                                'تأكد من معلوماتك قبل الحفظ',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.black45,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 26),
+
+                        // ==================================================
+                        // الأفاتار البارز فوق البطاقة
+                        // ==================================================
+                        ScaleTransition(
+                          scale: _avatarScale,
+                          child: Center(
+                            child: Container(
+                              width: 104,
+                              height: 104,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  colors: [
+                                    darkGreen,
+                                    const Color(0xFF1E6B4E),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                border: Border.all(
+                                  color: gold.withValues(alpha: 0.65),
+                                  width: 2.4,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: darkGreen.withValues(alpha: 0.28),
+                                    blurRadius: 22,
+                                    offset: const Offset(0, 10),
+                                  ),
+                                ],
                               ),
                               child: Stack(
                                 children: [
-                                  Align(
-                                    alignment: Alignment.topRight,
-                                    child: Icon(
-                                      Icons.verified,
-                                      color: gold,
-                                      size: 20,
+                                  Center(child: _buildAvatar()),
+                                  Positioned(
+                                    bottom: 0,
+                                    right: 0,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black
+                                                .withValues(alpha: 0.12),
+                                            blurRadius: 6,
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Icon(
+                                        Icons.verified_rounded,
+                                        color: gold,
+                                        size: 20,
+                                      ),
                                     ),
                                   ),
-                                  Row(
-                                    children: [
-                                      Container(
-                                        width: 64,
-                                        height: 64,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: Colors.white.withValues(
-                                            alpha: 0.12,
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        FadeTransition(
+                          opacity: _headerFade,
+                          child: Center(
+                            child: Text(
+                              _age != null ? '$_name، $_age' : _name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 19,
+                                color: darkGreen,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 22),
+
+                        // ==================================================
+                        // بطاقة المعاينة
+                        // ==================================================
+                        FadeTransition(
+                          opacity: _cardFade,
+                          child: SlideTransition(
+                            position: _cardSlide,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: darkGreen.withValues(alpha: 0.06),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                        18, 18, 18, 0),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 5),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                darkGreen.withValues(alpha: 0.07),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
                                           ),
-                                          border: Border.all(
-                                            color: gold.withValues(alpha: 0.6),
-                                            width: 1.5,
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.work_outline_rounded,
+                                                  size: 13, color: darkGreen),
+                                              const SizedBox(width: 5),
+                                              Text(
+                                                _job.isNotEmpty ? _job : '—',
+                                                style: const TextStyle(
+                                                  color: darkGreen,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                        child: _buildAvatar(),
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 5),
+                                          decoration: BoxDecoration(
+                                            color: gold.withValues(alpha: 0.14),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(
+                                                  Icons.location_on_outlined,
+                                                  size: 13, color: darkGreen),
+                                              const SizedBox(width: 5),
+                                              Text(
+                                                _city.isNotEmpty ? _city : '—',
+                                                style: const TextStyle(
+                                                  color: darkGreen,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  // حول
+                                  if (_bio.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        18,
+                                        18,
+                                        18,
+                                        0,
                                       ),
-                                      const SizedBox(width: 14),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const _SectionLabel(
+                                            icon: Icons.info_outline_rounded,
+                                            label: 'حول',
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            _bio,
+                                            style: TextStyle(
+                                              color: Colors.grey.shade700,
+                                              fontSize: 14,
+                                              height: 1.6,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                        18, 18, 18, 8),
+                                    child: Divider(
+                                        color: Colors.grey.shade100, height: 1),
+                                  ),
+
+                                  // التفضيلات
+                                  Padding(
+                                    padding:
+                                        const EdgeInsets.fromLTRB(18, 6, 18, 18),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const _SectionLabel(
+                                          icon: Icons.tune_rounded,
+                                          label: 'التفضيلات',
+                                        ),
+                                        const SizedBox(height: 12),
+                                        _InfoRow(
+                                          icon: Icons.cake_outlined,
+                                          label: 'العمر',
+                                          value: (_ageMin != null &&
+                                                  _ageMax != null)
+                                              ? '$_ageMin - $_ageMax سنة'
+                                              : '${_age ?? '—'}',
+                                        ),
+                                        const SizedBox(height: 12),
+                                        _InfoRow(
+                                          icon: Icons.map_outlined,
+                                          label: 'الولاية',
+                                          value:
+                                              _prefCity.isNotEmpty ? _prefCity : '—',
+                                        ),
+                                        const SizedBox(height: 12),
+                                        _InfoRow(
+                                          icon: Icons.school_outlined,
+                                          label: 'المستوى التعليمي',
+                                          value: _educationLevel.isNotEmpty
+                                              ? _educationLevel
+                                              : '—',
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 220),
+                          child: _errorMessage != null
+                              ? Container(
+                                  key: const ValueKey('err'),
+                                  margin: const EdgeInsets.only(top: 16),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFDE3B40)
+                                        .withValues(alpha: 0.07),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: const Color(0xFFDE3B40)
+                                          .withValues(alpha: 0.18),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.error_outline_rounded,
+                                        color: Color(0xFFDE3B40),
+                                        size: 18,
+                                      ),
+                                      const SizedBox(width: 8),
                                       Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              _age != null
-                                                  ? '$_name، $_age'
-                                                  : _name,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 18,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              _job,
-                                              style: TextStyle(
-                                                color: Colors.white.withValues(
-                                                  alpha: 0.85,
-                                                ),
-                                                fontSize: 13,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              _city,
-                                              style: TextStyle(
-                                                color: Colors.white.withValues(
-                                                  alpha: 0.7,
-                                                ),
-                                                fontSize: 13,
-                                              ),
-                                            ),
-                                          ],
+                                        child: Text(
+                                          _errorMessage!,
+                                          textAlign: TextAlign.right,
+                                          style: const TextStyle(
+                                            color: Color(0xFFDE3B40),
+                                            fontSize: 12.5,
+                                          ),
                                         ),
                                       ),
                                     ],
                                   ),
-                                ],
-                              ),
-                            ),
-
-                            // حول
-                            if (_bio.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  18,
-                                  18,
-                                  18,
-                                  0,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const _SectionLabel(
-                                      icon: Icons.info_outline,
-                                      label: 'حول',
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      _bio,
-                                      style: TextStyle(
-                                        color: Colors.grey.shade700,
-                                        fontSize: 14,
-                                        height: 1.6,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                            // التفضيلات
-                            Padding(
-                              padding: const EdgeInsets.all(18),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const _SectionLabel(
-                                    icon: Icons.tune,
-                                    label: 'التفضيلات',
-                                  ),
-                                  const SizedBox(height: 10),
-                                  _InfoRow(
-                                    label: 'العمر',
-                                    value: (_ageMin != null && _ageMax != null)
-                                        ? '$_ageMin - $_ageMax سنة'
-                                        : '${_age ?? ''}',
-                                  ),
-                                  const SizedBox(height: 10),
-                                  _InfoRow(label: 'الولاية', value: _prefCity),
-                                  const SizedBox(height: 10),
-                                  _InfoRow(
-                                    label: 'المستوى التعليمي',
-                                    value: _educationLevel,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                                )
+                              : const SizedBox(key: ValueKey('noerr'), height: 0),
                         ),
-                      ),
 
-                      if (_errorMessage != null) ...[
-                        const SizedBox(height: 16),
-                        Text(
-                          _errorMessage!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                      ],
-                      const SizedBox(height: 24),
+                        const SizedBox(height: 24),
 
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        height: 54,
-                        decoration: BoxDecoration(
-                          color: darkGreen,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: darkGreen.withValues(alpha: 0.25),
-                              blurRadius: 12,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
+                        FadeTransition(
+                          opacity: _buttonFade,
+                          child: _PressableScale(
                             onTap: _isSubmitting ? null : _confirmProfile,
-                            borderRadius: BorderRadius.circular(16),
-                            child: Center(
-                              child: _isSubmitting
-                                  ? const CircularProgressIndicator(
-                                      color: Colors.white,
-                                    )
-                                  : const Text(
-                                      'حفظ الملف',
-                                      style: TextStyle(
-                                        fontSize: 17,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.white,
+                            minScale: 0.97,
+                            child: Container(
+                              height: 56,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(18),
+                                gradient: const LinearGradient(
+                                  colors: [darkGreen, Color(0xFF165C43)],
+                                  begin: Alignment.centerRight,
+                                  end: Alignment.centerLeft,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: darkGreen.withValues(alpha: 0.28),
+                                    blurRadius: 14,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: _isSubmitting
+                                    ? const SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2.4,
+                                        ),
+                                      )
+                                    : const Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            'حفظ الملف',
+                                            style: TextStyle(
+                                              fontSize: 17,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          SizedBox(width: 8),
+                                          Icon(
+                                            Icons.arrow_back_ios_new_rounded,
+                                            size: 14,
+                                            color: Colors.white,
+                                          ),
+                                        ],
                                       ),
-                                    ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ),
+          ),
+        ],
       ),
     );
   }
@@ -445,8 +696,15 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: _ProfilePreviewScreenState.gold),
-        const SizedBox(width: 6),
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: _ProfilePreviewScreenState.darkGreen.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 14, color: _ProfilePreviewScreenState.darkGreen),
+        ),
+        const SizedBox(width: 8),
         Text(
           label,
           style: const TextStyle(
@@ -461,25 +719,80 @@ class _SectionLabel extends StatelessWidget {
 }
 
 class _InfoRow extends StatelessWidget {
+  final IconData icon;
   final String label;
   final String value;
 
-  const _InfoRow({required this.label, required this.value});
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+        Row(
+          children: [
+            Icon(icon, size: 15, color: Colors.grey.shade500),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+            ),
+          ],
         ),
         Text(
           value,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
+            color: _ProfilePreviewScreenState.darkGreen,
+          ),
         ),
       ],
+    );
+  }
+}
+
+// ويدجت مساعد: يعطي تأثير ضغط (scale down) لأي عنصر عند اللمس
+class _PressableScale extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+  final double minScale;
+
+  const _PressableScale({
+    required this.child,
+    required this.onTap,
+    this.minScale = 0.96,
+  });
+
+  @override
+  State<_PressableScale> createState() => _PressableScaleState();
+}
+
+class _PressableScaleState extends State<_PressableScale> {
+  double _scale = 1;
+
+  void _setPressed(bool pressed) {
+    setState(() => _scale = pressed ? widget.minScale : 1);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: widget.onTap,
+      onTapDown: widget.onTap == null ? null : (_) => _setPressed(true),
+      onTapUp: widget.onTap == null ? null : (_) => _setPressed(false),
+      onTapCancel: widget.onTap == null ? null : () => _setPressed(false),
+      child: AnimatedScale(
+        scale: _scale,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: widget.child,
+      ),
     );
   }
 }

@@ -68,6 +68,36 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
       assetPath: 'assets/avatars/female/female_6.png',
       bgColor: Color(0xFFFFF8E1),
     ),
+    _AvatarOption(
+      id: 'f_7',
+      assetPath: 'assets/avatars/female/female_7.png',
+      bgColor: Color(0xFFFCE4EC),
+    ),
+    _AvatarOption(
+      id: 'f_8',
+      assetPath: 'assets/avatars/female/female_8.png',
+      bgColor: Color(0xFFFFF3E0),
+    ),
+    _AvatarOption(
+      id: 'f_9',
+      assetPath: 'assets/avatars/female/female_9.png',
+      bgColor: Color(0xFFF3E5F5),
+    ),
+    _AvatarOption(
+      id: 'f_10',
+      assetPath: 'assets/avatars/female/female_10.png',
+      bgColor: Color(0xFFE8F5E9),
+    ),
+    _AvatarOption(
+      id: 'f_11',
+      assetPath: 'assets/avatars/female/female_11.png',
+      bgColor: Color(0xFFE0F7FA),
+    ),
+    _AvatarOption(
+      id: 'f_12',
+      assetPath: 'assets/avatars/female/female_12.png',
+      bgColor: Color(0xFFFFF8E1),
+    ),
   ];
 
   // ============================================================
@@ -103,6 +133,36 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
     _AvatarOption(
       id: 'm_6',
       assetPath: 'assets/avatars/male/male_6.png',
+      bgColor: Color(0xFFECEFF1),
+    ),
+    _AvatarOption(
+      id: 'm_7',
+      assetPath: 'assets/avatars/male/male_7.png',
+      bgColor: Color(0xFFE3F2FD),
+    ),
+    _AvatarOption(
+      id: 'm_8',
+      assetPath: 'assets/avatars/male/male_8.png',
+      bgColor: Color(0xFFFFF3E0),
+    ),
+    _AvatarOption(
+      id: 'm_9',
+      assetPath: 'assets/avatars/male/male_9.png',
+      bgColor: Color(0xFFEDE7F6),
+    ),
+    _AvatarOption(
+      id: 'm_10',
+      assetPath: 'assets/avatars/male/male_10.png',
+      bgColor: Color(0xFFE8F5E9),
+    ),
+    _AvatarOption(
+      id: 'm_11',
+      assetPath: 'assets/avatars/male/male_11.png',
+      bgColor: Color(0xFFEFEBE9),
+    ),
+    _AvatarOption(
+      id: 'm_12',
+      assetPath: 'assets/avatars/male/male_12.png',
       bgColor: Color(0xFFECEFF1),
     ),
   ];

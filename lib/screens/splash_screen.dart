@@ -1,4 +1,5 @@
 // screens/splash_screen.dart
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,15 +15,15 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  // ألوان بسيطة وهادئة جداً
-  static const Color backgroundColor = Color(0xFFFAFAFA); // أبيض ناعم
-  static const Color textColor = Color(0xFF333333); // رمادي داكن أنيق
-  static const Color subtleGold = Color(0xFFC9A24B); // لمسة ذهبية خفيفة فقط
+    with TickerProviderStateMixin {
+  // هوية بصرية متناسقة مع باقي التطبيق (نفس ألوان الأونبواردينغ)
+  static const Color darkGreen = Color(0xFF0F3D2E);
+  static const Color gold = Color(0xFFC9A24B);
+  static const Color bg = Color(0xFFFAF7F2);
 
+  // ✅ كنترولر الدخول (staggered entrance)
   late final AnimationController _controller;
 
-  // ✅ كل عنصر يخرج بدوره (staggered) بدل ما يخرجو كلهم فـ نفس الوقت
   late final Animation<double> _logoFade;
   late final Animation<double> _logoScale;
   late final Animation<Offset> _titleSlide;
@@ -32,6 +33,9 @@ class _SplashScreenState extends State<SplashScreen>
   late final Animation<double> _dividerWidth;
   late final Animation<double> _loaderFade;
 
+  // ✅ كنترولر الحركة المستمرة (تنفّس الشعار + الخلفية + نقاط التحميل)
+  late final AnimationController _ambientController;
+
   @override
   void initState() {
     super.initState();
@@ -40,6 +44,11 @@ class _SplashScreenState extends State<SplashScreen>
       duration: const Duration(milliseconds: 1600),
     );
 
+    _ambientController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    )..repeat(reverse: true);
+
     // الشعار: أول حاجة تبان (0% -> 45%)
     _logoFade = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(
@@ -47,10 +56,10 @@ class _SplashScreenState extends State<SplashScreen>
         curve: const Interval(0.0, 0.45, curve: Curves.easeOut),
       ),
     );
-    _logoScale = Tween<double>(begin: 0.85, end: 1.0).animate(
+    _logoScale = Tween<double>(begin: 0.7, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.45, curve: Curves.easeOutCubic),
+        curve: const Interval(0.0, 0.45, curve: Curves.easeOutBack),
       ),
     );
 
@@ -154,122 +163,280 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void dispose() {
     _controller.dispose();
+    _ambientController.dispose();
     super.dispose();
+  }
+
+  // خلفية متدرجة + دوائر ضبابية متحركة بهدوء
+  Widget _buildAmbientBackground() {
+    return AnimatedBuilder(
+      animation: _ambientController,
+      builder: (context, _) {
+        final t = _ambientController.value;
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color.lerp(bg, Colors.white, 0.4)!,
+                      bg,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: -80 + (t * 16),
+              left: -70,
+              child: _blurCircle(220, gold.withValues(alpha: 0.10)),
+            ),
+            Positioned(
+              bottom: -90 - (t * 14),
+              right: -60,
+              child: _blurCircle(240, darkGreen.withValues(alpha: 0.07)),
+            ),
+            Positioned(
+              top: 120 - (t * 10),
+              right: -40,
+              child: _blurCircle(120, gold.withValues(alpha: 0.06)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _blurCircle(double size, Color color) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+    );
+  }
+
+  // حلقات زخرفية دوّارة خلف الشعار
+  Widget _buildRotatingRings() {
+    return AnimatedBuilder(
+      animation: _ambientController,
+      builder: (context, _) {
+        final angle = _ambientController.value * 2 * math.pi * 0.06;
+        return Transform.rotate(
+          angle: angle,
+          child: Container(
+            width: 168,
+            height: 168,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: gold.withValues(alpha: 0.28),
+                width: 1.1,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ثلاث نقاط تحميل نابضة بدل الدائرة الكلاسيكية
+  Widget _buildPulsingDots() {
+    return AnimatedBuilder(
+      animation: _ambientController,
+      builder: (context, _) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (index) {
+            final shifted = (_ambientController.value + (index * 0.25)) % 1.0;
+            final scale = 0.55 + (0.45 * (0.5 - (shifted - 0.5).abs()) * 2);
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Transform.scale(
+                scale: scale,
+                child: Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: gold.withValues(alpha: 0.75),
+                  ),
+                ),
+              ),
+            );
+          }),
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // خلفية بيضاء ناصعة بدون أي تدرجات لونية
-      backgroundColor: backgroundColor,
-      body: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // ==================================================
-                // الشعار — أول عنصر يخرج
-                // ==================================================
-                FadeTransition(
-                  opacity: _logoFade,
-                  child: ScaleTransition(
-                    scale: _logoScale,
-                    child: Image.asset(
-                      'assets/images/logo_tawafuq.png',
-                      width: 128,
-                      height: 128,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 26),
+      backgroundColor: bg,
+      body: Stack(
+        children: [
+          Positioned.fill(child: _buildAmbientBackground()),
+          Center(
+            child: AnimatedBuilder(
+              animation: Listenable.merge([_controller, _ambientController]),
+              builder: (context, _) {
+                // نبضة تنفّس خفيفة على الشعار بعد انتهاء الدخول
+                final breathe = 1 +
+                    (_controller.isCompleted
+                        ? (_ambientController.value * 0.03)
+                        : 0.0);
 
-                // ==================================================
-                // اسم التطبيق — يبان بعد الشعار
-                // ==================================================
-                ClipRect(
-                  child: FadeTransition(
-                    opacity: _titleFade,
-                    child: SlideTransition(
-                      position: _titleSlide,
-                      child: const Text(
-                        'PactWed',
-                        style: TextStyle(
-                          fontSize: 27,
-                          fontWeight: FontWeight.w300,
-                          color: textColor,
-                          letterSpacing: 3.5,
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // ==================================================
+                    // الشعار — مع حلقة دوّارة وتوهّج خفيف
+                    // ==================================================
+                    FadeTransition(
+                      opacity: _logoFade,
+                      child: ScaleTransition(
+                        scale: _logoScale,
+                        child: Transform.scale(
+                          scale: breathe,
+                          child: SizedBox(
+                            width: 168,
+                            height: 168,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                _buildRotatingRings(),
+                                Container(
+                                  width: 128,
+                                  height: 128,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.white,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: darkGreen.withValues(alpha: 0.14),
+                                        blurRadius: 30,
+                                        offset: const Offset(0, 14),
+                                      ),
+                                      BoxShadow(
+                                        color: gold.withValues(alpha: 0.10),
+                                        blurRadius: 14,
+                                        offset: const Offset(0, -4),
+                                      ),
+                                    ],
+                                  ),
+                                  padding: const EdgeInsets.all(18),
+                                  child: Image.asset(
+                                    'assets/images/logo_tawafuq.png',
+                                    width: 92,
+                                    height: 92,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 10),
+                    const SizedBox(height: 30),
 
-                // ==================================================
-                // خط ذهبي صغير فاصل — يتمدد تدريجياً
-                // ==================================================
-                SizedBox(
-                  width: 40,
-                  height: 2,
-                  child: Align(
-                    alignment: Alignment.center,
-                    child: FractionallySizedBox(
-                      widthFactor: _dividerWidth.value,
-                      child: Container(
-                        height: 2,
-                        decoration: BoxDecoration(
-                          color: subtleGold.withValues(alpha: 0.6),
-                          borderRadius: BorderRadius.circular(2),
+                    // ==================================================
+                    // اسم التطبيق — يبان بعد الشعار
+                    // ==================================================
+                    ClipRect(
+                      child: FadeTransition(
+                        opacity: _titleFade,
+                        child: SlideTransition(
+                          position: _titleSlide,
+                          child: ShaderMask(
+                            shaderCallback: (bounds) => const LinearGradient(
+                              colors: [darkGreen, Color(0xFF1E6B4E)],
+                            ).createShader(bounds),
+                            child: const Text(
+                              'PactWed',
+                              style: TextStyle(
+                                fontSize: 30,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                                letterSpacing: 4,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 14),
+                    const SizedBox(height: 12),
 
-                // ==================================================
-                // الشعار الفرعي — يبان بعد العنوان
-                // ==================================================
-                ClipRect(
-                  child: FadeTransition(
-                    opacity: _subtitleFade,
-                    child: SlideTransition(
-                      position: _subtitleSlide,
-                      child: const Text(
-                        'توافقك الحقيقي',
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontWeight: FontWeight.w400,
-                          fontSize: 14,
-                          letterSpacing: 1,
+                    // ==================================================
+                    // خط ذهبي صغير فاصل — يتمدد تدريجياً
+                    // ==================================================
+                    AnimatedBuilder(
+                      animation: _dividerWidth,
+                      builder: (context, _) {
+                        return SizedBox(
+                          width: 46,
+                          height: 3,
+                          child: Align(
+                            alignment: Alignment.center,
+                            child: FractionallySizedBox(
+                              widthFactor: _dividerWidth.value,
+                              child: Container(
+                                height: 3,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      gold.withValues(alpha: 0.15),
+                                      gold,
+                                      gold.withValues(alpha: 0.15),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ==================================================
+                    // الشعار الفرعي — يبان بعد العنوان
+                    // ==================================================
+                    ClipRect(
+                      child: FadeTransition(
+                        opacity: _subtitleFade,
+                        child: SlideTransition(
+                          position: _subtitleSlide,
+                          child: Text(
+                            'توافقك الحقيقي',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 14.5,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 56),
+                    const SizedBox(height: 64),
 
-                // ==================================================
-                // مؤشر تحميل — آخر عنصر يبان
-                // ==================================================
-                FadeTransition(
-                  opacity: _loaderFade,
-                  child: SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.0,
-                      color: subtleGold.withValues(alpha: 0.55),
-                      backgroundColor: Colors.transparent,
+                    // ==================================================
+                    // مؤشر تحميل — نقاط نابضة أنيقة بدل الدائرة الكلاسيكية
+                    // ==================================================
+                    FadeTransition(
+                      opacity: _loaderFade,
+                      child: _buildPulsingDots(),
                     ),
-                  ),
-                ),
-              ],
+                  ],
+                );
+              },
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }

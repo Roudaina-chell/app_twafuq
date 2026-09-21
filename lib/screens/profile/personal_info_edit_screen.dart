@@ -1,7 +1,17 @@
 // screens/profile/personal_info_edit_screen.dart
+//
+// شاشة "تعديل الملف الشخصي".
+// كل حقل قابل للتعديل مباشرة بالضغط عليه (بدون أيقونات قلم):
+// - الاسم، المهنة، النبذة، العمر: حقل نصي يأخذ التركيز مباشرة.
+// - تاريخ الميلاد: يفتح منتقي التاريخ.
+// - المستوى التعليمي، المدينة، الحالة العائلية، الولاية المفضلة:
+//   قائمة اختيار سفلية.
+// زر "حفظ التغييرات" يحفظ كل شيء دفعة واحدة. الصورة الرمزية تُحفظ فورًا.
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'avatar_picker_screen.dart';
 
@@ -10,6 +20,8 @@ const Color kMidGreen = Color(0xFF1A6B4A);
 const Color kGold = Color(0xFFC9A24B);
 const Color kBg = Color(0xFFFAF7F2);
 const Color kMint = Color(0xFFE9F3EC);
+const Color kFieldFill = Color(0xFFF6F8F5);
+const Color kFieldBorder = Color(0xFFE2E7E1);
 
 class PersonalInfoEditScreen extends StatefulWidget {
   const PersonalInfoEditScreen({super.key});
@@ -20,30 +32,40 @@ class PersonalInfoEditScreen extends StatefulWidget {
 
 class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
   bool _isLoading = true;
+  bool _isSaving = false;
   String? _errorMessage;
 
-  String _fullName = '';
+  // الحقول النصية
+  final _nameController = TextEditingController();
+  final _occupationController = TextEditingController();
+  final _bioController = TextEditingController();
+  final _ageMinController = TextEditingController();
+  final _ageMaxController = TextEditingController();
+
+  final _nameFocus = FocusNode();
+  final _occupationFocus = FocusNode();
+  final _bioFocus = FocusNode();
+  final _ageMinFocus = FocusNode();
+  final _ageMaxFocus = FocusNode();
+
+  // الحقول الأخرى
+  String _displayName = '';
   DateTime? _birthDate;
-  String _occupation = '';
   String? _educationLevel;
   String? _city;
   String? _maritalStatus;
-  String _bio = '';
   String? _avatarAsset;
   String _gender = 'female';
-
-  int? _ageMin;
-  int? _ageMax;
   String? _prefCity;
 
-  final List<String> _educationLevels = [
+  final List<String> _educationLevels = const [
     'ثانوي',
     'ليسانس',
     'ماستر',
     'دكتوراه',
     'أخرى',
   ];
-  final List<String> _cities = [
+  final List<String> _cities = const [
     'الجزائر العاصمة',
     'وهران',
     'قسنطينة',
@@ -52,7 +74,7 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
     'البليدة',
     'أخرى',
   ];
-  final List<String> _maritalStatuses = ['أعزب', 'مطلق', 'أرمل'];
+  final List<String> _maritalStatuses = const ['أعزب', 'مطلق', 'أرمل'];
 
   String get _uid => FirebaseAuth.instance.currentUser?.uid ?? '';
 
@@ -62,11 +84,33 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
     _loadProfile();
   }
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _occupationController.dispose();
+    _bioController.dispose();
+    _ageMinController.dispose();
+    _ageMaxController.dispose();
+    _nameFocus.dispose();
+    _occupationFocus.dispose();
+    _bioFocus.dispose();
+    _ageMinFocus.dispose();
+    _ageMaxFocus.dispose();
+    super.dispose();
+  }
+
+  int? _toInt(dynamic v) {
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v);
+    return null;
+  }
+
   Future<void> _loadProfile() async {
     try {
       if (_uid.isEmpty) {
+        if (!mounted) return;
         setState(() {
-          _errorMessage = 'خطأ: ماكاين حتى مستخدم مسجل الدخول';
+          _errorMessage = 'لا يوجد مستخدم مسجّل الدخول';
           _isLoading = false;
         });
         return;
@@ -77,15 +121,17 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
           .get();
       final data = doc.data() ?? {};
       final preferences = (data['preferences'] as Map<String, dynamic>?) ?? {};
-
       final rawBirth = data['birthDate'] as String?;
 
+      if (!mounted) return;
       setState(() {
-        _fullName =
+        _displayName =
             (data['fullName'] as String?) ?? (data['name'] as String?) ?? '';
-        _occupation =
+        _nameController.text = _displayName;
+        _occupationController.text =
             (data['occupation'] as String?) ?? (data['job'] as String?) ?? '';
-        _bio = (data['bio'] as String?) ?? (data['about'] as String?) ?? '';
+        _bioController.text =
+            (data['bio'] as String?) ?? (data['about'] as String?) ?? '';
         _birthDate = (rawBirth != null && rawBirth.isNotEmpty)
             ? DateTime.tryParse(rawBirth)
             : null;
@@ -97,29 +143,38 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
         _gender = (data['gender'] as String?)?.toLowerCase() == 'male'
             ? 'male'
             : 'female';
-        _ageMin = preferences['ageMin'] as int?;
-        _ageMax = preferences['ageMax'] as int?;
-        _prefCity =
+        _ageMinController.text =
+            _toInt(preferences['ageMin'])?.toString() ?? '';
+        _ageMaxController.text =
+            _toInt(preferences['ageMax'])?.toString() ?? '';
+        final pc =
             (preferences['city'] as String?) ??
             (preferences['wilaya'] as String?);
+        _prefCity = _cities.contains(pc) ? pc : null;
         _isLoading = false;
       });
     } catch (e) {
+      debugPrint('PersonalInfoEditScreen._loadProfile error: $e');
+      if (!mounted) return;
       setState(() {
-        _errorMessage = 'وقع خطأ فـ تحميل المعلومات';
+        _errorMessage = 'حدث خطأ أثناء تحميل المعلومات';
         _isLoading = false;
       });
     }
   }
 
-  int? _computeAge(DateTime birth) {
+  int _computeAge(DateTime birth) {
     final now = DateTime.now();
     int age = now.year - birth.year;
-    if (now.month < birth.month ||
-        (now.month == birth.month && now.day < birth.day))
-      age--;
+    final hadBirthday =
+        now.month > birth.month ||
+        (now.month == birth.month && now.day >= birth.day);
+    if (!hadBirthday) age--;
     return age;
   }
+
+  String _formatDate(DateTime d) =>
+      '${d.year} / ${d.month.toString().padLeft(2, '0')} / ${d.day.toString().padLeft(2, '0')}';
 
   Future<bool> _saveField(Map<String, dynamic> payload) async {
     try {
@@ -130,9 +185,10 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
           .set(payload, SetOptions(merge: true));
       return true;
     } catch (e) {
+      debugPrint('PersonalInfoEditScreen._saveField error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('وقع خطأ أثناء الحفظ، عاود المحاولة')),
+          const SnackBar(content: Text('حدث خطأ أثناء الحفظ، حاول مرة أخرى')),
         );
       }
       return false;
@@ -140,20 +196,193 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
   }
 
   Future<void> _changeAvatar() async {
+    FocusScope.of(context).unfocus();
     final selected = await showAvatarPicker(
       context,
       gender: _gender,
       currentAvatarPath: _avatarAsset,
     );
-    if (selected == null || selected == _avatarAsset) return;
+    if (!mounted || selected == null || selected == _avatarAsset) return;
     final ok = await _saveField({'avatarAsset': selected});
-    if (ok) setState(() => _avatarAsset = selected);
+    if (ok && mounted) setState(() => _avatarAsset = selected);
   }
 
-  static Widget _buildAvatarImage({
-    required String? source,
-    required double size,
-  }) {
+  // ------------------------------------------------------------
+  // الاختيارات
+  // ------------------------------------------------------------
+  Future<void> _pickBirthDate() async {
+    FocusScope.of(context).unfocus();
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _birthDate ?? DateTime(now.year - 25),
+      firstDate: DateTime(now.year - 80),
+      lastDate: DateTime(now.year - 18),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.light(
+            primary: kDarkGreen,
+            onPrimary: Colors.white,
+            surface: Colors.white,
+            onSurface: Colors.black87,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null && mounted) setState(() => _birthDate = picked);
+  }
+
+  Future<void> _selectFromList({
+    required String title,
+    required List<String> options,
+    required String? current,
+    required ValueChanged<String> onSelected,
+  }) async {
+    FocusScope.of(context).unfocus();
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: kDarkGreen,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: options.map((o) {
+                      final isSelected = o == current;
+                      return ListTile(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        title: Text(
+                          o,
+                          style: TextStyle(
+                            color: kDarkGreen,
+                            fontWeight: isSelected
+                                ? FontWeight.w800
+                                : FontWeight.w500,
+                          ),
+                        ),
+                        trailing: isSelected
+                            ? const Icon(
+                                Icons.check_circle_rounded,
+                                color: kDarkGreen,
+                              )
+                            : null,
+                        onTap: () => Navigator.pop(ctx, o),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (selected != null && mounted) onSelected(selected);
+  }
+
+  // ------------------------------------------------------------
+  // الحفظ
+  // ------------------------------------------------------------
+  String? _validate() {
+    if (_nameController.text.trim().isEmpty) return 'أدخل اسمك الكامل';
+    if (_birthDate == null) return 'اختر تاريخ ميلادك';
+    if (_occupationController.text.trim().isEmpty) return 'أدخل مهنتك';
+    if (_educationLevel == null) return 'اختر مستواك التعليمي';
+    if (_city == null) return 'اختر مدينتك';
+    if (_maritalStatus == null) return 'اختر حالتك العائلية';
+
+    if (_gender == 'male') {
+      final min = int.tryParse(_ageMinController.text.trim());
+      final max = int.tryParse(_ageMaxController.text.trim());
+      if (min != null && min < 18) return 'الحد الأدنى للعمر هو 18 سنة';
+      if (min != null && max != null && min > max) {
+        return 'العمر الأدنى يجب ألا يتجاوز العمر الأقصى';
+      }
+    }
+    return null;
+  }
+
+  Future<void> _save() async {
+    FocusScope.of(context).unfocus();
+
+    final error = _validate();
+    if (error != null) {
+      setState(() => _errorMessage = error);
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+      _errorMessage = null;
+    });
+
+    final name = _nameController.text.trim();
+    final payload = <String, dynamic>{
+      'fullName': name,
+      'birthDate': _birthDate!.toIso8601String(),
+      'age': _computeAge(_birthDate!),
+      'occupation': _occupationController.text.trim(),
+      'educationLevel': _educationLevel,
+      'city': _city,
+      'maritalStatus': _maritalStatus,
+      'bio': _bioController.text.trim(),
+    };
+
+    if (_gender == 'male') {
+      payload['preferences'] = {
+        'ageMin': int.tryParse(_ageMinController.text.trim()),
+        'ageMax': int.tryParse(_ageMaxController.text.trim()),
+        'city': _prefCity,
+      };
+    }
+
+    final ok = await _saveField(payload);
+    if (!mounted) return;
+
+    setState(() {
+      _isSaving = false;
+      if (ok) _displayName = name;
+    });
+
+    if (ok) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تم حفظ التغييرات بنجاح')));
+    }
+  }
+
+  static Widget _buildAvatarImage({required String? source}) {
     if (source == null || source.trim().isEmpty) {
       return const Icon(Icons.person, size: 56, color: kDarkGreen);
     }
@@ -176,6 +405,31 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
           );
   }
 
+  // ------------------------------------------------------------
+  // الواجهة
+  // ------------------------------------------------------------
+  static const _valueStyle = TextStyle(
+    fontSize: 15,
+    fontWeight: FontWeight.w600,
+    color: kDarkGreen,
+  );
+
+  TextStyle get _hintStyle =>
+      TextStyle(fontSize: 14, color: Colors.grey.shade400);
+
+  InputDecoration _plainDecoration(String hint) => InputDecoration(
+    hintText: hint,
+    hintStyle: _hintStyle,
+    border: InputBorder.none,
+    isDense: true,
+    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+  );
+
+  Widget _selectText(String? value, String hint) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 12),
+    child: Text(value ?? hint, style: value == null ? _hintStyle : _valueStyle),
+  );
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -185,185 +439,237 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
       );
     }
 
-    return Scaffold(
-      backgroundColor: kBg,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.zero,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _EditHeader(
-                onBack: () => Navigator.maybePop(context),
-                onTapAvatar: _changeAvatar,
-                avatarChild: _buildAvatarImage(source: _avatarAsset, size: 94),
-                name: _fullName,
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Scaffold(
+          backgroundColor: kBg,
+          body: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [kBg, Color(0xFFEEF4EE)],
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
+            ),
+            child: SafeArea(
+              child: SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _Card(
-                      title: 'المعلومات الأساسية',
-                      icon: Icons.badge_outlined,
-                      children: [
-                        InlineTextField(
-                          label: 'الاسم الكامل',
-                          icon: Icons.person_outline_rounded,
-                          value: _fullName,
-                          onSave: (v) async {
-                            final ok = await _saveField({'fullName': v});
-                            if (ok) setState(() => _fullName = v);
-                            return ok;
-                          },
-                        ),
-                        InlineDateField(
-                          label: 'تاريخ الميلاد',
-                          value: _birthDate,
-                          onSave: (d) async {
-                            final ok = await _saveField({
-                              'birthDate': d.toIso8601String(),
-                              'age': _computeAge(d),
-                            });
-                            if (ok) setState(() => _birthDate = d);
-                            return ok;
-                          },
-                        ),
-                        InlineTextField(
-                          label: 'المهنة',
-                          icon: Icons.work_outline,
-                          value: _occupation,
-                          onSave: (v) async {
-                            final ok = await _saveField({'occupation': v});
-                            if (ok) setState(() => _occupation = v);
-                            return ok;
-                          },
-                        ),
-                        InlineDropdownField(
-                          label: 'المستوى التعليمي',
-                          icon: Icons.school_outlined,
-                          value: _educationLevel,
-                          options: _educationLevels,
-                          onSave: (v) async {
-                            final ok = await _saveField({'educationLevel': v});
-                            if (ok) setState(() => _educationLevel = v);
-                            return ok;
-                          },
-                        ),
-                        InlineDropdownField(
-                          label: 'المدينة',
-                          icon: Icons.location_on_outlined,
-                          value: _city,
-                          options: _cities,
-                          onSave: (v) async {
-                            final ok = await _saveField({'city': v});
-                            if (ok) setState(() => _city = v);
-                            return ok;
-                          },
-                        ),
-                        InlineDropdownField(
-                          label: 'الحالة العائلية',
-                          icon: Icons.people_outline,
-                          value: _maritalStatus,
-                          options: _maritalStatuses,
-                          onSave: (v) async {
-                            final ok = await _saveField({'maritalStatus': v});
-                            if (ok) setState(() => _maritalStatus = v);
-                            return ok;
-                          },
-                        ),
-                        InlineTextField(
-                          label: 'نبذة عني',
-                          icon: Icons.info_outline_rounded,
-                          value: _bio,
-                          maxLines: 4,
-                          maxLength: 300,
-                          onSave: (v) async {
-                            final ok = await _saveField({'bio': v});
-                            if (ok) setState(() => _bio = v);
-                            return ok;
-                          },
-                        ),
-                      ],
+                    _EditHeader(
+                      onBack: () => Navigator.maybePop(context),
+                      onTapAvatar: _changeAvatar,
+                      avatarChild: _buildAvatarImage(source: _avatarAsset),
+                      name: _displayName,
                     ),
-
-                    if (_gender == 'male') ...[
-                      const SizedBox(height: 18),
-
-                      _Card(
-                        title: 'تفضيلات البحث',
-                        icon: Icons.tune_rounded,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 6, 20, 30),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          InlineTextField(
-                            label: 'العمر من',
-                            icon: Icons.cake_outlined,
-                            value: _ageMin?.toString() ?? '',
-                            keyboardType: TextInputType.number,
-                            onSave: (v) async {
-                              final parsed = int.tryParse(v.trim());
-                              final ok = await _saveField({
-                                'preferences': {'ageMin': parsed},
-                              });
-                              if (ok) setState(() => _ageMin = parsed);
-                              return ok;
-                            },
+                          _FormCard(
+                            title: 'المعلومات الأساسية',
+                            icon: Icons.badge_outlined,
+                            children: [
+                              // الاسم الكامل
+                              _FieldCard(
+                                label: 'الاسم الكامل',
+                                icon: Icons.person_outline_rounded,
+                                onTap: () => _nameFocus.requestFocus(),
+                                child: TextField(
+                                  controller: _nameController,
+                                  focusNode: _nameFocus,
+                                  textInputAction: TextInputAction.next,
+                                  style: _valueStyle,
+                                  decoration: _plainDecoration(
+                                    'أدخل اسمك الكامل',
+                                  ),
+                                ),
+                              ),
+
+                              // تاريخ الميلاد
+                              _FieldCard(
+                                label: 'تاريخ الميلاد',
+                                icon: Icons.calendar_today_outlined,
+                                onTap: _pickBirthDate,
+                                child: _selectText(
+                                  _birthDate == null
+                                      ? null
+                                      : _formatDate(_birthDate!),
+                                  'اختر تاريخ ميلادك',
+                                ),
+                              ),
+
+                              // المهنة
+                              _FieldCard(
+                                label: 'المهنة',
+                                icon: Icons.work_outline,
+                                onTap: () => _occupationFocus.requestFocus(),
+                                child: TextField(
+                                  controller: _occupationController,
+                                  focusNode: _occupationFocus,
+                                  textInputAction: TextInputAction.next,
+                                  style: _valueStyle,
+                                  decoration: _plainDecoration('أدخل مهنتك'),
+                                ),
+                              ),
+
+                              // المستوى التعليمي
+                              _FieldCard(
+                                label: 'المستوى التعليمي',
+                                icon: Icons.school_outlined,
+                                onTap: () => _selectFromList(
+                                  title: 'المستوى التعليمي',
+                                  options: _educationLevels,
+                                  current: _educationLevel,
+                                  onSelected: (v) =>
+                                      setState(() => _educationLevel = v),
+                                ),
+                                child: _selectText(
+                                  _educationLevel,
+                                  'اختر مستواك التعليمي',
+                                ),
+                              ),
+
+                              // المدينة
+                              _FieldCard(
+                                label: 'المدينة',
+                                icon: Icons.location_on_outlined,
+                                onTap: () => _selectFromList(
+                                  title: 'المدينة',
+                                  options: _cities,
+                                  current: _city,
+                                  onSelected: (v) => setState(() => _city = v),
+                                ),
+                                child: _selectText(_city, 'اختر مدينتك'),
+                              ),
+
+                              // الحالة العائلية
+                              _FieldCard(
+                                label: 'الحالة العائلية',
+                                icon: Icons.people_outline,
+                                onTap: () => _selectFromList(
+                                  title: 'الحالة العائلية',
+                                  options: _maritalStatuses,
+                                  current: _maritalStatus,
+                                  onSelected: (v) =>
+                                      setState(() => _maritalStatus = v),
+                                ),
+                                child: _selectText(
+                                  _maritalStatus,
+                                  'اختر حالتك العائلية',
+                                ),
+                              ),
+
+                              // نبذة عني
+                              _FieldCard(
+                                label: 'نبذة عني',
+                                icon: Icons.info_outline_rounded,
+                                multiline: true,
+                                onTap: () => _bioFocus.requestFocus(),
+                                child: TextField(
+                                  controller: _bioController,
+                                  focusNode: _bioFocus,
+                                  minLines: 2,
+                                  maxLines: 4,
+                                  maxLength: 300,
+                                  style: _valueStyle,
+                                  decoration: _plainDecoration(
+                                    'اكتب نبذة عن نفسك',
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          InlineTextField(
-                            label: 'العمر إلى',
-                            icon: Icons.cake_outlined,
-                            value: _ageMax?.toString() ?? '',
-                            keyboardType: TextInputType.number,
-                            onSave: (v) async {
-                              final parsed = int.tryParse(v.trim());
-                              final ok = await _saveField({
-                                'preferences': {'ageMax': parsed},
-                              });
-                              if (ok) setState(() => _ageMax = parsed);
-                              return ok;
-                            },
-                          ),
-                          InlineDropdownField(
-                            label: 'الولاية المفضلة',
-                            icon: Icons.map_outlined,
-                            value: _cities.contains(_prefCity)
-                                ? _prefCity
-                                : null,
-                            options: _cities,
-                            onSave: (v) async {
-                              final ok = await _saveField({
-                                'preferences': {'city': v},
-                              });
-                              if (ok) setState(() => _prefCity = v);
-                              return ok;
-                            },
-                          ),
+
+                          // تفضيلات البحث (للذكور فقط)
+                          if (_gender == 'male') ...[
+                            const SizedBox(height: 18),
+                            _FormCard(
+                              title: 'تفضيلات البحث',
+                              icon: Icons.tune_rounded,
+                              children: [
+                                _FieldCard(
+                                  label: 'العمر من',
+                                  icon: Icons.cake_outlined,
+                                  onTap: () => _ageMinFocus.requestFocus(),
+                                  child: TextField(
+                                    controller: _ageMinController,
+                                    focusNode: _ageMinFocus,
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                      LengthLimitingTextInputFormatter(2),
+                                    ],
+                                    style: _valueStyle,
+                                    decoration: _plainDecoration('مثال: 22'),
+                                  ),
+                                ),
+                                _FieldCard(
+                                  label: 'العمر إلى',
+                                  icon: Icons.cake_outlined,
+                                  onTap: () => _ageMaxFocus.requestFocus(),
+                                  child: TextField(
+                                    controller: _ageMaxController,
+                                    focusNode: _ageMaxFocus,
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                      LengthLimitingTextInputFormatter(2),
+                                    ],
+                                    style: _valueStyle,
+                                    decoration: _plainDecoration('مثال: 35'),
+                                  ),
+                                ),
+                                _FieldCard(
+                                  label: 'الولاية المفضلة',
+                                  icon: Icons.map_outlined,
+                                  onTap: () => _selectFromList(
+                                    title: 'الولاية المفضلة',
+                                    options: _cities,
+                                    current: _prefCity,
+                                    onSelected: (v) =>
+                                        setState(() => _prefCity = v),
+                                  ),
+                                  child: _selectText(_prefCity, 'اختر ولاية'),
+                                ),
+                              ],
+                            ),
+                          ],
+
+                          if (_errorMessage != null) ...[
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 14),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Text(
+                                _errorMessage!,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+
+                          const SizedBox(height: 22),
+                          _SaveButton(isSaving: _isSaving, onPressed: _save),
                         ],
                       ),
-                    ],
-
-                    if (_errorMessage != null) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Text(
-                          _errorMessage!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.red,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -372,9 +678,8 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
 }
 
 // ============================================================
-// 🧩 HEADER — الاسم دابا قريب من الأفاتار (gap صغير)، وزر التعديل
-// (القلم) بقى فـ الزاوية العليا من الأفاتار بدل السفلى — راه
-// "طالع" وحدا الأفاتار مباشرة، ماشي محتشم فـ الأسفل.
+// الهيدر: زر الرجوع على اليسار، العنوان في الوسط،
+// والصورة الرمزية مع زر التعديل في الزاوية العليا.
 // ============================================================
 class _EditHeader extends StatelessWidget {
   final VoidCallback onBack;
@@ -392,19 +697,13 @@ class _EditHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 22),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 22),
       child: Column(
         children: [
           Row(
             children: [
-              IconButton(
-                onPressed: onBack,
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: kDarkGreen,
-                  textDirection: TextDirection.ltr,
-                ),
-              ),
+              // في RTL: الأول يظهر على اليمين، لذلك الفراغ أولًا
+              const SizedBox(width: 44),
               const Expanded(
                 child: Text(
                   'تعديل الملف الشخصي',
@@ -416,7 +715,23 @@ class _EditHeader extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 48),
+              Material(
+                color: kMint,
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: onBack,
+                  child: const Padding(
+                    padding: EdgeInsets.all(10),
+                    child: Icon(
+                      Icons.arrow_back,
+                      color: kDarkGreen,
+                      size: 20,
+                      textDirection: TextDirection.ltr,
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 4),
@@ -441,7 +756,17 @@ class _EditHeader extends StatelessWidget {
                     padding: const EdgeInsets.all(3.2),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: kGold, width: 2.6),
+                      border: Border.all(
+                        color: const Color(0xFF8FA595),
+                        width: 2.6,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: kDarkGreen.withValues(alpha: 0.12),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
                     ),
                     child: Container(
                       padding: const EdgeInsets.all(3),
@@ -458,7 +783,6 @@ class _EditHeader extends StatelessWidget {
                     ),
                   ),
                 ),
-                // ✅ القلم دابا فـ الزاوية العليا، حدا الأفاتار مباشرة.
                 Positioned(
                   top: 0,
                   right: 0,
@@ -502,11 +826,13 @@ class _EditHeader extends StatelessWidget {
   }
 }
 
-class _Card extends StatelessWidget {
+// بطاقة واحدة تجمع الحقول (نفس أسلوب formulaire_info)
+class _FormCard extends StatelessWidget {
   final String title;
   final IconData icon;
   final List<Widget> children;
-  const _Card({
+
+  const _FormCard({
     required this.title,
     required this.icon,
     required this.children,
@@ -515,16 +841,15 @@ class _Card extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.03)),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: kDarkGreen.withValues(alpha: 0.06),
+            color: Colors.grey.withValues(alpha: 0.08),
             blurRadius: 20,
-            offset: const Offset(0, 10),
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -561,533 +886,127 @@ class _Card extends StatelessWidget {
 }
 
 // ============================================================
-// 🧩 VALUE BOX — دابا القلم بقى داخل نفس الصندوق (على اليسار فـ
-// RTL) بدل ما يكون زر منفصل قبل الصندوق. تصميم أنظف، بلا ما
-// نبدلو حتى لون.
+// حقل: عنوان + صندوق بنفس تصميم formulaire_info
+// (خلفية رمادية فاتحة، حدود رفيعة، أيقونة خضراء داكنة).
+// الحقل كله قابل للضغط عبر [onTap].
 // ============================================================
-class _ValueBox extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  final bool isPlaceholder;
-  final VoidCallback onEdit;
-  const _ValueBox({
-    required this.icon,
-    required this.text,
-    required this.onEdit,
-    this.isPlaceholder = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        decoration: BoxDecoration(
-          color: kMint.withValues(alpha: 0.65),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 15, color: kDarkGreen),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                text,
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  color: isPlaceholder ? Colors.grey.shade500 : Colors.black87,
-                  fontSize: 14,
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Material(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(10),
-                onTap: onEdit,
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: const Icon(
-                    Icons.edit_outlined,
-                    size: 15,
-                    color: kGold,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class InlineTextField extends StatefulWidget {
+class _FieldCard extends StatelessWidget {
   final String label;
   final IconData icon;
-  final String value;
-  final int maxLines;
-  final int? maxLength;
-  final TextInputType? keyboardType;
-  final Future<bool> Function(String newValue) onSave;
+  final Widget child;
+  final VoidCallback? onTap;
+  final bool multiline;
 
-  const InlineTextField({
-    super.key,
+  const _FieldCard({
     required this.label,
     required this.icon,
-    required this.value,
-    required this.onSave,
-    this.maxLines = 1,
-    this.maxLength,
-    this.keyboardType,
+    required this.child,
+    this.onTap,
+    this.multiline = false,
   });
 
   @override
-  State<InlineTextField> createState() => _InlineTextFieldState();
-}
-
-class _InlineTextFieldState extends State<InlineTextField> {
-  bool _editing = false;
-  bool _saving = false;
-  late TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.value);
-  }
-
-  @override
-  void didUpdateWidget(covariant InlineTextField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!_editing && oldWidget.value != widget.value) {
-      _controller.text = widget.value;
-    }
-  }
-
-  void _startEdit() {
-    _controller.text = widget.value;
-    setState(() => _editing = true);
-  }
-
-  void _cancel() {
-    _controller.text = widget.value;
-    setState(() => _editing = false);
-  }
-
-  Future<void> _confirm() async {
-    setState(() => _saving = true);
-    final ok = await widget.onSave(_controller.text.trim());
-    if (!mounted) return;
-    setState(() {
-      _saving = false;
-      if (ok) _editing = false;
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(14);
+
     return Padding(
       padding: const EdgeInsets.only(top: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            widget.label,
-            textAlign: TextAlign.right,
-            style: const TextStyle(
-              color: kDarkGreen,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: kDarkGreen,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-          const SizedBox(height: 8),
-          if (!_editing)
-            _ValueBox(
-              icon: widget.icon,
-              text: widget.value.isEmpty ? '—' : widget.value,
-              isPlaceholder: widget.value.isEmpty,
-              onEdit: _startEdit,
-            )
-          else
-            Row(
-              children: [
-                if (_saving)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: kDarkGreen,
-                      ),
-                    ),
-                  )
-                else ...[
-                  IconButton(
-                    icon: const Icon(
-                      Icons.check_circle_rounded,
-                      color: kDarkGreen,
-                      size: 22,
-                    ),
-                    onPressed: _confirm,
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.cancel_rounded,
-                      color: Colors.grey.shade400,
-                      size: 22,
-                    ),
-                    onPressed: _cancel,
-                  ),
-                ],
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    autofocus: true,
-                    textAlign: TextAlign.right,
-                    maxLines: widget.maxLines,
-                    maxLength: widget.maxLength,
-                    keyboardType: widget.keyboardType,
-                    decoration: InputDecoration(
-                      prefixIcon: Icon(
-                        widget.icon,
-                        color: kDarkGreen,
-                        size: 20,
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(color: Colors.grey.shade200),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(
-                          color: kDarkGreen,
-                          width: 1.5,
-                        ),
-                      ),
-                    ),
-                  ),
+          Material(
+            color: Colors.grey.shade50,
+            borderRadius: radius,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: radius,
+              child: Container(
+                constraints: const BoxConstraints(minHeight: 52),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  borderRadius: radius,
+                  border: Border.all(color: Colors.grey.shade200),
                 ),
-              ],
+                child: Row(
+                  crossAxisAlignment: multiline
+                      ? CrossAxisAlignment.start
+                      : CrossAxisAlignment.center,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.only(top: multiline ? 14 : 0),
+                      child: Icon(icon, color: kDarkGreen, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: child),
+                  ],
+                ),
+              ),
             ),
+          ),
         ],
       ),
     );
   }
 }
 
-class InlineDropdownField extends StatefulWidget {
-  final String label;
-  final IconData icon;
-  final String? value;
-  final List<String> options;
-  final Future<bool> Function(String newValue) onSave;
+class _SaveButton extends StatelessWidget {
+  final bool isSaving;
+  final VoidCallback onPressed;
 
-  const InlineDropdownField({
-    super.key,
-    required this.label,
-    required this.icon,
-    required this.value,
-    required this.options,
-    required this.onSave,
-  });
-
-  @override
-  State<InlineDropdownField> createState() => _InlineDropdownFieldState();
-}
-
-class _InlineDropdownFieldState extends State<InlineDropdownField> {
-  bool _editing = false;
-  bool _saving = false;
-  String? _pending;
+  const _SaveButton({required this.isSaving, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            widget.label,
-            textAlign: TextAlign.right,
-            style: const TextStyle(
-              color: kDarkGreen,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+    return Center(
+      child: SizedBox(
+        width: MediaQuery.of(context).size.width * 0.72,
+        height: 54,
+        child: ElevatedButton(
+          onPressed: isSaving ? null : onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: kDarkGreen,
+            elevation: 4,
+            shadowColor: kDarkGreen.withValues(alpha: 0.3),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(30),
             ),
           ),
-          const SizedBox(height: 8),
-          if (!_editing)
-            _ValueBox(
-              icon: widget.icon,
-              text: widget.value ?? '—',
-              isPlaceholder: widget.value == null,
-              onEdit: () => setState(() {
-                _pending = widget.value;
-                _editing = true;
-              }),
-            )
-          else
-            Row(
-              children: [
-                if (_saving)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: kDarkGreen,
-                      ),
-                    ),
-                  )
-                else ...[
-                  IconButton(
-                    icon: const Icon(
-                      Icons.check_circle_rounded,
-                      color: kDarkGreen,
-                      size: 22,
-                    ),
-                    onPressed: _pending == null
-                        ? null
-                        : () async {
-                            setState(() => _saving = true);
-                            final ok = await widget.onSave(_pending!);
-                            if (!mounted) return;
-                            setState(() {
-                              _saving = false;
-                              if (ok) _editing = false;
-                            });
-                          },
+          child: isSaving
+              ? const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2.4,
                   ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.cancel_rounded,
-                      color: Colors.grey.shade400,
-                      size: 22,
-                    ),
-                    onPressed: () => setState(() => _editing = false),
-                  ),
-                ],
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: _pending,
-                    isExpanded: true,
-                    icon: const Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: kDarkGreen,
-                    ),
-                    decoration: InputDecoration(
-                      prefixIcon: Icon(
-                        widget.icon,
-                        color: kDarkGreen,
-                        size: 20,
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(color: Colors.grey.shade200),
+                )
+              : const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.save_outlined, color: Colors.white, size: 20),
+                    SizedBox(width: 10),
+                    Text(
+                      'حفظ التغييرات',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    items: widget.options
-                        .map((o) => DropdownMenuItem(value: o, child: Text(o)))
-                        .toList(),
-                    onChanged: (v) => setState(() => _pending = v),
-                  ),
+                  ],
                 ),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class InlineDateField extends StatefulWidget {
-  final String label;
-  final DateTime? value;
-  final Future<bool> Function(DateTime newValue) onSave;
-
-  const InlineDateField({
-    super.key,
-    required this.label,
-    required this.value,
-    required this.onSave,
-  });
-
-  @override
-  State<InlineDateField> createState() => _InlineDateFieldState();
-}
-
-class _InlineDateFieldState extends State<InlineDateField> {
-  bool _editing = false;
-  bool _saving = false;
-  DateTime? _pending;
-
-  String _fmt(DateTime? d) => d == null
-      ? '—'
-      : '${d.day.toString().padLeft(2, '0')} / ${d.month.toString().padLeft(2, '0')} / ${d.year}';
-
-  Future<void> _pickDate() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _pending ?? widget.value ?? DateTime(now.year - 25),
-      firstDate: DateTime(now.year - 80),
-      lastDate: DateTime(now.year - 18),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(
-            primary: kDarkGreen,
-            onPrimary: Colors.white,
-            surface: Colors.white,
-            onSurface: Colors.black87,
-          ),
-          dialogBackgroundColor: Colors.white,
         ),
-        child: child!,
-      ),
-    );
-    if (picked != null) setState(() => _pending = picked);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            widget.label,
-            textAlign: TextAlign.right,
-            style: const TextStyle(
-              color: kDarkGreen,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          if (!_editing)
-            _ValueBox(
-              icon: Icons.calendar_today_outlined,
-              text: _fmt(widget.value),
-              isPlaceholder: widget.value == null,
-              onEdit: () => setState(() {
-                _pending = widget.value;
-                _editing = true;
-              }),
-            )
-          else
-            Row(
-              children: [
-                if (_saving)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: kDarkGreen,
-                      ),
-                    ),
-                  )
-                else ...[
-                  IconButton(
-                    icon: const Icon(
-                      Icons.check_circle_rounded,
-                      color: kDarkGreen,
-                      size: 22,
-                    ),
-                    onPressed: _pending == null
-                        ? null
-                        : () async {
-                            setState(() => _saving = true);
-                            final ok = await widget.onSave(_pending!);
-                            if (!mounted) return;
-                            setState(() {
-                              _saving = false;
-                              if (ok) _editing = false;
-                            });
-                          },
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.cancel_rounded,
-                      color: Colors.grey.shade400,
-                      size: 22,
-                    ),
-                    onPressed: () => setState(() => _editing = false),
-                  ),
-                ],
-                Expanded(
-                  child: GestureDetector(
-                    onTap: _pickDate,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.calendar_today_outlined,
-                            color: kDarkGreen,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              _fmt(_pending),
-                              textAlign: TextAlign.right,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-        ],
       ),
     );
   }

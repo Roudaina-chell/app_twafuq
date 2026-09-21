@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 
 import 'change_password_screen.dart';
 import 'privacy_settings_screen.dart';
-import 'linked_devices_screen.dart';
 
 const Color kDarkGreen = Color(0xFF0F3D2E);
 const Color kGold = Color(0xFFC9A24B);
@@ -76,18 +75,6 @@ class SecurityPrivacyScreen extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (_) => const PrivacySettingsScreen(),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              _SettingsTile(
-                icon: Icons.phone_android_rounded,
-                title: 'الأجهزة المرتبطة',
-                subtitle: 'إدارة الأجهزة المسجلة في حسابك',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const LinkedDevicesScreen(),
                   ),
                 ),
               ),
