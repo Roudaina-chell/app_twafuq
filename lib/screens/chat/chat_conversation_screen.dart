@@ -31,10 +31,6 @@ class ChatConversationScreen extends StatefulWidget {
   State<ChatConversationScreen> createState() => _ChatConversationScreenState();
 }
 
-// ============================================================
-// 🎨 ثيمات المحادثة — كل ثيم عندو خلفية + لون فقاعة الرسائل المرسلة
-// (فقاعة الطرف الآخر تبقى بيضاء دائماً باش القراءة تبقى واضحة).
-// ============================================================
 class ChatThemeOption {
   final String id;
   final String label;
@@ -102,29 +98,20 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   bool _isMarkingRead = false;
   bool _isTogglingBlock = false;
 
-  // 🎨 ثيم المحادثة (خلفية + لون فقاعة رسائلي) — مخزّن فـ
-  // chatSettings/{chatId}.theme، يشوفه ويقدر يبدّله الطرفان معاً.
   String _chatThemeId = 'classic';
   bool _loadingTheme = true;
 
-  // 📝 اسم مستعار خاص بيا لهذا الشخص (بدل الاسم الحقيقي فـ هاذ المحادثة
-  // فقط) — مخزّن فـ users/{me}/nicknames/{otherId}.nickname
   String? _nickname;
 
-  // ✅ بوابة الدردشة: لا يمكن إرسال أي رسالة (نص/صوت) بدون Match فعلي
-  // (البند 7 + 14) — يُتحقق منها هنا عبر LikesService وليس فقط ثقةً
-  // بالـ Frontend؛ التنفيذ الحقيقي مفروض أيضاً فـ Firestore Security Rules.
   bool _hasMatch = false;
   bool _checkingMatch = true;
 
-  // 🎤 تسجيل صوتي
   final AudioRecorder _audioRecorder = AudioRecorder();
   bool _isRecording = false;
   int _recordSeconds = 0;
   Timer? _recordTimer;
   bool _isUploadingVoice = false;
 
-  // ▶️ تشغيل الرسائل الصوتية
   final AudioPlayer _audioPlayer = AudioPlayer();
   String? _playingMessageId;
 
@@ -163,16 +150,11 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     '🤩',
   ];
 
-  // متغيرات للرد المعلق
   String? _replyToId;
   String? _replyToText;
 
-  // MethodChannel لمنع الشاشة
   static const MethodChannel _channel = MethodChannel('screen_security');
 
-  // ============================================================
-  // 🛡️ قائمة الكلمات المحظورة
-  // ============================================================
   static const Set<String> _blockedWords = {
     'انستا',
     'انستغرام',
@@ -271,9 +253,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     return ids.join('_');
   }
 
-  // ============================================================
-  // 🔒 تفعيل منع لقطة الشاشة
-  // ============================================================
   Future<void> _enableScreenSecurity() async {
     try {
       await _channel.invokeMethod('enableSecureFlag');
@@ -302,9 +281,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     _loadNickname();
   }
 
-  // ============================================================
-  // 🎨 تحميل ثيم المحادثة المختار (مشترك بين الطرفين) من chatSettings
-  // ============================================================
   Future<void> _loadChatTheme() async {
     final chatId = _chatId;
     if (chatId == null) {
@@ -330,7 +306,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   }
 
   Future<void> _changeChatTheme(String themeId) async {
-    setState(() => _chatThemeId = themeId); // تحديث فوري بلا انتظار
+    setState(() => _chatThemeId = themeId);
     final chatId = _chatId;
     if (chatId == null) return;
     try {
@@ -369,7 +345,11 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
               ),
               const Text(
                 'شكل المحادثة',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: darkGreen),
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: darkGreen,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
@@ -399,12 +379,16 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                             color: theme.background,
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: selected ? gold : Colors.black.withValues(alpha: 0.05),
+                              color: selected
+                                  ? gold
+                                  : Colors.black.withValues(alpha: 0.05),
                               width: selected ? 2.5 : 1,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: theme.swatch.withValues(alpha: selected ? 0.28 : 0.12),
+                                color: theme.swatch.withValues(
+                                  alpha: selected ? 0.28 : 0.12,
+                                ),
                                 blurRadius: selected ? 14 : 8,
                                 offset: const Offset(0, 5),
                               ),
@@ -413,7 +397,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                           child: Stack(
                             clipBehavior: Clip.none,
                             children: [
-                              // 🫧 معاينة صغيرة: فقاعة الطرف الآخر (باهتة) + فقاعتي (بلون الثيم)
                               Align(
                                 alignment: Alignment.topLeft,
                                 child: Container(
@@ -427,7 +410,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                                     border: dark
                                         ? null
                                         : Border.all(
-                                            color: Colors.black.withValues(alpha: 0.05),
+                                            color: Colors.black.withValues(
+                                              alpha: 0.05,
+                                            ),
                                           ),
                                   ),
                                 ),
@@ -481,7 +466,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                           theme.label,
                           style: TextStyle(
                             fontSize: 11.5,
-                            fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+                            fontWeight: selected
+                                ? FontWeight.w800
+                                : FontWeight.w500,
                             color: darkGreen,
                           ),
                         ),
@@ -497,9 +484,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     );
   }
 
-  // ============================================================
-  // 📝 اسم مستعار خاص بيا لهاذ الشخص (شخصي، ما يشوفوش الطرف الآخر)
-  // ============================================================
   Future<void> _loadNickname() async {
     final me = _myUid;
     final otherId = widget.personId;
@@ -529,7 +513,10 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('اسم مستعار', style: TextStyle(color: darkGreen, fontWeight: FontWeight.w800)),
+        title: const Text(
+          'اسم مستعار',
+          style: TextStyle(color: darkGreen, fontWeight: FontWeight.w800),
+        ),
         content: TextField(
           controller: controller,
           textDirection: TextDirection.rtl,
@@ -539,9 +526,15 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: darkGreen, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: darkGreen,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () => Navigator.pop(ctx, controller.text.trim()),
             child: const Text('حفظ'),
           ),
@@ -592,9 +585,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     });
   }
 
-  // ============================================================
-  // 💞 التحقق من وجود Match — بوابة المراسلة (البند 7)
-  // ============================================================
   Future<void> _checkMatch() async {
     final otherId = widget.personId;
     if (otherId == null) {
@@ -615,9 +605,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     }
   }
 
-  // ============================================================
-  // 🔒 التحقق من الحظر
-  // ============================================================
   Future<void> _checkIfBlocked() async {
     final myUid = _myUid;
     final otherId = widget.personId;
@@ -642,10 +629,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     }
   }
 
-  // ============================================================
-  // 🔒 حظر/إلغاء حظر مباشرة من قائمة (⋮) المحادثة — كنبقاو فـ نفس
-  // الشاشة، والواجهة كتبدل وحدها (بحال WhatsApp) بلا ما نديرو Navigator
-  // ============================================================
   Future<void> _toggleBlockFromMenu() async {
     final myUid = _myUid;
     final otherId = widget.personId;
@@ -714,10 +697,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     }
   }
 
-  // ============================================================
-  // 🗑️ حذف المحادثة كاملة من قائمة (⋮) المحادثة — كنرجعو لقائمة
-  // المحادثات (pop وحدة) حيت المحادثة ماعادش كاينة
-  // ============================================================
   Future<void> _deleteConversationFromMenu() async {
     final chatId = _chatId;
     if (chatId == null) return;
@@ -768,7 +747,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
       await batch.commit();
       if (mounted) {
         _showFloatingSnack('🗑️ تم حذف المحادثة');
-        Navigator.pop(context); // ✅ pop وحدة برك — كنرجعو لقائمة المحادثات
+        Navigator.pop(context);
       }
     } catch (e) {
       debugPrint('❌ Delete conversation failed: $e');
@@ -778,9 +757,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     }
   }
 
-  // ============================================================
-  // 🛡️ فحص المحتوى المحظور
-  // ============================================================
   bool _containsBlockedContent(String text) {
     final lowerText = text.toLowerCase();
     for (final word in _blockedWords) {
@@ -798,9 +774,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     return false;
   }
 
-  // ============================================================
-  // 🔔 Snackbar موحد وأنيق
-  // ============================================================
   void _showFloatingSnack(String message, {bool isError = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -809,9 +782,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
         backgroundColor: isError ? Colors.red.shade700 : darkGreen,
         duration: const Duration(seconds: 3),
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         content: Text(
           message,
           style: const TextStyle(color: Colors.white, fontSize: 13.5),
@@ -820,9 +791,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     );
   }
 
-  // ============================================================
-  // ✅ إرسال الرسالة مع دعم الرد + حقل "read" (لعلامة الاطلاع)
-  // ============================================================
   Future<void> _sendMessage({String? replyToId, String? replyToText}) async {
     final text = _controller.text.trim();
     final me = _myUid;
@@ -866,7 +834,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
       return;
     }
 
-    // ✅ بوابة Match: لا رسالة بلا توافق متبادل (البند 7 + 14)
     if (!_hasMatch) {
       _showFloatingSnack(
         'لا يمكنك المراسلة قبل أن يقبل الطرف الآخر إعجابك',
@@ -888,7 +855,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
         'replyToId': replyToId,
         'replyToText': replyToText,
         'reactions': {},
-        'read': false, // ✅ الرسالة الجديدة دايما تبدا "غير مقروءة"
+        'read': false,
       });
       _clearReplyState();
       _scrollToBottom();
@@ -902,11 +869,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     }
   }
 
-  // ============================================================
-  // ✅ نعلمو الرسائل الموجهة لينا كـ "مقروءة" كي نفتحو المحادثة أو
-  // كي توصل رسائل جداد ونحن حاطين فـ الشاشة. كنستعملو نفس الـ docs
-  // اللي جايين من الـ StreamBuilder، بلا query إضافية.
-  // ============================================================
   Future<void> _markMessagesAsRead(
     List<QueryDocumentSnapshot<Map<String, dynamic>>> unreadIncoming,
   ) async {
@@ -925,9 +887,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     }
   }
 
-  // ============================================================
-  // 🧹 إلغاء الرد المعلق
-  // ============================================================
   void _clearReplyState() {
     setState(() {
       _replyToId = null;
@@ -935,9 +894,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     });
   }
 
-  // ============================================================
-  // 😊 اختيار Emoji — bottom sheet بسيط، كيدخل الـ emoji فـ الـ TextField
-  // ============================================================
   void _openEmojiPicker() {
     showModalBottomSheet(
       context: context,
@@ -971,7 +927,11 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                         final cursor = selection.start >= 0
                             ? selection.start
                             : text.length;
-                        final newText = text.replaceRange(cursor, cursor, emoji);
+                        final newText = text.replaceRange(
+                          cursor,
+                          cursor,
+                          emoji,
+                        );
                         _controller.text = newText;
                         _controller.selection = TextSelection.collapsed(
                           offset: cursor + emoji.length,
@@ -983,7 +943,10 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                           color: bg,
                         ),
                         child: Center(
-                          child: Text(emoji, style: const TextStyle(fontSize: 24)),
+                          child: Text(
+                            emoji,
+                            style: const TextStyle(fontSize: 24),
+                          ),
                         ),
                       ),
                     );
@@ -1008,16 +971,12 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     );
   }
 
-  // ============================================================
-  // 🎤 تسجيل رسالة صوتية — تبدا بضغطة، تسالي بضغطة أخرى وكتصيفط
-  // ============================================================
   Future<void> _toggleRecording() async {
     if (_isRecording) {
       await _stopRecordingAndSend();
       return;
     }
 
-    // ✅ بوابة Match قبل حتى بدء التسجيل (البند 7 + 14)
     if (!_hasMatch) {
       _showFloatingSnack(
         'لا يمكنك المراسلة قبل أن يقبل الطرف الآخر إعجابك',
@@ -1030,7 +989,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
       final hasPermission = await _audioRecorder.hasPermission();
       if (!hasPermission) {
         if (mounted) {
-          _showFloatingSnack('خاصك تعطي صلاحية الميكروفون باش تبعت رسالة صوتية');
+          _showFloatingSnack(
+            'خاصك تعطي صلاحية الميكروفون باش تبعت رسالة صوتية',
+          );
         }
         return;
       }
@@ -1065,14 +1026,13 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
 
     try {
       final path = await _audioRecorder.stop();
-      if (path == null || durationSeconds < 1)
-        return; // ✅ تسجيل قصير بزاف، تجاهله
+      if (path == null || durationSeconds < 1) return;
 
       final me = _myUid;
       final other = widget.personId;
       final chatId = _chatId;
       if (me == null || other == null || chatId == null) return;
-      if (!_hasMatch) return; // ✅ بوابة Match (تحقق مضاعف قبل الإرسال الفعلي)
+      if (!_hasMatch) return;
 
       setState(() => _isUploadingVoice = true);
 
@@ -1133,17 +1093,16 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     return '$m:$s';
   }
 
-  // ============================================================
-  // ✏️ تعديل رسالة (خاصة بك فقط)
-  // ============================================================
   Future<void> _editMessage(String docId, String currentText) async {
     final controller = TextEditingController(text: currentText);
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('تعديل الرسالة',
-            style: TextStyle(color: darkGreen, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'تعديل الرسالة',
+          style: TextStyle(color: darkGreen, fontWeight: FontWeight.bold),
+        ),
         content: TextField(
           controller: controller,
           maxLines: 3,
@@ -1195,18 +1154,19 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     }
   }
 
-  // ============================================================
-  // 🗑️ حذف رسالة (خاصة بك فقط)
-  // ============================================================
   Future<void> _deleteMessage(String docId) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('حذف الرسالة',
-            style: TextStyle(color: darkGreen, fontWeight: FontWeight.bold)),
-        content: const Text('هل أنت متأكد من حذف هذه الرسالة؟',
-            style: TextStyle(fontSize: 13)),
+        title: const Text(
+          'حذف الرسالة',
+          style: TextStyle(color: darkGreen, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'هل أنت متأكد من حذف هذه الرسالة؟',
+          style: TextStyle(fontSize: 13),
+        ),
         actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
         actions: [
           TextButton(
@@ -1245,9 +1205,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     }
   }
 
-  // ============================================================
-  // ↩️ بدء الرد على رسالة (أي رسالة)
-  // ============================================================
   void _replyToMessage(String replyToId, String replyToText) {
     setState(() {
       _replyToId = replyToId;
@@ -1256,9 +1213,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     _focusNode.requestFocus();
   }
 
-  // ============================================================
-  // ❤️ إضافة/إزالة تفاعل (أي رسالة)
-  // ============================================================
   Future<void> _toggleReaction(String messageId, String emoji) async {
     final me = _myUid;
     if (me == null) return;
@@ -1290,21 +1244,20 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     }
   }
 
-  // ============================================================
-  // 🖼️ بناء الأفاتار (الصورة الحقيقية: male_1.png, female_2.png...)
-  // مع حلقة ذهبية رفيعة ونقطة الحالة (متصل/غير متصل)
-  // ============================================================
   Widget _buildAvatar({double size = 40, bool withRing = true}) {
     Widget avatarCore;
-    // 🚫 كي نكونو حاظرين هاذ الشخص، تختفي صورة البروفيل الحقيقية ونبينو
-    // أفاتار محايدة بدالها (بحال WhatsApp بالضبط).
     if (_isBlocked) {
       avatarCore = CircleAvatar(
         radius: size / 2,
         backgroundColor: Colors.grey.shade200,
-        child: Icon(Icons.person, color: Colors.grey.shade400, size: size * 0.55),
+        child: Icon(
+          Icons.person,
+          color: Colors.grey.shade400,
+          size: size * 0.55,
+        ),
       );
-    } else if (widget.personAvatarAsset == null || widget.personAvatarAsset!.isEmpty) {
+    } else if (widget.personAvatarAsset == null ||
+        widget.personAvatarAsset!.isEmpty) {
       avatarCore = CircleAvatar(
         radius: size / 2,
         backgroundColor: darkGreen.withValues(alpha: 0.08),
@@ -1366,10 +1319,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     );
   }
 
-  // ============================================================
-  // 🍔 صف موحّد لعناصر قائمة (⋮): أيقونة داخل شيبة ملوّنة + نص —
-  // شكل modern بدل الأيقونة العارية القديمة.
-  // ============================================================
   Widget _buildMenuRow({
     required IconData icon,
     required Color color,
@@ -1400,9 +1349,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     );
   }
 
-  // ============================================================
-  // 🏗️ الواجهة الرئيسية
-  // ============================================================
   @override
   Widget build(BuildContext context) {
     final theme = chatThemeById(_chatThemeId);
@@ -1424,148 +1370,153 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
           child: SafeArea(
             bottom: false,
             child: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            titleSpacing: 0,
-            title: GestureDetector(
-              onTap: () {
-                if (widget.personId != null) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ProfileViewScreen(
-                        userId: widget.personId!,
-                        userName: widget.personName,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              titleSpacing: 0,
+              title: GestureDetector(
+                onTap: () {
+                  if (widget.personId != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ProfileViewScreen(
+                          userId: widget.personId!,
+                          userName: widget.personName,
+                        ),
                       ),
-                    ),
-                  );
-                }
-              },
-              child: Row(
-                children: [
-                  _buildAvatar(size: 40),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _nickname ?? widget.personName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: darkGreen,
-                            letterSpacing: 0.1,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        _buildOnlineStatus(),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            iconTheme: const IconThemeData(color: darkGreen),
-            actions: [
-              PopupMenuButton<String>(
-                icon: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: bg,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.more_vert_rounded,
-                      color: darkGreen, size: 20),
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                color: Colors.white,
-                elevation: 8,
-                offset: const Offset(0, 8),
-                itemBuilder: (ctx) => [
-                  PopupMenuItem(
-                    value: 'theme',
-                    height: 46,
-                    child: _buildMenuRow(
-                      icon: Icons.palette_rounded,
-                      color: gold,
-                      label: 'تغيير شكل المحادثة',
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'nickname',
-                    height: 46,
-                    child: _buildMenuRow(
-                      icon: Icons.badge_rounded,
-                      color: darkGreen,
-                      label: 'اسم مستعار',
-                    ),
-                  ),
-                  const PopupMenuDivider(height: 10),
-                  PopupMenuItem(
-                    value: 'report',
-                    height: 46,
-                    child: _buildMenuRow(
-                      icon: Icons.flag_rounded,
-                      color: Colors.orange.shade700,
-                      label: 'الإبلاغ عن المستخدم',
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'block',
-                    height: 46,
-                    child: _buildMenuRow(
-                      icon: _isBlocked
-                          ? Icons.check_circle_rounded
-                          : Icons.block_rounded,
-                      color: Colors.red.shade600,
-                      destructive: true,
-                      label: _isBlocked ? 'إلغاء حظر المستخدم' : 'حظر المستخدم',
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    height: 46,
-                    child: _buildMenuRow(
-                      icon: Icons.delete_rounded,
-                      color: Colors.red.shade600,
-                      destructive: true,
-                      label: 'حذف المحادثة',
-                    ),
-                  ),
-                ],
-                onSelected: (value) {
-                  if (value == 'report') {
-                    if (widget.personId != null) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ReportUserScreen(
-                            userId: widget.personId!,
-                            userName: widget.personName,
-                          ),
-                        ),
-                      );
-                    }
-                  } else if (value == 'block') {
-                    _toggleBlockFromMenu();
-                  } else if (value == 'delete') {
-                    _deleteConversationFromMenu();
-                  } else if (value == 'theme') {
-                    _openThemePicker();
-                  } else if (value == 'nickname') {
-                    _openNicknameDialog();
+                    );
                   }
                 },
+                child: Row(
+                  children: [
+                    _buildAvatar(size: 40),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _nickname ?? widget.personName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: darkGreen,
+                              letterSpacing: 0.1,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          _buildOnlineStatus(),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(width: 6),
-            ],
-          ),
+              iconTheme: const IconThemeData(color: darkGreen),
+              actions: [
+                PopupMenuButton<String>(
+                  icon: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: bg,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.more_vert_rounded,
+                      color: darkGreen,
+                      size: 20,
+                    ),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  color: Colors.white,
+                  elevation: 8,
+                  offset: const Offset(0, 8),
+                  itemBuilder: (ctx) => [
+                    PopupMenuItem(
+                      value: 'theme',
+                      height: 46,
+                      child: _buildMenuRow(
+                        icon: Icons.palette_rounded,
+                        color: gold,
+                        label: 'تغيير شكل المحادثة',
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'nickname',
+                      height: 46,
+                      child: _buildMenuRow(
+                        icon: Icons.badge_rounded,
+                        color: darkGreen,
+                        label: 'اسم مستعار',
+                      ),
+                    ),
+                    const PopupMenuDivider(height: 10),
+                    PopupMenuItem(
+                      value: 'report',
+                      height: 46,
+                      child: _buildMenuRow(
+                        icon: Icons.flag_rounded,
+                        color: Colors.orange.shade700,
+                        label: 'الإبلاغ عن المستخدم',
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'block',
+                      height: 46,
+                      child: _buildMenuRow(
+                        icon: _isBlocked
+                            ? Icons.check_circle_rounded
+                            : Icons.block_rounded,
+                        color: Colors.red.shade600,
+                        destructive: true,
+                        label: _isBlocked
+                            ? 'إلغاء حظر المستخدم'
+                            : 'حظر المستخدم',
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      height: 46,
+                      child: _buildMenuRow(
+                        icon: Icons.delete_rounded,
+                        color: Colors.red.shade600,
+                        destructive: true,
+                        label: 'حذف المحادثة',
+                      ),
+                    ),
+                  ],
+                  onSelected: (value) {
+                    if (value == 'report') {
+                      if (widget.personId != null) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ReportUserScreen(
+                              userId: widget.personId!,
+                              userName: widget.personName,
+                            ),
+                          ),
+                        );
+                      }
+                    } else if (value == 'block') {
+                      _toggleBlockFromMenu();
+                    } else if (value == 'delete') {
+                      _deleteConversationFromMenu();
+                    } else if (value == 'theme') {
+                      _openThemePicker();
+                    } else if (value == 'nickname') {
+                      _openNicknameDialog();
+                    }
+                  },
+                ),
+                const SizedBox(width: 6),
+              ],
+            ),
           ),
         ),
       ),
@@ -1575,9 +1526,10 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
             Expanded(child: _buildMessagesArea()),
             AnimatedSize(
               duration: const Duration(milliseconds: 180),
-              child: _replyToId != null ? _buildReplyBanner() : const SizedBox.shrink(),
+              child: _replyToId != null
+                  ? _buildReplyBanner()
+                  : const SizedBox.shrink(),
             ),
-            // ✅ لا نعرض شريط الكتابة إلا بعد التأكد من وجود Match فعلي
             if (!_checkingMatch && _hasMatch) _buildInputBar(),
           ],
         ),
@@ -1585,17 +1537,11 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     );
   }
 
-  // ============================================================
-  // 🟢 حالة "متصل الآن" الحية — StreamBuilder على document المستخدم
-  // الآخر باش تتبدل مباشرة كي يدخل/يخرج من التطبيق
-  // ============================================================
   Widget _buildOnlineStatus() {
     final otherId = widget.personId;
     if (otherId == null) {
       return const SizedBox.shrink();
     }
-    // 🚫 كي نكونو حاظرينو، ما كنعرضوش حالته الحقيقية (متصل/غير متصل) —
-    // كتبان ليك دايماً "غير متاح" بلا ما تتبدل لايف.
     if (_isBlocked) {
       return Row(
         mainAxisSize: MainAxisSize.min,
@@ -1648,7 +1594,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
             ],
           );
         }
-        // ✅ غير متصل — نبينو المدينة إلا كانت موجودة، وإلا "غير متصل"
         final label =
             (widget.personCity != null && widget.personCity!.isNotEmpty)
             ? widget.personCity!
@@ -1672,9 +1617,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     );
   }
 
-  // ============================================================
-  // 📌 شريط الرد المعلق
-  // ============================================================
   Widget _buildReplyBanner() {
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
@@ -1722,11 +1664,12 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
             onTap: _clearReplyState,
             child: Container(
               padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: bg,
-                shape: BoxShape.circle,
+              decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+              child: const Icon(
+                Icons.close_rounded,
+                size: 16,
+                color: Colors.grey,
               ),
-              child: const Icon(Icons.close_rounded, size: 16, color: Colors.grey),
             ),
           ),
         ],
@@ -1734,9 +1677,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     );
   }
 
-  // ============================================================
-  // 💬 منطقة الرسائل
-  // ============================================================
   Widget _buildMessagesArea() {
     final me = _myUid;
     final chatId = _chatId;
@@ -1752,7 +1692,8 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
         icon: Icons.favorite_border_rounded,
         iconColor: gold,
         title: 'لا توجد محادثة بعد',
-        subtitle: 'يجب أن يقبل الطرفان الإعجاب أولاً (Match) قبل إمكانية المراسلة',
+        subtitle:
+            'يجب أن يقبل الطرفان الإعجاب أولاً (Match) قبل إمكانية المراسلة',
       );
     }
 
@@ -1809,13 +1750,11 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
 
         final docs = snapshot.data?.docs ?? [];
 
-        // ✅ نعلمو الرسائل الموجهة لينا وماكانتش مقروءة، بلا query زايدة
         final unreadIncoming = docs.where((d) {
           final data = d.data();
           return data['toUserId'] == me && data['read'] != true;
         }).toList();
         if (unreadIncoming.isNotEmpty) {
-          // fire-and-forget، ما خاصناش ننتظرو الـ batch باش نبنيو الواجهة
           _markMessagesAsRead(unreadIncoming);
         }
 
@@ -1874,7 +1813,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                         maxWidth: MediaQuery.of(context).size.width * 0.75,
                       ),
                       decoration: BoxDecoration(
-                        color: fromMe ? chatThemeById(_chatThemeId).swatch : Colors.white,
+                        color: fromMe
+                            ? chatThemeById(_chatThemeId).swatch
+                            : Colors.white,
                         borderRadius: BorderRadius.only(
                           topLeft: const Radius.circular(18),
                           topRight: const Radius.circular(18),
@@ -1886,8 +1827,11 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                             : Border.all(color: Colors.grey.shade200, width: 1),
                         boxShadow: [
                           BoxShadow(
-                            color: (fromMe ? chatThemeById(_chatThemeId).swatch : Colors.grey)
-                                .withValues(alpha: fromMe ? 0.18 : 0.08),
+                            color:
+                                (fromMe
+                                        ? chatThemeById(_chatThemeId).swatch
+                                        : Colors.grey)
+                                    .withValues(alpha: fromMe ? 0.18 : 0.08),
                             blurRadius: 10,
                             offset: const Offset(0, 3),
                           ),
@@ -1977,8 +1921,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                                         : Colors.grey.shade500,
                                   ),
                                 ),
-                                // ✅ علامة الاطلاع (بحال واتساب): ✓✓ رمادية
-                                // = توصلت، ✓✓ زرقاء = تشافت من الطرف الآخر
                                 if (fromMe) ...[
                                   const SizedBox(width: 4),
                                   Icon(
@@ -2025,7 +1967,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.grey.withValues(alpha: 0.06),
+                                      color: Colors.grey.withValues(
+                                        alpha: 0.06,
+                                      ),
                                       blurRadius: 4,
                                       offset: const Offset(0, 1),
                                     ),
@@ -2050,9 +1994,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     );
   }
 
-  // ============================================================
-  // 🧊 حالة معلوماتية موحدة (فارغ / محظور / خطأ)
-  // ============================================================
   Widget _buildInfoState({
     required IconData icon,
     required Color iconColor,
@@ -2101,9 +2042,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     );
   }
 
-  // ============================================================
-  // 📋 القائمة المنبثقة (تدعم الجميع)
-  // ============================================================
   void _showMessageOptions(String docId, String text, bool isMyMessage) {
     showModalBottomSheet(
       context: context,
@@ -2159,10 +2097,16 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                     color: Colors.blue.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.reply_rounded, color: Colors.blue, size: 18),
+                  child: const Icon(
+                    Icons.reply_rounded,
+                    color: Colors.blue,
+                    size: 18,
+                  ),
                 ),
-                title: const Text('رد على الرسالة',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                title: const Text(
+                  'رد على الرسالة',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                ),
                 onTap: () {
                   Navigator.pop(ctx);
                   _replyToMessage(docId, text);
@@ -2176,10 +2120,16 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                       color: darkGreen.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.edit_rounded, color: darkGreen, size: 18),
+                    child: const Icon(
+                      Icons.edit_rounded,
+                      color: darkGreen,
+                      size: 18,
+                    ),
                   ),
-                  title: const Text('تعديل الرسالة',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  title: const Text(
+                    'تعديل الرسالة',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                  ),
                   onTap: () {
                     Navigator.pop(ctx);
                     _editMessage(docId, text);
@@ -2192,11 +2142,16 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                       color: Colors.red.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.delete_outline_rounded,
-                        color: Colors.red, size: 18),
+                    child: const Icon(
+                      Icons.delete_outline_rounded,
+                      color: Colors.red,
+                      size: 18,
+                    ),
                   ),
-                  title: const Text('حذف الرسالة',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  title: const Text(
+                    'حذف الرسالة',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                  ),
                   onTap: () {
                     Navigator.pop(ctx);
                     _deleteMessage(docId);
@@ -2218,11 +2173,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     return '$hour:$minute $period';
   }
 
-  // ============================================================
-  // 📝 شريط إدخال النص
-  // ============================================================
-  // 🔘 شكل موحّد لأزرار الإيموجي/الميكرو: دائرة صغيرة بلون خفيف بدل
-  // الأيقونة العارية — هاذ الشي كيعطي لمسة "modern" بلا ما نبدلو الألوان.
   Widget _buildRoundChipButton({
     required Widget icon,
     required VoidCallback? onTap,
@@ -2234,10 +2184,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
         duration: const Duration(milliseconds: 150),
         width: 38,
         height: 38,
-        decoration: BoxDecoration(
-          color: background,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: background, shape: BoxShape.circle),
         alignment: Alignment.center,
         child: icon,
       ),
@@ -2272,13 +2219,10 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
               child: Row(
                 children: [
-                  // 😊 زر الـ emoji — شكل دائرة معبأة بدل أيقونة عارية
                   _buildRoundChipButton(
                     icon: Icon(
                       Icons.emoji_emotions_rounded,
-                      color: _isRecording
-                          ? Colors.grey.shade300
-                          : theme.swatch,
+                      color: _isRecording ? Colors.grey.shade300 : theme.swatch,
                       size: 21,
                     ),
                     background: theme.swatch.withValues(alpha: 0.08),
@@ -2346,7 +2290,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                           ),
                   ),
                   const SizedBox(width: 4),
-                  // 🎤 زر التسجيل الصوتي — دائرة تتلوّن بالأحمر أثناء التسجيل
                   _buildRoundChipButton(
                     icon: _isUploadingVoice
                         ? const SizedBox(
@@ -2434,9 +2377,6 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   }
 }
 
-// ============================================================
-// 🎤 صف عرض الرسالة الصوتية داخل الفقاعة: زر تشغيل/إيقاف + موجة + مدة
-// ============================================================
 class _VoiceMessageRow extends StatelessWidget {
   final bool isPlaying;
   final int durationSeconds;
@@ -2456,9 +2396,22 @@ class _VoiceMessageRow extends StatelessWidget {
     return '$m:$s';
   }
 
-  // ارتفاعات ثابتة لأعمدة الموجة الصوتية (شكل ديكوري بسيط، بلا مكتبات إضافية)
   static const List<double> _bars = [
-    6, 11, 8, 14, 9, 16, 7, 13, 10, 6, 12, 8, 15, 9, 6,
+    6,
+    11,
+    8,
+    14,
+    9,
+    16,
+    7,
+    13,
+    10,
+    6,
+    12,
+    8,
+    15,
+    9,
+    6,
   ];
 
   @override
@@ -2499,7 +2452,9 @@ class _VoiceMessageRow extends StatelessWidget {
                           margin: const EdgeInsets.symmetric(horizontal: 1),
                           height: h,
                           decoration: BoxDecoration(
-                            color: color.withValues(alpha: isPlaying ? 0.9 : 0.4),
+                            color: color.withValues(
+                              alpha: isPlaying ? 0.9 : 0.4,
+                            ),
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),

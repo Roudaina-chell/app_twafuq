@@ -16,6 +16,7 @@ class _FormulaireInfoState extends State<FormulaireInfo>
   static const Color darkGreen = Color(0xFF0F3D2E);
   static const Color gold = Color(0xFFC9A24B);
   static const Color bg = Color(0xFFFAF7F2);
+  static const Color cardBorder = Color(0xFFEFEAE2);
 
   final _nameController = TextEditingController();
   final _occupationController = TextEditingController();
@@ -33,9 +34,9 @@ class _FormulaireInfoState extends State<FormulaireInfo>
   late Animation<Offset> _slideAnimation;
 
   final List<String> _educationLevels = [
-    'ثانوي',
-    'ليسانس',
-    'ماستر',
+    'ثانوية',
+    'إجازة (ليسانس)',
+    'ماجستير',
     'دكتوراه',
     'أخرى',
   ];
@@ -50,22 +51,27 @@ class _FormulaireInfoState extends State<FormulaireInfo>
     'أخرى',
   ];
 
-  final List<String> _maritalStatuses = ['أعزب', 'مطلق', 'أرمل'];
+  final List<String> _maritalStatuses = ['أعزب', 'مطلّق', 'أرمل'];
 
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 650),
     );
 
     _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
 
-    _slideAnimation = Tween<Offset>(begin: const Offset(0.2, 0), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0.2, 0), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
 
     _animationController.forward();
   }
@@ -88,7 +94,7 @@ class _FormulaireInfoState extends State<FormulaireInfo>
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
+            colorScheme: const ColorScheme.light(
               primary: darkGreen,
               onPrimary: Colors.white,
               surface: Colors.white,
@@ -113,7 +119,7 @@ class _FormulaireInfoState extends State<FormulaireInfo>
         _city == null ||
         _maritalStatus == null) {
       setState(() {
-        _errorMessage = 'خاصك تعمري جميع الحقول';
+        _errorMessage = 'يُرجى تعبئة جميع الحقول قبل المتابعة';
       });
       return;
     }
@@ -127,7 +133,7 @@ class _FormulaireInfoState extends State<FormulaireInfo>
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) {
         setState(() {
-          _errorMessage = 'خطأ: ماكاين حتى مستخدم مسجل الدخول';
+          _errorMessage = 'خطأ: لا يوجد مستخدم مسجّل الدخول حاليًا';
         });
         return;
       }
@@ -150,7 +156,7 @@ class _FormulaireInfoState extends State<FormulaireInfo>
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'وقع خطأ، عاودي المحاولة';
+        _errorMessage = 'حدث خطأ غير متوقع، يُرجى إعادة المحاولة';
       });
     } finally {
       if (mounted) {
@@ -168,42 +174,71 @@ class _FormulaireInfoState extends State<FormulaireInfo>
   }) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-      prefixIcon: Icon(icon, color: darkGreen, size: 20),
+      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13.5),
+      prefixIcon: Icon(icon, color: darkGreen, size: 19),
       suffixIcon: suffix,
       filled: true,
-      fillColor: Colors.grey.shade50,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      fillColor: bg.withValues(alpha: 0.6),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: Colors.grey.shade200),
+        borderSide: BorderSide(color: cardBorder),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: Colors.grey.shade200),
+        borderSide: BorderSide(color: cardBorder),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: darkGreen, width: 1.5),
+        borderSide: const BorderSide(color: darkGreen, width: 1.6),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Colors.red, width: 1.5),
+        borderSide: const BorderSide(color: Color(0xFFDE3B40), width: 1.4),
       ),
     );
   }
 
   Widget _buildLabel(String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6, top: 14),
-      child: Text(
-        text,
-        textAlign: TextAlign.right,
-        style: TextStyle(
-          color: darkGreen,
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-        ),
+      padding: const EdgeInsets.only(bottom: 7, top: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Text(
+            text,
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              color: darkGreen,
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionDivider(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 22, bottom: 6),
+      child: Row(
+        children: [
+          Expanded(child: Container(height: 1, color: cardBorder)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: gold,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ),
+          Expanded(child: Container(height: 1, color: cardBorder)),
+        ],
       ),
     );
   }
@@ -222,49 +257,76 @@ class _FormulaireInfoState extends State<FormulaireInfo>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // HEADER مع شريط التقدم
+                  // ==================================================
+                  // الترويسة وشريط التقدم
+                  // ==================================================
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      IconButton(
-                        onPressed: () => Navigator.maybePop(context),
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                            color: darkGreen, size: 20),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withValues(alpha: 0.10),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: IconButton(
+                          onPressed: () => Navigator.maybePop(context),
+                          icon: const Icon(
+                            Icons.arrow_back_ios_new_rounded,
+                            color: darkGreen,
+                            size: 18,
+                          ),
+                        ),
                       ),
+                      const SizedBox(width: 4),
                       const Text(
                         'TAWAFUQ',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: darkGreen,
-                          letterSpacing: 1.5,
-                          fontSize: 16,
+                          letterSpacing: 1.8,
+                          fontSize: 15,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 14),
                       Expanded(
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(6),
                           child: LinearProgressIndicator(
                             value: 0.4,
-                            minHeight: 6,
+                            minHeight: 7,
                             backgroundColor: Colors.grey.shade200,
-                            valueColor:
-                                const AlwaysStoppedAnimation<Color>(gold),
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              gold,
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 10),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
+                          horizontal: 9,
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
                           color: gold,
                           borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: gold.withValues(alpha: 0.3),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: const Text(
-                          '2/5',
+                          '٢ / ٥',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
@@ -274,66 +336,85 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 26),
 
-                  // أيقونة كبيرة
+                  // ==================================================
+                  // أيقونة القسم
+                  // ==================================================
                   Center(
                     child: Container(
-                      width: 70,
-                      height: 70,
+                      width: 76,
+                      height: 76,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: gold.withValues(alpha: 0.10),
-                        border: Border.all(color: gold.withValues(alpha: 0.3), width: 2),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            gold.withValues(alpha: 0.16),
+                            gold.withValues(alpha: 0.05),
+                          ],
+                        ),
+                        border: Border.all(
+                          color: gold.withValues(alpha: 0.35),
+                          width: 1.6,
+                        ),
                       ),
                       child: const Icon(
                         Icons.person_outline_rounded,
                         color: darkGreen,
-                        size: 34,
+                        size: 36,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
 
+                  // ==================================================
                   // العنوان والوصف
+                  // ==================================================
                   const Text(
                     'معلومات أساسية',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 24,
+                      fontSize: 25,
                       fontWeight: FontWeight.bold,
                       color: darkGreen,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'نحتاج بعض المعلومات لبناء ملفك الشخصي',
+                  const SizedBox(height: 7),
+                  Text(
+                    'نحتاج إلى بعض المعلومات لإنشاء ملفك الشخصي',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                      height: 1.5,
+                      fontSize: 13.5,
+                      color: Colors.grey.shade600,
+                      height: 1.6,
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 26),
 
+                  // ==================================================
                   // بطاقة الحقول
+                  // ==================================================
                   Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(color: cardBorder),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.grey.withValues(alpha: 0.08),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
+                          color: darkGreen.withValues(alpha: 0.06),
+                          blurRadius: 24,
+                          offset: const Offset(0, 10),
                         ),
                       ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        _buildSectionDivider('البيانات الشخصية'),
+
                         // الاسم الكامل
                         _buildLabel('الاسم الكامل'),
                         TextField(
@@ -369,21 +450,22 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                           ),
                         ),
 
+                        _buildSectionDivider('المسار المهني والتعليمي'),
+
                         // المهنة والمستوى التعليمي
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(
                               child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.stretch,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
                                   _buildLabel('المهنة'),
                                   TextField(
                                     controller: _occupationController,
                                     textAlign: TextAlign.right,
                                     decoration: _buildDecoration(
-                                      hint: 'المهنة',
+                                      hint: 'مهنتك',
                                       icon: Icons.work_outline,
                                     ),
                                   ),
@@ -393,8 +475,7 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.stretch,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
                                   _buildLabel('المستوى التعليمي'),
                                   DropdownButtonFormField<String>(
@@ -404,6 +485,7 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                                       'اختر',
                                       style: TextStyle(
                                         color: Colors.grey.shade400,
+                                        fontSize: 13.5,
                                       ),
                                     ),
                                     icon: const Icon(
@@ -417,7 +499,12 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                                     items: _educationLevels.map((e) {
                                       return DropdownMenuItem(
                                         value: e,
-                                        child: Text(e),
+                                        child: Text(
+                                          e,
+                                          style: const TextStyle(
+                                            fontSize: 13.5,
+                                          ),
+                                        ),
                                       );
                                     }).toList(),
                                     onChanged: (v) =>
@@ -429,6 +516,8 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                           ],
                         ),
 
+                        _buildSectionDivider('بيانات إضافية'),
+
                         // المدينة
                         _buildLabel('المدينة'),
                         DropdownButtonFormField<String>(
@@ -436,7 +525,10 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                           isExpanded: true,
                           hint: Text(
                             'اختر مدينتك',
-                            style: TextStyle(color: Colors.grey.shade400),
+                            style: TextStyle(
+                              color: Colors.grey.shade400,
+                              fontSize: 13.5,
+                            ),
                           ),
                           icon: const Icon(
                             Icons.keyboard_arrow_down_rounded,
@@ -449,33 +541,42 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                           items: _cities.map((c) {
                             return DropdownMenuItem(
                               value: c,
-                              child: Text(c),
+                              child: Text(
+                                c,
+                                style: const TextStyle(fontSize: 13.5),
+                              ),
                             );
                           }).toList(),
                           onChanged: (v) => setState(() => _city = v),
                         ),
 
-                        // الحالة العائلية
-                        _buildLabel('الحالة العائلية'),
+                        // الحالة الاجتماعية
+                        _buildLabel('الحالة الاجتماعية'),
                         DropdownButtonFormField<String>(
                           value: _maritalStatus,
                           isExpanded: true,
                           hint: Text(
-                            'اختر حالتك العائلية',
-                            style: TextStyle(color: Colors.grey.shade400),
+                            'اختر حالتك الاجتماعية',
+                            style: TextStyle(
+                              color: Colors.grey.shade400,
+                              fontSize: 13.5,
+                            ),
                           ),
                           icon: const Icon(
                             Icons.keyboard_arrow_down_rounded,
                             color: darkGreen,
                           ),
                           decoration: _buildDecoration(
-                            hint: 'الحالة العائلية',
+                            hint: 'الحالة الاجتماعية',
                             icon: Icons.people_outline,
                           ),
                           items: _maritalStatuses.map((m) {
                             return DropdownMenuItem(
                               value: m,
-                              child: Text(m),
+                              child: Text(
+                                m,
+                                style: const TextStyle(fontSize: 13.5),
+                              ),
                             );
                           }).toList(),
                           onChanged: (v) => setState(() => _maritalStatus = v),
@@ -484,61 +585,118 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                     ),
                   ),
 
-                  // عرض الخطأ
+                  // ==================================================
+                  // رسالة الخطأ
+                  // ==================================================
                   if (_errorMessage != null) ...[
                     const SizedBox(height: 16),
                     Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
                       ),
-                      child: Text(
-                        _errorMessage!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.red, fontSize: 13),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDE3B40).withValues(alpha: 0.07),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: const Color(
+                            0xFFDE3B40,
+                          ).withValues(alpha: 0.18),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.error_outline_rounded,
+                            color: Color(0xFFDE3B40),
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _errorMessage!,
+                              textAlign: TextAlign.right,
+                              style: const TextStyle(
+                                color: Color(0xFFDE3B40),
+                                fontSize: 12.5,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
-                  // زر متابعة
+                  // ==================================================
+                  // زر المتابعة
+                  // ==================================================
                   SizedBox(
                     width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _submit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: darkGreen,
-                        elevation: 4,
-                        shadowColor: darkGreen.withValues(alpha: 0.3),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                    height: 56,
+                    child: Material(
+                      color: darkGreen,
+                      borderRadius: BorderRadius.circular(18),
+                      elevation: 0,
+                      child: InkWell(
+                        onTap: _isLoading ? null : _submit,
+                        borderRadius: BorderRadius.circular(18),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(18),
+                            boxShadow: [
+                              BoxShadow(
+                                color: darkGreen.withValues(alpha: 0.25),
+                                blurRadius: 14,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2.4,
+                                    ),
+                                  )
+                                : Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: const [
+                                      Text(
+                                        'متابعة',
+                                        style: TextStyle(
+                                          fontSize: 16.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      SizedBox(width: 8),
+                                      Icon(
+                                        Icons.arrow_back_ios_new_rounded,
+                                        size: 14,
+                                        color: Colors.white,
+                                      ),
+                                    ],
+                                  ),
+                          ),
                         ),
                       ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator(
-                              color: Colors.white,
-                            )
-                          : const Text(
-                              'متابعة',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                            ),
                     ),
                   ),
 
                   const SizedBox(height: 16),
 
+                  // ==================================================
                   // ملاحظة الخصوصية
+                  // ==================================================
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.shield_outlined,
                         size: 14,
                         color: darkGreen,
@@ -546,7 +704,7 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          'جميع بياناتك محمية ولا تظهر للمستخدمين الآخرين',
+                          'جميع بياناتك محمية ولا تظهر لأي مستخدم آخر',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.grey.shade600,
@@ -557,7 +715,7 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                     ],
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
                 ],
               ),
             ),

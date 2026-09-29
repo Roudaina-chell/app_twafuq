@@ -1,3 +1,4 @@
+// screens/profile/avatar_selection.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -7,14 +8,10 @@ import 'preferences_screen.dart';
 class AvatarSelectionScreen extends StatefulWidget {
   final String? gender;
 
-  const AvatarSelectionScreen({
-    super.key,
-    this.gender,
-  });
+  const AvatarSelectionScreen({super.key, this.gender});
 
   @override
-  State<AvatarSelectionScreen> createState() =>
-      _AvatarSelectionScreenState();
+  State<AvatarSelectionScreen> createState() => _AvatarSelectionScreenState();
 }
 
 class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
@@ -68,6 +65,36 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
       assetPath: 'assets/avatars/female/female_6.png',
       bgColor: Color(0xFFFFF8E1),
     ),
+    _AvatarOption(
+      id: 'f_7',
+      assetPath: 'assets/avatars/female/female_7.png',
+      bgColor: Color(0xFFFCE4EC),
+    ),
+    _AvatarOption(
+      id: 'f_8',
+      assetPath: 'assets/avatars/female/female_8.png',
+      bgColor: Color(0xFFFFF3E0),
+    ),
+    _AvatarOption(
+      id: 'f_9',
+      assetPath: 'assets/avatars/female/female_9.png',
+      bgColor: Color(0xFFF3E5F5),
+    ),
+    _AvatarOption(
+      id: 'f_10',
+      assetPath: 'assets/avatars/female/female_10.png',
+      bgColor: Color(0xFFE8F5E9),
+    ),
+    _AvatarOption(
+      id: 'f_11',
+      assetPath: 'assets/avatars/female/female_11.png',
+      bgColor: Color(0xFFE0F7FA),
+    ),
+    _AvatarOption(
+      id: 'f_12',
+      assetPath: 'assets/avatars/female/female_12.png',
+      bgColor: Color(0xFFFFF8E1),
+    ),
   ];
 
   // ============================================================
@@ -105,6 +132,36 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
       assetPath: 'assets/avatars/male/male_6.png',
       bgColor: Color(0xFFECEFF1),
     ),
+    _AvatarOption(
+      id: 'm_7',
+      assetPath: 'assets/avatars/male/male_7.png',
+      bgColor: Color(0xFFE3F2FD),
+    ),
+    _AvatarOption(
+      id: 'm_8',
+      assetPath: 'assets/avatars/male/male_8.png',
+      bgColor: Color(0xFFFFF3E0),
+    ),
+    _AvatarOption(
+      id: 'm_9',
+      assetPath: 'assets/avatars/male/male_9.png',
+      bgColor: Color(0xFFEDE7F6),
+    ),
+    _AvatarOption(
+      id: 'm_10',
+      assetPath: 'assets/avatars/male/male_10.png',
+      bgColor: Color(0xFFE8F5E9),
+    ),
+    _AvatarOption(
+      id: 'm_11',
+      assetPath: 'assets/avatars/male/male_11.png',
+      bgColor: Color(0xFFEFEBE9),
+    ),
+    _AvatarOption(
+      id: 'm_12',
+      assetPath: 'assets/avatars/male/male_12.png',
+      bgColor: Color(0xFFECEFF1),
+    ),
   ];
 
   // ============================================================
@@ -120,14 +177,8 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
       duration: const Duration(milliseconds: 600),
     );
 
-    _fadeAnimation = Tween<double>(
-      begin: 0,
-      end: 1,
-    ).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeIn,
-      ),
+    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
 
     _animationController.forward();
@@ -240,33 +291,23 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
 
       final selected = _avatars[_selectedIndex!];
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .set(
-        {
-          'avatarId': selected.id,
-          'avatarPath': selected.assetPath,
-        },
-        SetOptions(merge: true),
-      );
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'avatarId': selected.id,
+        'avatarPath': selected.assetPath,
+      }, SetOptions(merge: true));
 
       if (!mounted) return;
 
       if (_gender == 'male') {
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(
-            builder: (_) => const PreferencesScreen(),
-          ),
+          MaterialPageRoute(builder: (_) => const PreferencesScreen()),
           (route) => false,
         );
       } else {
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(
-            builder: (_) => const AboutYouScreen(),
-          ),
+          MaterialPageRoute(builder: (_) => const AboutYouScreen()),
           (route) => false,
         );
       }
@@ -295,11 +336,7 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
       backgroundColor: bg,
       body: SafeArea(
         child: _isLoadingGender
-            ? const Center(
-                child: CircularProgressIndicator(
-                  color: darkGreen,
-                ),
-              )
+            ? const Center(child: CircularProgressIndicator(color: darkGreen))
             : SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20,
@@ -430,11 +467,11 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                         itemCount: _avatars.length,
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          mainAxisSpacing: 14,
-                          crossAxisSpacing: 6,
-                          childAspectRatio: 0.85,
-                        ),
+                              crossAxisCount: 3,
+                              mainAxisSpacing: 14,
+                              crossAxisSpacing: 6,
+                              childAspectRatio: 0.85,
+                            ),
                         itemBuilder: (context, index) {
                           final avatar = _avatars[index];
                           final bool selected = _selectedIndex == index;
@@ -459,7 +496,9 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                                     // AVATAR CIRCLE
                                     // ==================================================
                                     AnimatedContainer(
-                                      duration: const Duration(milliseconds: 220),
+                                      duration: const Duration(
+                                        milliseconds: 220,
+                                      ),
                                       width: 88,
                                       height: 88,
                                       decoration: BoxDecoration(
@@ -473,7 +512,9 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                                           BoxShadow(
                                             color: selected
                                                 ? gold.withValues(alpha: 0.40)
-                                                : Colors.black.withValues(alpha: 0.08),
+                                                : Colors.black.withValues(
+                                                    alpha: 0.08,
+                                                  ),
                                             blurRadius: selected ? 16 : 8,
                                             spreadRadius: selected ? 1.5 : 0,
                                             offset: const Offset(0, 4),
@@ -488,17 +529,18 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                                             avatar.assetPath,
                                             fit: BoxFit.cover,
                                             alignment: Alignment.topCenter,
-                                            errorBuilder: (context, error, stackTrace) {
-                                              return Container(
-                                                color: avatar.bgColor,
-                                                alignment: Alignment.center,
-                                                child: const Icon(
-                                                  Icons.person,
-                                                  size: 40,
-                                                  color: darkGreen,
-                                                ),
-                                              );
-                                            },
+                                            errorBuilder:
+                                                (context, error, stackTrace) {
+                                                  return Container(
+                                                    color: avatar.bgColor,
+                                                    alignment: Alignment.center,
+                                                    child: const Icon(
+                                                      Icons.person,
+                                                      size: 40,
+                                                      color: darkGreen,
+                                                    ),
+                                                  );
+                                                },
                                           ),
                                         ),
                                       ),
@@ -548,10 +590,14 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                             vertical: 10,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFDE3B40).withValues(alpha: 0.07),
+                            color: const Color(
+                              0xFFDE3B40,
+                            ).withValues(alpha: 0.07),
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(
-                              color: const Color(0xFFDE3B40).withValues(alpha: 0.18),
+                              color: const Color(
+                                0xFFDE3B40,
+                              ).withValues(alpha: 0.18),
                             ),
                           ),
                           child: Row(
@@ -616,7 +662,8 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen>
                                       ),
                                     )
                                   : Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         Text(
                                           'متابعة',

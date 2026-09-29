@@ -31,13 +31,12 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
   bool _isSubmitting = false;
   String? _errorMessage;
 
-  // ✅ Profile Preview مفتوح أحياناً قبل وجود Match (من صفحة "الإعجابات")
-  // — فـ هاذ الحالة كنخبيو أدوات إدارة المحادثة (بحث/كتم/اختفاء/حذف)
-  // لأنها ماعندهاش معنى قبل قبول الطرفين (البند 5).
   bool _hasMatch = false;
   bool _checkingMatch = true;
 
   Map<String, dynamic>? _userData;
+
+  Map<String, String> _nicknames = {};
 
   final _firestore = FirebaseFirestore.instance;
 
@@ -48,7 +47,16 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
     return ids.join('_');
   }
 
-  // ---- Firestore shortcuts (avoid repeating long collection paths) ----
+  String? get _otherNick {
+    final v = _nicknames[widget.userId];
+    return (v == null || v.trim().isEmpty) ? null : v;
+  }
+
+  String? get _myNick {
+    final v = _nicknames[_myUid];
+    return (v == null || v.trim().isEmpty) ? null : v;
+  }
+
   DocumentReference<Map<String, dynamic>> get _userDoc =>
       _firestore.collection('users').doc(widget.userId);
 
@@ -76,10 +84,6 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
     _loadAll();
   }
 
-  // ============================================================
-  // 🚀 تحميل كل بيانات الشاشة دفعة واحدة (بروفايل + حظر + كتم +
-  // إعدادات المحادثة + التحقق من الـ Match)
-  // ============================================================
   Future<void> _loadAll() async {
     await Future.wait([
       _loadProfile(),
@@ -90,10 +94,6 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
     ]);
   }
 
-  // ============================================================
-  // 💞 هل يوجد Match بيني وبين صاحب هذا البروفايل؟ — يتحكم فـ إظهار
-  // أدوات المحادثة (بحث/كتم/اختفاء/حذف) داخل هذه الشاشة (البند 5+7)
-  // ============================================================
   Future<void> _checkMatch() async {
     try {
       final matched = await LikesService.instance.hasMatch(widget.userId);
@@ -145,9 +145,6 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
     }
   }
 
-  // ============================================================
-  // 🔕 كتم الإشعارات لهاذ المحادثة (users/{me}/muted/{otherUid})
-  // ============================================================
   Future<void> _checkIfMuted() async {
     try {
       final doc = await _mutedDoc.get();
@@ -174,14 +171,20 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
     }
   }
 
-  // ============================================================
-  // ⏱️ إعدادات المحادثة (الرسائل ذاتية الاختفاء) — chatSettings/{chatId}
-  // ============================================================
   Future<void> _loadChatSettings() async {
     try {
       final doc = await _chatSettingsDoc.get();
       if (mounted && doc.exists) {
-        setState(() => _isDisappearing = doc.data()?['disappearing'] == true);
+        final data = doc.data();
+        final raw = data?['nicknames'];
+        setState(() {
+          _isDisappearing = data?['disappearing'] == true;
+          if (raw is Map) {
+            _nicknames = raw.map(
+              (k, v) => MapEntry(k.toString(), v.toString()),
+            );
+          }
+        });
       }
     } catch (e) {
       debugPrint('❌ Load chat settings failed: $e');
@@ -196,6 +199,74 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
       if (mounted) setState(() => _isDisappearing = !_isDisappearing);
     } catch (e) {
       debugPrint('❌ Toggle disappearing failed: $e');
+    }
+  }
+
+  Future<void> _editNickname({
+    required String uid,
+    required String title,
+    required String hint,
+  }) async {
+    final controller = TextEditingController(text: _nicknames[uid] ?? '');
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          title,
+          style: const TextStyle(color: darkGreen, fontWeight: FontWeight.bold),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 30,
+          textAlign: TextAlign.right,
+          decoration: InputDecoration(
+            hintText: hint,
+            helperText: 'خلّيه فارغ باش يرجع الاسم الأصلي',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: darkGreen,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: const Text('حفظ', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+
+    if (result == null) return;
+    await _saveNickname(uid, result);
+  }
+
+  Future<void> _saveNickname(String uid, String value) async {
+    try {
+      await _chatSettingsDoc.set({
+        'nicknames': {uid: value.isEmpty ? FieldValue.delete() : value},
+      }, SetOptions(merge: true));
+      if (!mounted) return;
+      setState(() {
+        if (value.isEmpty) {
+          _nicknames.remove(uid);
+        } else {
+          _nicknames[uid] = value;
+        }
+      });
+      _showSnack('✅ تم حفظ الاسم');
+    } catch (e) {
+      debugPrint('❌ Save nickname failed: $e');
+      if (mounted) _showSnack('حدث خطأ، عاود المحاولة', color: Colors.red);
     }
   }
 
@@ -234,9 +305,6 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
     }
   }
 
-  // ============================================================
-  // 🗑️ حذف المحادثة كاملة (كل الرسائل بيناتي أنا وهو)
-  // ============================================================
   Future<void> _deleteConversation() async {
     final confirm = await _confirmDialog(
       title: 'حذف المحادثة',
@@ -255,8 +323,6 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
       await batch.commit();
       if (!mounted) return;
       _showSnack('🗑️ تم حذف المحادثة');
-      // ✅ نرجعو 2 pops: هاذي الصفحة (profile view) + المحادثة لي
-      // تحذفات — كنرجعو لقائمة المحادثات، ماشي لأول صفحة فـ التطبيق
       Navigator.pop(context);
       if (mounted) Navigator.pop(context);
     } catch (e) {
@@ -309,9 +375,6 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
     );
   }
 
-  // ============================================================
-  // 🔍 بحث بسيط فـ رسائل هاذ المحادثة (فلترة من جانب العميل)
-  // ============================================================
   Future<void> _openSearch() async {
     final controller = TextEditingController();
     List<QueryDocumentSnapshot<Map<String, dynamic>>> allDocs = [];
@@ -421,7 +484,7 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
           },
         );
       },
-    );
+    ).whenComplete(controller.dispose);
   }
 
   @override
@@ -527,20 +590,17 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
 
     final String name =
         data['fullName'] as String? ?? data['name'] as String? ?? 'مستخدم';
-    final String city = data['city'] as String? ?? '';
     final String? avatarAsset =
         (data['avatarAsset'] as String?) ?? (data['avatarPath'] as String?);
     final bool isOnline = data['isOnline'] == true;
-    final Timestamp? joinedAt = data['createdAt'] as Timestamp?;
+
+    final String displayName = _otherNick ?? name;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ============================================================
-          // ✅ الأفاتار + الاسم + الحالة (بحال الصورة المرجعية)
-          // ============================================================
           Center(
             child: Column(
               children: [
@@ -577,13 +637,20 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  name,
+                  displayName,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: darkGreen,
                   ),
                 ),
+                if (_otherNick != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    name,
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  ),
+                ],
                 const SizedBox(height: 4),
                 if (isOnline)
                   Row(
@@ -612,10 +679,6 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
           ),
           const SizedBox(height: 22),
 
-          // ============================================================
-          // ✅ صف الإجراءات السريعة: بحث / إشعارات — بعد وجود Match فقط
-          // (قبل ذلك، هذه الشاشة Profile Preview بحت — البند 5)
-          // ============================================================
           if (_hasMatch) ...[
             Row(
               children: [
@@ -669,40 +732,32 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
             const SizedBox(height: 22),
           ],
 
-          // ============================================================
-          // ✅ معلومات
-          // ============================================================
-          const _SectionLabel('معلومات'),
-          const SizedBox(height: 8),
-          _InfoCard(
-            icon: Icons.calendar_today_rounded,
-            title: 'انضم في',
-            value: joinedAt != null
-                ? _formatMonthYear(joinedAt.toDate())
-                : 'غير محدد',
-          ),
-          if (city.isNotEmpty) ...[
+          if (_hasMatch) ...[
+            const _SectionLabel('إعدادات المحادثة'),
+            const SizedBox(height: 8),
+            _InfoCard(
+              icon: Icons.edit_rounded,
+              title: 'اسم $displayName',
+              value: _otherNick != null
+                  ? 'اضغط للتعديل'
+                  : 'اضغط باش تبدل الاسم',
+              onTap: () => _editNickname(
+                uid: widget.userId,
+                title: 'تعديل اسم $name',
+                hint: 'اكتب الاسم الجديد',
+              ),
+            ),
             const SizedBox(height: 10),
             _InfoCard(
-              icon: Icons.location_on_rounded,
-              title: 'الموقع',
-              value: city,
+              icon: Icons.person_outline_rounded,
+              title: 'اسمي فـ هاذ المحادثة',
+              value: _myNick ?? 'الاسم الأصلي',
+              onTap: () => _editNickname(
+                uid: _myUid,
+                title: 'اسمي فـ هاذ المحادثة',
+                hint: 'اكتب اسمك الجديد',
+              ),
             ),
-          ],
-
-          const SizedBox(height: 22),
-
-          // ============================================================
-          // ✅ إعدادات الخصوصية — إعدادات المحادثة الفعلية بعد Match فقط
-          // ============================================================
-          const _SectionLabel('إعدادات الخصوصية'),
-          const SizedBox(height: 8),
-          const _InfoCard(
-            icon: Icons.lock_rounded,
-            title: 'التشفير',
-            value: 'الرسائل والمكالمات مشفرة تماماً',
-          ),
-          if (_hasMatch) ...[
             const SizedBox(height: 10),
             _InfoCard(
               icon: Icons.timer_outlined,
@@ -710,13 +765,9 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
               value: _isDisappearing ? 'مفعّلة' : 'متوقفة',
               onTap: _toggleDisappearing,
             ),
+            const SizedBox(height: 22),
           ],
 
-          const SizedBox(height: 22),
-
-          // ============================================================
-          // ✅ الإبلاغ / الحظر
-          // ============================================================
           _ActionRow(
             icon: Icons.flag_rounded,
             label: 'الإبلاغ عن المستخدم',
@@ -749,28 +800,8 @@ class _ProfileViewScreenState extends State<ProfileViewScreen> {
       ),
     );
   }
-
-  static const _months = [
-    'يناير',
-    'فبراير',
-    'مارس',
-    'أبريل',
-    'مايو',
-    'يونيو',
-    'يوليو',
-    'أغسطس',
-    'سبتمبر',
-    'أكتوبر',
-    'نوفمبر',
-    'ديسمبر',
-  ];
-
-  String _formatMonthYear(DateTime d) => '${_months[d.month - 1]} ${d.year}';
 }
 
-// ============================================================
-// عنصر عام: تسمية قسم
-// ============================================================
 class _SectionLabel extends StatelessWidget {
   final String text;
   const _SectionLabel(this.text);
@@ -788,9 +819,6 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-// ============================================================
-// بطاقة إجراء سريع (بحث / إشعارات)
-// ============================================================
 class _QuickActionCard extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -842,9 +870,6 @@ class _QuickActionCard extends StatelessWidget {
   }
 }
 
-// ============================================================
-// بطاقة معلومة (انضم في / الموقع / التشفير / الرسائل ذاتية الاختفاء)
-// ============================================================
 class _InfoCard extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -921,9 +946,6 @@ class _InfoCard extends StatelessWidget {
   }
 }
 
-// ============================================================
-// صف إجراء أحمر (إبلاغ / حظر)
-// ============================================================
 class _ActionRow extends StatelessWidget {
   final IconData icon;
   final String label;

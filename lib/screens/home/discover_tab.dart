@@ -174,19 +174,20 @@ class _DiscoverTabState extends State<DiscoverTab>
       final profiles = snapshot.docs
           .where((d) => d.id != myUid && !interactedIds.contains(d.id))
           .map((d) {
-        final data = d.data();
-        final rawAge = data['age'];
-        return _DiscoverProfile(
-          uid: d.id,
-          name:
-              (data['fullName'] as String?) ??
-              (data['name'] as String?) ??
-              'مستخدم',
-          age: rawAge is int ? rawAge : int.tryParse('$rawAge'),
-          city: (data['city'] as String?) ?? '',
-          avatarAsset: data['avatarAsset'] as String?,
-        );
-      }).toList();
+            final data = d.data();
+            final rawAge = data['age'];
+            return _DiscoverProfile(
+              uid: d.id,
+              name:
+                  (data['fullName'] as String?) ??
+                  (data['name'] as String?) ??
+                  'مستخدم',
+              age: rawAge is int ? rawAge : int.tryParse('$rawAge'),
+              city: (data['city'] as String?) ?? '',
+              avatarAsset: data['avatarAsset'] as String?,
+            );
+          })
+          .toList();
 
       if (!mounted) return;
       setState(() {
@@ -264,8 +265,11 @@ class _DiscoverTabState extends State<DiscoverTab>
                             width: 1.4,
                           ),
                         ),
-                        child: Icon(Icons.auto_awesome_rounded,
-                            color: gold, size: 36),
+                        child: Icon(
+                          Icons.auto_awesome_rounded,
+                          color: gold,
+                          size: 36,
+                        ),
                       ),
                       const SizedBox(height: 20),
                       const Text(
@@ -340,23 +344,22 @@ class _DiscoverTabState extends State<DiscoverTab>
                     child: ElevatedButton(
                       onPressed: () =>
                           setState(() => _hasStartedDiscovering = true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: darkGreen,
-                        elevation: 0,
-                        shadowColor: Colors.transparent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ).copyWith(
-                        overlayColor: WidgetStateProperty.all(
-                          Colors.white.withValues(alpha: 0.08),
-                        ),
-                      ),
+                      style:
+                          ElevatedButton.styleFrom(
+                            backgroundColor: darkGreen,
+                            elevation: 0,
+                            shadowColor: Colors.transparent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ).copyWith(
+                            overlayColor: WidgetStateProperty.all(
+                              Colors.white.withValues(alpha: 0.08),
+                            ),
+                          ),
                       child: Ink(
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [gold, darkGreen],
-                          ),
+                          gradient: LinearGradient(colors: [gold, darkGreen]),
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
@@ -380,8 +383,11 @@ class _DiscoverTabState extends State<DiscoverTab>
                                 ),
                               ),
                               SizedBox(width: 8),
-                              Icon(Icons.bolt_rounded,
-                                  color: Colors.white, size: 20),
+                              Icon(
+                                Icons.bolt_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              ),
                             ],
                           ),
                         ),
@@ -489,9 +495,7 @@ class _DiscoverTabState extends State<DiscoverTab>
           width: active ? 24 : 6,
           height: 6,
           decoration: BoxDecoration(
-            gradient: active
-                ? LinearGradient(colors: [gold, darkGreen])
-                : null,
+            gradient: active ? LinearGradient(colors: [gold, darkGreen]) : null,
             color: active ? null : darkGreen.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(4),
           ),
@@ -817,7 +821,10 @@ class _DiscoverTabState extends State<DiscoverTab>
     );
   }
 
-  Widget _glassCircleIcon({required IconData icon, required VoidCallback onTap}) {
+  Widget _glassCircleIcon({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: ClipOval(
@@ -919,9 +926,9 @@ class _DiscoverTabState extends State<DiscoverTab>
       }
     } on LikeActionException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } catch (e) {
       debugPrint('❌ Like save failed: $e');

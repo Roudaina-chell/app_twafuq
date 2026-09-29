@@ -7,14 +7,26 @@ class DeviceService {
   static Future<String> getDeviceId() async {
     final deviceInfo = DeviceInfoPlugin();
 
+    String rawId;
     if (Platform.isAndroid) {
       final info = await deviceInfo.androidInfo;
-      return '${info.id}_${info.fingerprint}';
+      rawId = '${info.id}_${info.fingerprint}';
     } else if (Platform.isIOS) {
       final info = await deviceInfo.iosInfo;
-      return info.identifierForVendor ?? 'unknown_ios_device';
+      rawId = info.identifierForVendor ?? 'unknown_ios_device';
+    } else {
+      rawId = 'unknown_device';
     }
-    return 'unknown_device';
+
+    // ✅ Firestore document IDs can't contain "/" (each "/" is read as a
+    // new path segment, which breaks doc() calls with an odd segment
+    // count). Android's fingerprint always contains "/", so sanitize
+    // here, once, at the source — every caller then gets a safe ID.
+    return _sanitizeForFirestoreId(rawId);
+  }
+
+  static String _sanitizeForFirestoreId(String id) {
+    return id.replaceAll('/', '_');
   }
 
   static Future<Map<String, String>> getDeviceLabel() async {
