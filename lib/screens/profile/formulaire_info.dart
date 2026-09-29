@@ -65,13 +65,8 @@ class _FormulaireInfoState extends State<FormulaireInfo>
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
 
-    _slideAnimation =
-        Tween<Offset>(begin: const Offset(0.2, 0), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _animationController,
-            curve: Curves.easeOutCubic,
-          ),
-        );
+    _slideAnimation = Tween<Offset>(begin: const Offset(0.2, 0), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic));
 
     _animationController.forward();
   }
@@ -224,7 +219,9 @@ class _FormulaireInfoState extends State<FormulaireInfo>
       padding: const EdgeInsets.only(top: 22, bottom: 6),
       child: Row(
         children: [
-          Expanded(child: Container(height: 1, color: cardBorder)),
+          Expanded(
+            child: Container(height: 1, color: cardBorder),
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Text(
@@ -237,7 +234,9 @@ class _FormulaireInfoState extends State<FormulaireInfo>
               ),
             ),
           ),
-          Expanded(child: Container(height: 1, color: cardBorder)),
+          Expanded(
+            child: Container(height: 1, color: cardBorder),
+          ),
         ],
       ),
     );
@@ -277,11 +276,8 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                         ),
                         child: IconButton(
                           onPressed: () => Navigator.maybePop(context),
-                          icon: const Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            color: darkGreen,
-                            size: 18,
-                          ),
+                          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                              color: darkGreen, size: 18),
                         ),
                       ),
                       const SizedBox(width: 4),
@@ -302,9 +298,8 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                             value: 0.4,
                             minHeight: 7,
                             backgroundColor: Colors.grey.shade200,
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                              gold,
-                            ),
+                            valueColor:
+                                const AlwaysStoppedAnimation<Color>(gold),
                           ),
                         ),
                       ),
@@ -355,10 +350,7 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                             gold.withValues(alpha: 0.05),
                           ],
                         ),
-                        border: Border.all(
-                          color: gold.withValues(alpha: 0.35),
-                          width: 1.6,
-                        ),
+                        border: Border.all(color: gold.withValues(alpha: 0.35), width: 1.6),
                       ),
                       child: const Icon(
                         Icons.person_outline_rounded,
@@ -458,7 +450,8 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                           children: [
                             Expanded(
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.stretch,
                                 children: [
                                   _buildLabel('المهنة'),
                                   TextField(
@@ -475,7 +468,8 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.stretch,
                                 children: [
                                   _buildLabel('المستوى التعليمي'),
                                   DropdownButtonFormField<String>(
@@ -499,12 +493,9 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                                     items: _educationLevels.map((e) {
                                       return DropdownMenuItem(
                                         value: e,
-                                        child: Text(
-                                          e,
-                                          style: const TextStyle(
-                                            fontSize: 13.5,
-                                          ),
-                                        ),
+                                        child: Text(e,
+                                            style:
+                                                const TextStyle(fontSize: 13.5)),
                                       );
                                     }).toList(),
                                     onChanged: (v) =>
@@ -526,9 +517,7 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                           hint: Text(
                             'اختر مدينتك',
                             style: TextStyle(
-                              color: Colors.grey.shade400,
-                              fontSize: 13.5,
-                            ),
+                                color: Colors.grey.shade400, fontSize: 13.5),
                           ),
                           icon: const Icon(
                             Icons.keyboard_arrow_down_rounded,
@@ -541,10 +530,8 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                           items: _cities.map((c) {
                             return DropdownMenuItem(
                               value: c,
-                              child: Text(
-                                c,
-                                style: const TextStyle(fontSize: 13.5),
-                              ),
+                              child:
+                                  Text(c, style: const TextStyle(fontSize: 13.5)),
                             );
                           }).toList(),
                           onChanged: (v) => setState(() => _city = v),
@@ -558,9 +545,7 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                           hint: Text(
                             'اختر حالتك الاجتماعية',
                             style: TextStyle(
-                              color: Colors.grey.shade400,
-                              fontSize: 13.5,
-                            ),
+                                color: Colors.grey.shade400, fontSize: 13.5),
                           ),
                           icon: const Icon(
                             Icons.keyboard_arrow_down_rounded,
@@ -573,10 +558,8 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                           items: _maritalStatuses.map((m) {
                             return DropdownMenuItem(
                               value: m,
-                              child: Text(
-                                m,
-                                style: const TextStyle(fontSize: 13.5),
-                              ),
+                              child:
+                                  Text(m, style: const TextStyle(fontSize: 13.5)),
                             );
                           }).toList(),
                           onChanged: (v) => setState(() => _maritalStatus = v),
@@ -592,16 +575,12 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                     const SizedBox(height: 16),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
+                          horizontal: 14, vertical: 12),
                       decoration: BoxDecoration(
                         color: const Color(0xFFDE3B40).withValues(alpha: 0.07),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                          color: const Color(
-                            0xFFDE3B40,
-                          ).withValues(alpha: 0.18),
+                          color: const Color(0xFFDE3B40).withValues(alpha: 0.18),
                         ),
                       ),
                       child: Row(

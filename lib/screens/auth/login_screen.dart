@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'register_screen.dart';
 import '../../pages/location_check_page.dart';
-import '../../services/device_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -57,15 +56,10 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-
-      final user = credential.user;
-      if (user != null) {
-        await DeviceService.registerSession(uid: user.uid, method: 'email');
-      }
 
       if (mounted) {
         Navigator.pushAndRemoveUntil(
@@ -85,17 +79,6 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       }
     }
-  }
-
-  Future<String?> _findExistingUidForDevice(String deviceId) async {
-    final result = await FirebaseFirestore.instance
-        .collection('users')
-        .where('deviceId', isEqualTo: deviceId)
-        .limit(1)
-        .get();
-
-    if (result.docs.isEmpty) return null;
-    return result.docs.first.data()['uid'] as String?;
   }
 
   Future<void> _loginWithGoogle() async {
@@ -140,39 +123,15 @@ class _LoginScreenState extends State<LoginScreen> {
       final user = userCredential.user!;
       final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
 
-      final deviceId = await DeviceService.getDeviceId();
-      final existingUid = await _findExistingUidForDevice(deviceId);
-
-      if (existingUid != null && existingUid != user.uid) {
-        await FirebaseAuth.instance.signOut();
-        await _googleSignIn.signOut();
-
-        if (isNewUser) {
-          try {
-            await user.delete();
-          } catch (_) {}
-        }
-
-        if (!mounted) return;
-        setState(() {
-          _errorMessage =
-              'هذا الهاتف مرتبط بحساب موجود من قبل، لا يمكن استخدام حساب Google آخر.';
-        });
-        return;
-      }
-
       if (isNewUser) {
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
           'uid': user.uid,
           'name': user.displayName ?? '',
           'email': user.email ?? '',
-          'deviceId': deviceId,
           'method': 'google',
           'createdAt': FieldValue.serverTimestamp(),
         });
       }
-
-      await DeviceService.registerSession(uid: user.uid, method: 'google');
 
       if (mounted) {
         Navigator.pushAndRemoveUntil(

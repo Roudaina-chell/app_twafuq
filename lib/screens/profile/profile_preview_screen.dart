@@ -66,13 +66,13 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
       parent: _entranceController,
       curve: const Interval(0.30, 0.75, curve: Curves.easeOut),
     );
-    _cardSlide = Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero)
-        .animate(
-          CurvedAnimation(
-            parent: _entranceController,
-            curve: const Interval(0.30, 0.75, curve: Curves.easeOutCubic),
-          ),
-        );
+    _cardSlide = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _entranceController,
+      curve: const Interval(0.30, 0.75, curve: Curves.easeOutCubic),
+    ));
     _buttonFade = CurvedAnimation(
       parent: _entranceController,
       curve: const Interval(0.60, 1.0, curve: Curves.easeOut),
@@ -267,9 +267,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
                                     shape: BoxShape.circle,
                                     boxShadow: [
                                       BoxShadow(
-                                        color: darkGreen.withValues(
-                                          alpha: 0.08,
-                                        ),
+                                        color: darkGreen.withValues(alpha: 0.08),
                                         blurRadius: 10,
                                         offset: const Offset(0, 3),
                                       ),
@@ -292,14 +290,13 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
                                     curve: Curves.easeOutCubic,
                                     builder: (context, v, _) =>
                                         LinearProgressIndicator(
-                                          value: v,
-                                          minHeight: 6,
-                                          backgroundColor: Colors.grey.shade300,
-                                          valueColor:
-                                              const AlwaysStoppedAnimation<
-                                                Color
-                                              >(gold),
-                                        ),
+                                      value: v,
+                                      minHeight: 6,
+                                      backgroundColor: Colors.grey.shade300,
+                                      valueColor:
+                                          const AlwaysStoppedAnimation<Color>(
+                                              gold),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -347,7 +344,10 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 gradient: LinearGradient(
-                                  colors: [darkGreen, const Color(0xFF1E6B4E)],
+                                  colors: [
+                                    darkGreen,
+                                    const Color(0xFF1E6B4E),
+                                  ],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
@@ -376,9 +376,8 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
                                         shape: BoxShape.circle,
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Colors.black.withValues(
-                                              alpha: 0.12,
-                                            ),
+                                            color: Colors.black
+                                                .withValues(alpha: 0.12),
                                             blurRadius: 6,
                                           ),
                                         ],
@@ -434,34 +433,23 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
                                 children: [
                                   Padding(
                                     padding: const EdgeInsets.fromLTRB(
-                                      18,
-                                      18,
-                                      18,
-                                      0,
-                                    ),
+                                        18, 18, 18, 0),
                                     child: Row(
                                       children: [
                                         Container(
                                           padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 5,
-                                          ),
+                                              horizontal: 10, vertical: 5),
                                           decoration: BoxDecoration(
-                                            color: darkGreen.withValues(
-                                              alpha: 0.07,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
+                                            color:
+                                                darkGreen.withValues(alpha: 0.07),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
                                           ),
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              const Icon(
-                                                Icons.work_outline_rounded,
-                                                size: 13,
-                                                color: darkGreen,
-                                              ),
+                                              const Icon(Icons.work_outline_rounded,
+                                                  size: 13, color: darkGreen),
                                               const SizedBox(width: 5),
                                               Text(
                                                 _job.isNotEmpty ? _job : '—',
@@ -477,23 +465,18 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
                                         const SizedBox(width: 8),
                                         Container(
                                           padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 5,
-                                          ),
+                                              horizontal: 10, vertical: 5),
                                           decoration: BoxDecoration(
                                             color: gold.withValues(alpha: 0.14),
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
                                           ),
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
                                               const Icon(
-                                                Icons.location_on_outlined,
-                                                size: 13,
-                                                color: darkGreen,
-                                              ),
+                                                  Icons.location_on_outlined,
+                                                  size: 13, color: darkGreen),
                                               const SizedBox(width: 5),
                                               Text(
                                                 _city.isNotEmpty ? _city : '—',
@@ -542,25 +525,15 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
 
                                   Padding(
                                     padding: const EdgeInsets.fromLTRB(
-                                      18,
-                                      18,
-                                      18,
-                                      8,
-                                    ),
+                                        18, 18, 18, 8),
                                     child: Divider(
-                                      color: Colors.grey.shade100,
-                                      height: 1,
-                                    ),
+                                        color: Colors.grey.shade100, height: 1),
                                   ),
 
                                   // التفضيلات
                                   Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      18,
-                                      6,
-                                      18,
-                                      18,
-                                    ),
+                                    padding:
+                                        const EdgeInsets.fromLTRB(18, 6, 18, 18),
                                     child: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
@@ -573,8 +546,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
                                         _InfoRow(
                                           icon: Icons.cake_outlined,
                                           label: 'العمر',
-                                          value:
-                                              (_ageMin != null &&
+                                          value: (_ageMin != null &&
                                                   _ageMax != null)
                                               ? '$_ageMin - $_ageMax سنة'
                                               : '${_age ?? '—'}',
@@ -583,9 +555,8 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
                                         _InfoRow(
                                           icon: Icons.map_outlined,
                                           label: 'الولاية',
-                                          value: _prefCity.isNotEmpty
-                                              ? _prefCity
-                                              : '—',
+                                          value:
+                                              _prefCity.isNotEmpty ? _prefCity : '—',
                                         ),
                                         const SizedBox(height: 12),
                                         _InfoRow(
@@ -615,14 +586,12 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
                                     vertical: 10,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: const Color(
-                                      0xFFDE3B40,
-                                    ).withValues(alpha: 0.07),
+                                    color: const Color(0xFFDE3B40)
+                                        .withValues(alpha: 0.07),
                                     borderRadius: BorderRadius.circular(14),
                                     border: Border.all(
-                                      color: const Color(
-                                        0xFFDE3B40,
-                                      ).withValues(alpha: 0.18),
+                                      color: const Color(0xFFDE3B40)
+                                          .withValues(alpha: 0.18),
                                     ),
                                   ),
                                   child: Row(
@@ -646,10 +615,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen>
                                     ],
                                   ),
                                 )
-                              : const SizedBox(
-                                  key: ValueKey('noerr'),
-                                  height: 0,
-                                ),
+                              : const SizedBox(key: ValueKey('noerr'), height: 0),
                         ),
 
                         const SizedBox(height: 24),
@@ -736,11 +702,7 @@ class _SectionLabel extends StatelessWidget {
             color: _ProfilePreviewScreenState.darkGreen.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(
-            icon,
-            size: 14,
-            color: _ProfilePreviewScreenState.darkGreen,
-          ),
+          child: Icon(icon, size: 14, color: _ProfilePreviewScreenState.darkGreen),
         ),
         const SizedBox(width: 8),
         Text(

@@ -90,25 +90,25 @@ class _AboutYouScreenState extends State<AboutYouScreen>
       parent: _entranceController,
       curve: const Interval(0.25, 0.60, curve: Curves.easeOut),
     );
-    _bioSlide = Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero)
-        .animate(
-          CurvedAnimation(
-            parent: _entranceController,
-            curve: const Interval(0.25, 0.60, curve: Curves.easeOutCubic),
-          ),
-        );
+    _bioSlide = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _entranceController,
+      curve: const Interval(0.25, 0.60, curve: Curves.easeOutCubic),
+    ));
 
     _interestsFade = CurvedAnimation(
       parent: _entranceController,
       curve: const Interval(0.40, 0.80, curve: Curves.easeOut),
     );
-    _interestsSlide =
-        Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _entranceController,
-            curve: const Interval(0.40, 0.80, curve: Curves.easeOutCubic),
-          ),
-        );
+    _interestsSlide = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _entranceController,
+      curve: const Interval(0.40, 0.80, curve: Curves.easeOutCubic),
+    ));
 
     _buttonFade = CurvedAnimation(
       parent: _entranceController,
@@ -290,16 +290,13 @@ class _AboutYouScreenState extends State<AboutYouScreen>
                               tween: Tween(begin: 0, end: 1),
                               duration: const Duration(milliseconds: 900),
                               curve: Curves.easeOutCubic,
-                              builder: (context, v, _) =>
-                                  LinearProgressIndicator(
-                                    value: v,
-                                    minHeight: 7,
-                                    backgroundColor: Colors.grey.shade300,
-                                    valueColor:
-                                        const AlwaysStoppedAnimation<Color>(
-                                          gold,
-                                        ),
-                                  ),
+                              builder: (context, v, _) => LinearProgressIndicator(
+                                value: v,
+                                minHeight: 7,
+                                backgroundColor: Colors.grey.shade300,
+                                valueColor:
+                                    const AlwaysStoppedAnimation<Color>(gold),
+                              ),
                             ),
                           ),
                         ),
@@ -325,9 +322,7 @@ class _AboutYouScreenState extends State<AboutYouScreen>
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
-                          border: Border.all(
-                            color: gold.withValues(alpha: 0.35),
-                          ),
+                          border: Border.all(color: gold.withValues(alpha: 0.35)),
                           boxShadow: [
                             BoxShadow(
                               color: darkGreen.withValues(alpha: 0.10),
@@ -394,8 +389,7 @@ class _AboutYouScreenState extends State<AboutYouScreen>
                           boxShadow: [
                             BoxShadow(
                               color: darkGreen.withValues(
-                                alpha: _bioFocused ? 0.10 : 0.05,
-                              ),
+                                  alpha: _bioFocused ? 0.10 : 0.05),
                               blurRadius: _bioFocused ? 20 : 14,
                               offset: const Offset(0, 5),
                             ),
@@ -411,9 +405,7 @@ class _AboutYouScreenState extends State<AboutYouScreen>
                               textAlign: TextAlign.right,
                               decoration: InputDecoration(
                                 hintText: 'اكتب هنا...',
-                                hintStyle: TextStyle(
-                                  color: Colors.grey.shade400,
-                                ),
+                                hintStyle: TextStyle(color: Colors.grey.shade400),
                                 contentPadding: const EdgeInsets.all(16),
                                 border: InputBorder.none,
                                 counterText: '',
@@ -427,19 +419,15 @@ class _AboutYouScreenState extends State<AboutYouScreen>
                             Padding(
                               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                               child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   AnimatedOpacity(
                                     duration: const Duration(milliseconds: 200),
                                     opacity: currentLength > 0 ? 1 : 0,
                                     child: Row(
                                       children: [
-                                        Icon(
-                                          Icons.check_circle,
-                                          color: darkGreen,
-                                          size: 14,
-                                        ),
+                                        Icon(Icons.check_circle,
+                                            color: darkGreen, size: 14),
                                         const SizedBox(width: 4),
                                         const Text(
                                           'تم',
@@ -508,10 +496,9 @@ class _AboutYouScreenState extends State<AboutYouScreen>
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: const Icon(
-                                    Icons.favorite_border_rounded,
-                                    color: darkGreen,
-                                    size: 18,
-                                  ),
+                                      Icons.favorite_border_rounded,
+                                      color: darkGreen,
+                                      size: 18),
                                 ),
                                 const SizedBox(width: 10),
                                 const Expanded(
@@ -533,9 +520,7 @@ class _AboutYouScreenState extends State<AboutYouScreen>
                                       Transform.scale(scale: v, child: child),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 5,
-                                    ),
+                                        horizontal: 10, vertical: 5),
                                     decoration: BoxDecoration(
                                       color: gold.withValues(alpha: 0.14),
                                       borderRadius: BorderRadius.circular(10),
@@ -566,10 +551,9 @@ class _AboutYouScreenState extends State<AboutYouScreen>
                               spacing: 9,
                               runSpacing: 9,
                               children: _allInterests.map((item) {
-                                final bool selected = _selectedInterests
-                                    .contains(item.label);
-                                final bool disabled =
-                                    !selected &&
+                                final bool selected =
+                                    _selectedInterests.contains(item.label);
+                                final bool disabled = !selected &&
                                     _selectedInterests.length >= _maxInterests;
 
                                 return _PressableScale(
@@ -588,26 +572,21 @@ class _AboutYouScreenState extends State<AboutYouScreen>
                                       color: selected
                                           ? darkGreen
                                           : (disabled
-                                                ? Colors.grey.shade100
-                                                : darkGreen.withValues(
-                                                    alpha: 0.05,
-                                                  )),
+                                              ? Colors.grey.shade100
+                                              : darkGreen.withValues(alpha: 0.05)),
                                       borderRadius: BorderRadius.circular(30),
                                       border: Border.all(
                                         color: selected
                                             ? darkGreen
                                             : (disabled
-                                                  ? Colors.grey.shade200
-                                                  : gold.withValues(
-                                                      alpha: 0.35,
-                                                    )),
+                                                ? Colors.grey.shade200
+                                                : gold.withValues(alpha: 0.35)),
                                       ),
                                       boxShadow: selected
                                           ? [
                                               BoxShadow(
                                                 color: darkGreen.withValues(
-                                                  alpha: 0.25,
-                                                ),
+                                                    alpha: 0.25),
                                                 blurRadius: 10,
                                                 offset: const Offset(0, 4),
                                               ),
@@ -625,8 +604,8 @@ class _AboutYouScreenState extends State<AboutYouScreen>
                                           color: selected
                                               ? Colors.white
                                               : (disabled
-                                                    ? Colors.grey.shade400
-                                                    : gold),
+                                                  ? Colors.grey.shade400
+                                                  : gold),
                                         ),
                                         const SizedBox(width: 6),
                                         Text(
@@ -639,8 +618,8 @@ class _AboutYouScreenState extends State<AboutYouScreen>
                                             color: selected
                                                 ? Colors.white
                                                 : (disabled
-                                                      ? Colors.grey.shade400
-                                                      : darkGreen),
+                                                    ? Colors.grey.shade400
+                                                    : darkGreen),
                                           ),
                                         ),
                                       ],
@@ -666,14 +645,10 @@ class _AboutYouScreenState extends State<AboutYouScreen>
                               vertical: 10,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(
-                                0xFFDE3B40,
-                              ).withValues(alpha: 0.07),
+                              color: const Color(0xFFDE3B40).withValues(alpha: 0.07),
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                color: const Color(
-                                  0xFFDE3B40,
-                                ).withValues(alpha: 0.18),
+                                color: const Color(0xFFDE3B40).withValues(alpha: 0.18),
                               ),
                             ),
                             child: Row(
@@ -773,11 +748,8 @@ class _AboutYouScreenState extends State<AboutYouScreen>
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(
-                          Icons.shield_outlined,
-                          size: 13,
-                          color: darkGreen,
-                        ),
+                        const Icon(Icons.shield_outlined,
+                            size: 13, color: darkGreen),
                         const SizedBox(width: 6),
                         const Expanded(
                           child: Text(

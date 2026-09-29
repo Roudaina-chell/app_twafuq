@@ -48,13 +48,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       curve: Curves.easeOut,
     );
 
-    _entranceSlide =
-        Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _entranceController,
-            curve: Curves.easeOutCubic,
-          ),
-        );
+    _entranceSlide = Tween<Offset>(
+      begin: const Offset(0, 0.05),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _entranceController,
+      curve: Curves.easeOutCubic,
+    ));
 
     _floatController = AnimationController(
       vsync: this,
@@ -104,10 +104,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         pageBuilder: (context, animation, secondaryAnimation) =>
             const LoginScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          final fade = CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOut,
-          );
+          final fade = CurvedAnimation(parent: animation, curve: Curves.easeOut);
           return FadeTransition(
             opacity: fade,
             child: ScaleTransition(
@@ -130,20 +127,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       transitionDuration: const Duration(milliseconds: 320),
       pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
       transitionBuilder: (context, anim, secondaryAnim, child) {
-        final curved = CurvedAnimation(
-          parent: anim,
-          curve: Curves.easeOutCubic,
-        );
+        final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic);
         return Opacity(
           opacity: curved.value,
           child: Transform.scale(
             scale: 0.92 + (0.08 * curved.value),
             child: Dialog(
               backgroundColor: Colors.transparent,
-              insetPadding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 60,
-              ),
+              insetPadding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
               child: Container(
                 constraints: const BoxConstraints(maxHeight: 560),
                 decoration: BoxDecoration(
@@ -164,10 +156,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       padding: const EdgeInsets.fromLTRB(22, 22, 22, 16),
                       decoration: BoxDecoration(
                         border: Border(
-                          bottom: BorderSide(
-                            color: Colors.grey.shade100,
-                            width: 1.2,
-                          ),
+                          bottom:
+                              BorderSide(color: Colors.grey.shade100, width: 1.2),
                         ),
                       ),
                       child: Row(
@@ -178,11 +168,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                               color: darkGreen.withValues(alpha: 0.08),
                               shape: BoxShape.circle,
                             ),
-                            child: Icon(
-                              Icons.description_rounded,
-                              color: darkGreen,
-                              size: 18,
-                            ),
+                            child: Icon(Icons.description_rounded,
+                                color: darkGreen, size: 18),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -200,11 +187,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                             borderRadius: BorderRadius.circular(20),
                             child: Padding(
                               padding: const EdgeInsets.all(4),
-                              child: Icon(
-                                Icons.close_rounded,
-                                color: Colors.grey.shade500,
-                                size: 20,
-                              ),
+                              child: Icon(Icons.close_rounded,
+                                  color: Colors.grey.shade500, size: 20),
                             ),
                           ),
                         ],
@@ -312,9 +296,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           color: value ? darkGreen.withValues(alpha: 0.05) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: value
-                ? darkGreen.withValues(alpha: 0.35)
-                : Colors.grey.shade200,
+            color:
+                value ? darkGreen.withValues(alpha: 0.35) : Colors.grey.shade200,
             width: 1.3,
           ),
           boxShadow: [
@@ -352,11 +335,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 duration: const Duration(milliseconds: 260),
                 curve: Curves.elasticOut,
                 scale: value ? 1 : 0,
-                child: Icon(
-                  Icons.check_circle_rounded,
-                  color: darkGreen,
-                  size: 18,
-                ),
+                child: Icon(Icons.check_circle_rounded,
+                    color: darkGreen, size: 18),
               ),
             ],
           ),
@@ -524,11 +504,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      size: 15,
-                      color: value ? Colors.white : Colors.grey.shade500,
-                    ),
+                    Icon(Icons.arrow_back_ios_new_rounded,
+                        size: 15,
+                        color: value ? Colors.white : Colors.grey.shade500),
                   ],
                 ),
               ),
@@ -610,11 +588,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.lock_outline_rounded,
-                    size: 13,
-                    color: Colors.grey.shade400,
-                  ),
+                  Icon(Icons.lock_outline_rounded,
+                      size: 13, color: Colors.grey.shade400),
                   const SizedBox(width: 6),
                   Text(
                     'لن تظهر هذه الصفحة مرة أخرى',
@@ -633,13 +608,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.check_circle_outline_rounded,
-                      size: 18,
-                      color: (allPreviousAccepted && _finalAccepted)
-                          ? Colors.white
-                          : Colors.grey.shade500,
-                    ),
+                    Icon(Icons.check_circle_outline_rounded,
+                        size: 18,
+                        color: (allPreviousAccepted && _finalAccepted)
+                            ? Colors.white
+                            : Colors.grey.shade500),
                     const SizedBox(width: 8),
                     Text(
                       'أوافق وأتابع',
@@ -675,24 +648,28 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 // نقاط التقدم مع أنيميشن مرنة
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(4, (index) {
-                    final distance = (_pageOffset - index).abs().clamp(
-                      0.0,
-                      1.0,
-                    );
-                    final isActive = _currentPage == index;
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeOutBack,
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      width: isActive ? 26 : 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: Color.lerp(gold, Colors.grey.shade300, distance),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    );
-                  }),
+                  children: List.generate(
+                    4,
+                    (index) {
+                      final distance = (_pageOffset - index).abs().clamp(0.0, 1.0);
+                      final isActive = _currentPage == index;
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOutBack,
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: isActive ? 26 : 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: Color.lerp(
+                            gold,
+                            Colors.grey.shade300,
+                            distance,
+                          ),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      );
+                    },
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Expanded(

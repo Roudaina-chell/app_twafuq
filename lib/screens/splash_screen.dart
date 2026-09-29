@@ -70,13 +70,15 @@ class _SplashScreenState extends State<SplashScreen>
         curve: const Interval(0.25, 0.65, curve: Curves.easeOut),
       ),
     );
-    _titleSlide = Tween<Offset>(begin: const Offset(0, 0.25), end: Offset.zero)
-        .animate(
-          CurvedAnimation(
-            parent: _controller,
-            curve: const Interval(0.25, 0.65, curve: Curves.easeOutCubic),
-          ),
-        );
+    _titleSlide = Tween<Offset>(
+      begin: const Offset(0, 0.25),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.25, 0.65, curve: Curves.easeOutCubic),
+      ),
+    );
 
     // الخط الذهبي الصغير الفاصل (40% -> 70%)
     _dividerWidth = Tween<double>(begin: 0, end: 1).animate(
@@ -93,13 +95,15 @@ class _SplashScreenState extends State<SplashScreen>
         curve: const Interval(0.45, 0.85, curve: Curves.easeOut),
       ),
     );
-    _subtitleSlide =
-        Tween<Offset>(begin: const Offset(0, 0.25), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _controller,
-            curve: const Interval(0.45, 0.85, curve: Curves.easeOutCubic),
-          ),
-        );
+    _subtitleSlide = Tween<Offset>(
+      begin: const Offset(0, 0.25),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.45, 0.85, curve: Curves.easeOutCubic),
+      ),
+    );
 
     // مؤشر التحميل: آخر حاجة تبان (70% -> 100%)
     _loaderFade = Tween<double>(begin: 0, end: 1).animate(
@@ -177,7 +181,10 @@ class _SplashScreenState extends State<SplashScreen>
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Color.lerp(bg, Colors.white, 0.4)!, bg],
+                    colors: [
+                      Color.lerp(bg, Colors.white, 0.4)!,
+                      bg,
+                    ],
                   ),
                 ),
               ),
@@ -277,8 +284,7 @@ class _SplashScreenState extends State<SplashScreen>
               animation: Listenable.merge([_controller, _ambientController]),
               builder: (context, _) {
                 // نبضة تنفّس خفيفة على الشعار بعد انتهاء الدخول
-                final breathe =
-                    1 +
+                final breathe = 1 +
                     (_controller.isCompleted
                         ? (_ambientController.value * 0.03)
                         : 0.0);
@@ -310,9 +316,7 @@ class _SplashScreenState extends State<SplashScreen>
                                     color: Colors.white,
                                     boxShadow: [
                                       BoxShadow(
-                                        color: darkGreen.withValues(
-                                          alpha: 0.14,
-                                        ),
+                                        color: darkGreen.withValues(alpha: 0.14),
                                         blurRadius: 30,
                                         offset: const Offset(0, 14),
                                       ),

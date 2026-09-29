@@ -76,13 +76,13 @@ class _PreferencesScreenState extends State<PreferencesScreen>
       parent: _entranceController,
       curve: const Interval(0.30, 0.75, curve: Curves.easeOut),
     );
-    _cardsSlide = Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero)
-        .animate(
-          CurvedAnimation(
-            parent: _entranceController,
-            curve: const Interval(0.30, 0.75, curve: Curves.easeOutCubic),
-          ),
-        );
+    _cardsSlide = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _entranceController,
+      curve: const Interval(0.30, 0.75, curve: Curves.easeOutCubic),
+    ));
     _buttonFade = CurvedAnimation(
       parent: _entranceController,
       curve: const Interval(0.65, 1.0, curve: Curves.easeOut),
@@ -312,16 +312,13 @@ class _PreferencesScreenState extends State<PreferencesScreen>
                               tween: Tween(begin: 0, end: 1),
                               duration: const Duration(milliseconds: 900),
                               curve: Curves.easeOutCubic,
-                              builder: (context, v, _) =>
-                                  LinearProgressIndicator(
-                                    value: v,
-                                    minHeight: 7,
-                                    backgroundColor: Colors.grey.shade300,
-                                    valueColor:
-                                        const AlwaysStoppedAnimation<Color>(
-                                          gold,
-                                        ),
-                                  ),
+                              builder: (context, v, _) => LinearProgressIndicator(
+                                value: v,
+                                minHeight: 7,
+                                backgroundColor: Colors.grey.shade300,
+                                valueColor:
+                                    const AlwaysStoppedAnimation<Color>(gold),
+                              ),
                             ),
                           ),
                         ),
@@ -350,9 +347,7 @@ class _PreferencesScreenState extends State<PreferencesScreen>
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
-                          border: Border.all(
-                            color: gold.withValues(alpha: 0.35),
-                          ),
+                          border: Border.all(color: gold.withValues(alpha: 0.35)),
                           boxShadow: [
                             BoxShadow(
                               color: darkGreen.withValues(alpha: 0.10),
@@ -415,16 +410,15 @@ class _PreferencesScreenState extends State<PreferencesScreen>
                                 trackHeight: 5,
                                 rangeThumbShape:
                                     const RoundRangeSliderThumbShape(
-                                      enabledThumbRadius: 9,
-                                      elevation: 3,
-                                    ),
+                                  enabledThumbRadius: 9,
+                                  elevation: 3,
+                                ),
                                 overlayShape: const RoundSliderOverlayShape(
                                   overlayRadius: 18,
                                 ),
                                 activeTrackColor: darkGreen,
-                                inactiveTrackColor: darkGreen.withValues(
-                                  alpha: 0.12,
-                                ),
+                                inactiveTrackColor:
+                                    darkGreen.withValues(alpha: 0.12),
                                 thumbColor: darkGreen,
                                 valueIndicatorColor: darkGreen,
                                 valueIndicatorTextStyle: const TextStyle(
@@ -469,9 +463,8 @@ class _PreferencesScreenState extends State<PreferencesScreen>
                                   overlayRadius: 18,
                                 ),
                                 activeTrackColor: darkGreen,
-                                inactiveTrackColor: darkGreen.withValues(
-                                  alpha: 0.12,
-                                ),
+                                inactiveTrackColor:
+                                    darkGreen.withValues(alpha: 0.12),
                                 thumbColor: darkGreen,
                                 valueIndicatorColor: darkGreen,
                                 valueIndicatorTextStyle: const TextStyle(

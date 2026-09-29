@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
-import '../../services/device_service.dart';
 
 String friendlyAuthError(String code) {
   switch (code) {
@@ -23,16 +22,6 @@ String friendlyAuthError(String code) {
     default:
       return 'وقع خطأ، عاودي المحاولة ($code)';
   }
-}
-
-Future<bool> isDeviceAlreadyRegistered(String deviceId) async {
-  final result = await FirebaseFirestore.instance
-      .collection('users')
-      .where('deviceId', isEqualTo: deviceId)
-      .limit(1)
-      .get();
-
-  return result.docs.isNotEmpty;
 }
 
 class RegisterScreen extends StatefulWidget {
@@ -81,25 +70,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      final deviceId = await DeviceService.getDeviceId();
-
-      if (deviceId.isEmpty) {
-        throw Exception('Device ID غير متوفر');
-      }
-
-      final alreadyRegistered = await isDeviceAlreadyRegistered(deviceId);
-
-      if (alreadyRegistered) {
-        if (!mounted) return;
-
-        setState(() {
-          _errorMessage =
-              'هذا الهاتف مرتبط بحساب موجود من قبل، لا يمكن إنشاء حساب آخر.';
-        });
-
-        return;
-      }
-
       final credential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
             email: _emailController.text.trim(),
@@ -115,14 +85,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
             'uid': credential.user!.uid,
             'name': _nameController.text.trim(),
             'email': _emailController.text.trim(),
-            'deviceId': deviceId,
             'createdAt': FieldValue.serverTimestamp(),
           });
-
-      await DeviceService.registerSession(
-        uid: credential.user!.uid,
-        method: 'email',
-      );
 
       if (!mounted) return;
 

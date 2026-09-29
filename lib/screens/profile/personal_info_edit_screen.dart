@@ -1,4 +1,12 @@
 // screens/profile/personal_info_edit_screen.dart
+//
+// شاشة "تعديل الملف الشخصي".
+// كل حقل قابل للتعديل مباشرة بالضغط عليه (بدون أيقونات قلم):
+// - الاسم، المهنة، النبذة، العمر: حقل نصي يأخذ التركيز مباشرة.
+// - تاريخ الميلاد: يفتح منتقي التاريخ.
+// - المستوى التعليمي، المدينة، الحالة العائلية، الولاية المفضلة:
+//   قائمة اختيار سفلية.
+// زر "حفظ التغييرات" يحفظ كل شيء دفعة واحدة. الصورة الرمزية تُحفظ فورًا.
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -497,6 +505,7 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
                                 ),
                               ),
 
+                              // المهنة
                               _FieldCard(
                                 label: 'المهنة',
                                 icon: Icons.work_outline,
@@ -510,6 +519,7 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
                                 ),
                               ),
 
+                              // المستوى التعليمي
                               _FieldCard(
                                 label: 'المستوى التعليمي',
                                 icon: Icons.school_outlined,
@@ -526,6 +536,7 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
                                 ),
                               ),
 
+                              // المدينة
                               _FieldCard(
                                 label: 'المدينة',
                                 icon: Icons.location_on_outlined,
@@ -538,6 +549,7 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
                                 child: _selectText(_city, 'اختر مدينتك'),
                               ),
 
+                              // الحالة العائلية
                               _FieldCard(
                                 label: 'الحالة العائلية',
                                 icon: Icons.people_outline,
@@ -665,6 +677,10 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
   }
 }
 
+// ============================================================
+// الهيدر: زر الرجوع على اليسار، العنوان في الوسط،
+// والصورة الرمزية مع زر التعديل في الزاوية العليا.
+// ============================================================
 class _EditHeader extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback onTapAvatar;
@@ -686,6 +702,7 @@ class _EditHeader extends StatelessWidget {
         children: [
           Row(
             children: [
+              // في RTL: الأول يظهر على اليمين، لذلك الفراغ أولًا
               const SizedBox(width: 44),
               const Expanded(
                 child: Text(
@@ -809,6 +826,7 @@ class _EditHeader extends StatelessWidget {
   }
 }
 
+// بطاقة واحدة تجمع الحقول (نفس أسلوب formulaire_info)
 class _FormCard extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -867,6 +885,11 @@ class _FormCard extends StatelessWidget {
   }
 }
 
+// ============================================================
+// حقل: عنوان + صندوق بنفس تصميم formulaire_info
+// (خلفية رمادية فاتحة، حدود رفيعة، أيقونة خضراء داكنة).
+// الحقل كله قابل للضغط عبر [onTap].
+// ============================================================
 class _FieldCard extends StatelessWidget {
   final String label;
   final IconData icon;
