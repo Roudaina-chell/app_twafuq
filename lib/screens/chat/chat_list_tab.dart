@@ -1,17 +1,4 @@
 // screens/chat/chat_list_tab.dart
-//
-// ✅ قائمة المحادثات (Inbox) — نفس التصميم لي فـ الصورة المرجعية
-// (عنوان "الدردشات" + شريط بحث + ليستة مسطحة بخطوط فاصلة)، لكن
-// دابا مربوطة بـ Firestore حقيقي (ماشي بيانات ثابتة).
-//
-// كتجمع آخر رسالة فـ كل محادثة (chatId) لي أنت طرف فيها
-// (fromUserId == me أو toUserId == me)، كتجيب معلومات الطرف الآخر
-// (name/avatar/city) من collection('users')، وكتفتح
-// ChatConversationScreen الحقيقي كي تدوس على واحد.
-//
-// عداد الرسائل غير المقروءة (badge) لكل محادثة مبني على حقل "read"
-// فـ كل document من collection('messages').
-
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -19,6 +6,86 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'chat_conversation_screen.dart';
 import '../../services/likes_service.dart';
+
+// ------------------------------------------------------------
+// لوحة الألوان: تتبدل تلقائياً حسب المظهر (نهاري / ليلي)
+// (نفس ألوان صفحة المحادثة)
+// ------------------------------------------------------------
+const Color _kDarkGreen = Color(0xFF0F3D2E);
+const Color _kMidGreen = Color(0xFF1A6B4A);
+const Color _kGold = Color(0xFFC9A24B);
+const Color _kCream = Color(0xFFE6D5A8);
+
+class _LP {
+  final bool isDark;
+  final Color bg;
+  final Color card;
+  final Color title; // العناوين والأسماء
+  final Color icon;
+  final Color accent; // خلفية الشارات (عدد غير المقروء)
+  final Color subtitle; // النصوص الثانوية
+  final Color muted; // hint / وقت عادي
+  final Color lastMsg; // آخر رسالة (مقروءة)
+  final Color lastMsgUnread; // آخر رسالة (غير مقروءة)
+  final Color border; // حدود خفيفة
+  final Color ringIdle; // إطار الصورة بدون إشعار
+  final Color rowBorder; // حدود بطاقة المحادثة العادية
+  final Color shadow;
+
+  const _LP({
+    required this.isDark,
+    required this.bg,
+    required this.card,
+    required this.title,
+    required this.icon,
+    required this.accent,
+    required this.subtitle,
+    required this.muted,
+    required this.lastMsg,
+    required this.lastMsgUnread,
+    required this.border,
+    required this.ringIdle,
+    required this.rowBorder,
+    required this.shadow,
+  });
+
+  static const _LP light = _LP(
+    isDark: false,
+    bg: Color(0xFFFAF7F2),
+    card: Colors.white,
+    title: _kDarkGreen,
+    icon: _kDarkGreen,
+    accent: _kDarkGreen,
+    subtitle: Color(0xFF757575),
+    muted: Color(0xFFBDBDBD),
+    lastMsg: Color(0xFF9E9E9E),
+    lastMsgUnread: Color(0xFF616161),
+    border: Color(0xFFF5F5F5),
+    ringIdle: Color(0xFFEEEEEE),
+    rowBorder: Color(0x08000000),
+    shadow: Color(0x1A9E9E9E),
+  );
+
+  static const _LP dark = _LP(
+    isDark: true,
+    bg: Color(0xFF0E1512),
+    card: Color(0xFF17221D),
+    title: _kGold,
+    icon: _kGold,
+    accent: _kMidGreen,
+    subtitle: Color(0xFF8FA198),
+    muted: Color(0xFF5E7068),
+    lastMsg: Color(0xFF8FA198),
+    lastMsgUnread: _kCream,
+    border: Color(0xFF2A3A33),
+    ringIdle: Color(0xFF2A3A33),
+    rowBorder: Color(0xFF2A3A33),
+    shadow: Color(0x66000000),
+  );
+
+  static _LP of(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? dark : light;
+}
 
 class _ConversationPreview {
   final String chatId;
@@ -38,11 +105,6 @@ class _ConversationPreview {
   });
 }
 
-// ============================================================
-// ✅ صورة الأفاتار الحقيقية — تدعم asset محلي و رابط شبكة، مع
-// fallback لحرف اسم الشخص فـ دائرة ملونة (بحال التصميم المرجعي)
-// إلا ماكانتش الصورة موجودة أو فشلت.
-// ============================================================
 Widget buildAvatarImage({
   required String? source,
   required String name,
@@ -110,10 +172,7 @@ class ChatsListTab extends StatefulWidget {
 }
 
 class _ChatsListTabState extends State<ChatsListTab> {
-  static const Color darkGreen = Color(0xFF0F3D2E);
-  static const Color darkGreenLight = Color(0xFF1A6B4A);
   static const Color gold = Color(0xFFC9A24B);
-  static const Color bg = Color(0xFFFAF7F2);
 
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _sentDocs = [];
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _receivedDocs = [];
@@ -121,8 +180,6 @@ class _ChatsListTabState extends State<ChatsListTab> {
   bool _receivedLoaded = false;
   bool _hasError = false;
 
-  // ✅ لا تظهر أي محادثة إلا لشخص يوجد بيني وبينه Match فعلي (البند 8+7):
-  // لا Invitation معلّقة، لا Invitation مرفوضة، بل Match مقبول فقط.
   Set<String> _matchedUids = {};
   bool _matchesLoaded = false;
 
@@ -135,14 +192,13 @@ class _ChatsListTabState extends State<ChatsListTab> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
+  _LP get _p => _LP.of(context);
+
   String? get _myUid => FirebaseAuth.instance.currentUser?.uid;
 
   @override
   void initState() {
     super.initState();
-    // ✅ نستنو المستخدم يكون جاهز (auth state) قبل ما نربطو الـ streams،
-    // باش ما تبقاش الليستة "معلقة" إلا كانت initState تلقات قبل ما
-    // يكمل تسجيل الدخول.
     _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
       if (user != null) {
         _attachStreams(user.uid);
@@ -313,14 +369,10 @@ class _ChatsListTabState extends State<ChatsListTab> {
       );
     }).toList();
 
-    // ✅ فلترة صارمة: لا تظهر أي محادثة إلا لشخص عندي معه Match فعلي.
-    // هذا يمنع ظهور محادثات لأشخاص Invitation معهم ما زالت pending أو
-    // تم رفضها (البند 8).
-    final matched = list.where((c) => _matchedUids.contains(c.otherUid)).toList();
+    final matched = list
+        .where((c) => _matchedUids.contains(c.otherUid))
+        .toList();
 
-    // ✅ بعد Accept مباشرة، يجب أن تظهر المحادثة فـ "المحادثات" حتى لو
-    // ما تبادلش الطرفان أي رسالة بعد (البند 18) — نضيف صفوف فارغة
-    // للـ Matches التي لا رسائل لها بعد.
     final existingOtherUids = matched.map((c) => c.otherUid).toSet();
     for (final uid in _matchedUids) {
       if (!existingOtherUids.contains(uid)) {
@@ -378,9 +430,10 @@ class _ChatsListTabState extends State<ChatsListTab> {
   @override
   Widget build(BuildContext context) {
     final me = _myUid;
+    final p = _p;
 
     return Scaffold(
-      backgroundColor: bg,
+      backgroundColor: p.bg,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -396,16 +449,15 @@ class _ChatsListTabState extends State<ChatsListTab> {
     );
   }
 
-  // ============================================================
-  // 🔝 الهيدر: "المحادثات" بتدرّج لوني (نفس لغة صفحة الإعجابات) +
-  // بادج حي لعدد المحادثات غير المقروءة
-  // ============================================================
   Widget _buildHeader() {
+    final p = _p;
     final conversations = (_sentLoaded && _receivedLoaded && _matchesLoaded)
         ? _buildConversations()
         : const <_ConversationPreview>[];
-    final int unreadTotal =
-        conversations.fold(0, (sum, c) => sum + c.unreadCount);
+    final int unreadTotal = conversations.fold(
+      0,
+      (sum, c) => sum + c.unreadCount,
+    );
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
@@ -416,12 +468,12 @@ class _ChatsListTabState extends State<ChatsListTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'المحادثات',
                   style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.w800,
-                    color: darkGreen,
+                    color: p.title,
                     letterSpacing: -0.5,
                   ),
                 ),
@@ -430,7 +482,7 @@ class _ChatsListTabState extends State<ChatsListTab> {
                   'تواصل بسهولة مع الجميع',
                   style: TextStyle(
                     fontSize: 12.5,
-                    color: Colors.grey.shade600,
+                    color: p.subtitle,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -442,11 +494,14 @@ class _ChatsListTabState extends State<ChatsListTab> {
               margin: const EdgeInsets.only(left: 10),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: darkGreen,
+                color: p.accent,
                 borderRadius: BorderRadius.circular(18),
+                border: p.isDark ? Border.all(color: p.border) : null,
                 boxShadow: [
                   BoxShadow(
-                    color: darkGreen.withValues(alpha: 0.22),
+                    color: p.isDark
+                        ? p.shadow
+                        : _kDarkGreen.withValues(alpha: 0.22),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),
@@ -478,19 +533,21 @@ class _ChatsListTabState extends State<ChatsListTab> {
             ),
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: p.card,
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.grey.shade100),
+              border: Border.all(color: p.border),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withValues(alpha: 0.1),
+                  color: p.isDark
+                      ? p.shadow
+                      : Colors.grey.withValues(alpha: 0.1),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: IconButton(
-              icon: Icon(Icons.more_vert_rounded, color: darkGreen, size: 20),
+              icon: Icon(Icons.more_vert_rounded, color: p.icon, size: 20),
               onPressed: () {},
               padding: const EdgeInsets.all(8),
               constraints: const BoxConstraints(),
@@ -501,22 +558,20 @@ class _ChatsListTabState extends State<ChatsListTab> {
     );
   }
 
-  // ============================================================
-  // 🔍 شريط البحث
-  // ============================================================
   Widget _buildSearchBar() {
+    final p = _p;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
         height: 50,
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: p.card,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey.shade100),
+          border: Border.all(color: p.border),
           boxShadow: [
             BoxShadow(
-              color: darkGreen.withValues(alpha: 0.05),
+              color: p.isDark ? p.shadow : _kDarkGreen.withValues(alpha: 0.05),
               blurRadius: 14,
               offset: const Offset(0, 6),
             ),
@@ -527,26 +582,27 @@ class _ChatsListTabState extends State<ChatsListTab> {
             Container(
               padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
-                color: darkGreen.withValues(alpha: 0.08),
+                color: p.icon.withValues(alpha: 0.10),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.search_rounded, color: darkGreen, size: 16),
+              child: Icon(Icons.search_rounded, color: p.icon, size: 16),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: TextField(
                 controller: _searchController,
                 textAlign: TextAlign.right,
+                cursorColor: p.icon,
                 decoration: InputDecoration(
                   border: InputBorder.none,
                   isDense: true,
                   hintText: 'ابحث عن محادثة...',
-                  hintStyle: TextStyle(
-                    color: Colors.grey.shade400,
-                    fontSize: 13.5,
-                  ),
+                  hintStyle: TextStyle(color: p.muted, fontSize: 13.5),
                 ),
-                style: const TextStyle(fontSize: 13.5, color: darkGreen),
+                style: TextStyle(
+                  fontSize: 13.5,
+                  color: p.isDark ? _kCream : _kDarkGreen,
+                ),
               ),
             ),
           ],
@@ -556,6 +612,7 @@ class _ChatsListTabState extends State<ChatsListTab> {
   }
 
   Widget _buildBody(String? me) {
+    final p = _p;
     if (me == null) {
       return _buildInfoState(
         icon: Icons.person_off_rounded,
@@ -573,8 +630,8 @@ class _ChatsListTabState extends State<ChatsListTab> {
     }
 
     if (!_sentLoaded || !_receivedLoaded || !_matchesLoaded) {
-      return const Center(
-        child: CircularProgressIndicator(color: darkGreen, strokeWidth: 2.4),
+      return Center(
+        child: CircularProgressIndicator(color: p.icon, strokeWidth: 2.4),
       );
     }
 
@@ -602,7 +659,6 @@ class _ChatsListTabState extends State<ChatsListTab> {
                 (userData?['name'] as String?) ??
                 'مستخدم';
 
-            // ✅ فلترة البحث بالاسم
             if (_searchQuery.isNotEmpty &&
                 !name.toLowerCase().contains(_searchQuery.toLowerCase())) {
               return const SizedBox.shrink();
@@ -613,12 +669,10 @@ class _ChatsListTabState extends State<ChatsListTab> {
                 (userData?['avatarPath'] as String?);
             final bool isOnline = userData?['isOnline'] == true;
 
-            // ✅ Match بدون أي رسالة بعد (chatId فارغ = تمت إضافته هنا
-            // فقط لأن Match موجود) — نعرض دعوة لطيفة لبدء الحديث بدل
-            // إيحاء "📎 رسالة" الخاص برسالة فعلية غير موجودة.
             final bool isMatchOnly = convo.chatId.isEmpty;
-            final String lastMessageDisplay =
-                isMatchOnly ? 'تم التوافق — ابدأ المحادثة الآن 👋' : convo.lastMessage;
+            final String lastMessageDisplay = isMatchOnly
+                ? 'تم التوافق — ابدأ المحادثة الآن 👋'
+                : convo.lastMessage;
 
             return _ConversationRow(
               name: name,
@@ -628,9 +682,6 @@ class _ChatsListTabState extends State<ChatsListTab> {
               lastMessage: lastMessageDisplay,
               unreadCount: convo.unreadCount,
               timeLabel: _formatTimestamp(convo.lastTimestamp),
-              darkGreen: darkGreen,
-              darkGreenLight: darkGreenLight,
-              gold: gold,
               onTap: () {
                 Navigator.push(
                   context,
@@ -656,6 +707,7 @@ class _ChatsListTabState extends State<ChatsListTab> {
     required String title,
     required String subtitle,
   }) {
+    final p = _p;
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 36),
@@ -665,29 +717,25 @@ class _ChatsListTabState extends State<ChatsListTab> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: darkGreen.withValues(alpha: 0.08),
+                color: p.icon.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 40, color: darkGreen),
+              child: Icon(icon, size: 40, color: p.icon),
             ),
             const SizedBox(height: 20),
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
-                color: darkGreen,
+                color: p.title,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey.shade500,
-                height: 1.5,
-              ),
+              style: TextStyle(fontSize: 13, color: p.subtitle, height: 1.5),
             ),
           ],
         ),
@@ -696,12 +744,9 @@ class _ChatsListTabState extends State<ChatsListTab> {
   }
 }
 
-// ============================================================
-// عنصر واحد فـ الليستة — تصميم بطاقة (card) عصري: أفاتار بنقطة
-// أونلاين، اسم + آخر رسالة بمحاذاة يمين، الوقت + عداد الغير مقروء
-// على اليسار، ظل ناعم وحواف مدورة بدل الخط الفاصل المسطح.
-// ============================================================
 class _ConversationRow extends StatelessWidget {
+  static const Color gold = Color(0xFFC9A24B);
+
   final String name;
   final String? avatarAsset;
   final bool isOnline;
@@ -709,9 +754,6 @@ class _ConversationRow extends StatelessWidget {
   final String lastMessage;
   final int unreadCount;
   final String timeLabel;
-  final Color darkGreen;
-  final Color darkGreenLight;
-  final Color gold;
   final VoidCallback onTap;
 
   const _ConversationRow({
@@ -722,21 +764,19 @@ class _ConversationRow extends StatelessWidget {
     required this.lastMessage,
     required this.unreadCount,
     required this.timeLabel,
-    required this.darkGreen,
-    required this.darkGreenLight,
-    required this.gold,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final p = _LP.of(context);
     final bool hasUnread = unreadCount > 0;
     final bool highlight = hasUnread || isMatchOnly;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
-        color: Colors.white,
+        color: p.card,
         borderRadius: BorderRadius.circular(22),
         child: InkWell(
           onTap: onTap,
@@ -749,13 +789,15 @@ class _ConversationRow extends StatelessWidget {
                 color: isMatchOnly
                     ? gold.withValues(alpha: 0.35)
                     : hasUnread
-                        ? darkGreen.withValues(alpha: 0.14)
-                        : Colors.black.withValues(alpha: 0.03),
+                    ? p.icon.withValues(alpha: p.isDark ? 0.35 : 0.14)
+                    : p.rowBorder,
                 width: isMatchOnly ? 1.3 : 1,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: darkGreen.withValues(alpha: highlight ? 0.10 : 0.05),
+                  color: p.isDark
+                      ? Colors.black.withValues(alpha: highlight ? 0.40 : 0.30)
+                      : _kDarkGreen.withValues(alpha: highlight ? 0.10 : 0.05),
                   blurRadius: 18,
                   offset: const Offset(0, 8),
                 ),
@@ -764,7 +806,6 @@ class _ConversationRow extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // ⏰ الوقت + عداد الغير مقروء (يسار)
                 SizedBox(
                   width: 54,
                   child: Column(
@@ -772,7 +813,10 @@ class _ConversationRow extends StatelessWidget {
                     children: [
                       if (isMatchOnly)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: gold,
                             borderRadius: BorderRadius.circular(20),
@@ -791,7 +835,7 @@ class _ConversationRow extends StatelessWidget {
                           timeLabel,
                           style: TextStyle(
                             fontSize: 11.5,
-                            color: hasUnread ? darkGreen : Colors.grey.shade400,
+                            color: hasUnread ? p.title : p.muted,
                             fontWeight: hasUnread
                                 ? FontWeight.w700
                                 : FontWeight.normal,
@@ -804,7 +848,7 @@ class _ConversationRow extends StatelessWidget {
                           height: 21,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: darkGreen,
+                            color: p.accent,
                             shape: BoxShape.circle,
                           ),
                           child: Text(
@@ -821,7 +865,6 @@ class _ConversationRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 6),
-                // 📝 الاسم + آخر رسالة (محاذاة يمين)
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
@@ -834,7 +877,7 @@ class _ConversationRow extends StatelessWidget {
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 15.5,
-                          color: darkGreen,
+                          color: p.title,
                           letterSpacing: -0.2,
                         ),
                       ),
@@ -849,8 +892,8 @@ class _ConversationRow extends StatelessWidget {
                           color: isMatchOnly
                               ? gold.withValues(alpha: 0.95)
                               : hasUnread
-                                  ? Colors.grey.shade700
-                                  : Colors.grey.shade500,
+                              ? p.lastMsgUnread
+                              : p.lastMsg,
                           fontWeight: highlight
                               ? FontWeight.w600
                               : FontWeight.normal,
@@ -860,7 +903,6 @@ class _ConversationRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 14),
-                // 🖼️ الأفاتار (يمين) بحلقة تدرّج دائمة — نفس هوية التطبيق
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
@@ -869,18 +911,21 @@ class _ConversationRow extends StatelessWidget {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: highlight ? gold : Colors.grey.shade200,
+                          color: highlight ? gold : p.ringIdle,
                           width: 2,
                         ),
                       ),
                       child: Container(
                         padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                        decoration: BoxDecoration(
+                          color: p.card,
+                          shape: BoxShape.circle,
+                        ),
                         child: buildAvatarImage(
                           source: avatarAsset,
                           name: name,
                           size: 48,
-                          fallbackColor: darkGreen,
+                          fallbackColor: p.icon,
                         ),
                       ),
                     ),
@@ -894,7 +939,7 @@ class _ConversationRow extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: Colors.green.shade500,
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2.2),
+                            border: Border.all(color: p.card, width: 2.2),
                           ),
                         ),
                       ),

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 enum AppLanguage { arabic, french }
 
+// محتفظ بها للتوافق مع ملفات أخرى قد تستوردها
 const Color kDarkGreen = Color(0xFF0F3D2E);
 const Color kGold = Color(0xFFC9A24B);
 const Color kBg = Color(0xFFFAF7F2);
@@ -60,15 +61,15 @@ class _LanguageScreenState extends State<LanguageScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final p = _Pal.of(context);
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: kBg,
+        backgroundColor: p.bg,
         body: SafeArea(
           child: _isLoading
-              ? const Center(
-                  child: CircularProgressIndicator(color: kDarkGreen),
-                )
+              ? Center(child: CircularProgressIndicator(color: p.primary))
               : SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
                   child: Column(
@@ -90,24 +91,24 @@ class _LanguageScreenState extends State<LanguageScreen> {
                           width: kSettingsBadgeSize,
                           height: kSettingsBadgeSize,
                           decoration: BoxDecoration(
-                            color: kDarkGreen.withValues(alpha: 0.08),
+                            color: p.primary.withValues(alpha: 0.08),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.language_rounded,
                             size: kSettingsBadgeIconSize,
-                            color: kDarkGreen,
+                            color: p.primary,
                           ),
                         ),
                       ),
                       const SizedBox(height: 14),
-                      const Text(
+                      Text(
                         'اللغة',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.w800,
-                          color: kDarkGreen,
+                          color: p.primary,
                           letterSpacing: -0.5,
                         ),
                       ),
@@ -115,10 +116,7 @@ class _LanguageScreenState extends State<LanguageScreen> {
                       Text(
                         'اختر لغتك المفضلة',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey.shade600,
-                        ),
+                        style: TextStyle(fontSize: 13, color: p.subtitle),
                       ),
                       const SizedBox(height: 28),
                       _LanguageTile(
@@ -158,8 +156,10 @@ class _LanguageTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = _Pal.of(context);
+
     return Material(
-      color: Colors.white,
+      color: p.card,
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
         borderRadius: BorderRadius.circular(22),
@@ -169,18 +169,10 @@ class _LanguageTile extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: selected
-                  ? kGold.withValues(alpha: 0.35)
-                  : Colors.black.withValues(alpha: 0.03),
+              color: selected ? p.gold.withValues(alpha: 0.35) : p.border,
               width: selected ? 1.3 : 1,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: kDarkGreen.withValues(alpha: selected ? 0.10 : 0.05),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
+            boxShadow: p.shadow(alpha: selected ? 0.10 : 0.05),
           ),
           child: Row(
             children: [
@@ -189,15 +181,15 @@ class _LanguageTile extends StatelessWidget {
                 height: 44,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: kDarkGreen.withValues(alpha: 0.08),
+                  color: p.primary.withValues(alpha: 0.08),
                   shape: BoxShape.circle,
                 ),
                 child: Text(
                   code,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 15,
-                    color: kDarkGreen,
+                    color: p.primary,
                   ),
                 ),
               ),
@@ -205,10 +197,10 @@ class _LanguageTile extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
-                    color: kDarkGreen,
+                    color: p.primary,
                   ),
                 ),
               ),
@@ -218,14 +210,18 @@ class _LanguageTile extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: selected ? kDarkGreen : null,
+                  color: selected ? p.primary : null,
                   border: Border.all(
-                    color: selected ? Colors.transparent : Colors.grey.shade300,
+                    color: selected
+                        ? Colors.transparent
+                        : (p.isDark
+                              ? Colors.grey.shade600
+                              : Colors.grey.shade300),
                     width: 1.6,
                   ),
                 ),
                 child: selected
-                    ? const Icon(Icons.check, size: 16, color: Colors.white)
+                    ? Icon(Icons.check, size: 16, color: p.onPrimary)
                     : null,
               ),
             ],
@@ -243,8 +239,10 @@ class _CircleIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = _Pal.of(context);
+
     return Material(
-      color: Colors.white,
+      color: p.card,
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
@@ -253,22 +251,75 @@ class _CircleIconButton extends StatelessWidget {
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: kDarkGreen.withValues(alpha: 0.08),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
+            boxShadow: p.shadow(alpha: 0.08, blur: 10, dy: 3),
           ),
           child: Icon(
             icon,
-            color: kDarkGreen,
+            color: p.primary,
             size: 20,
             textDirection: TextDirection.ltr,
           ),
         ),
       ),
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ألوان مشتقة من الـ Theme الحالي (نهاري / ليلي) — خاصة بهذا الملف
+// ---------------------------------------------------------------------------
+class _Pal {
+  final bool isDark;
+  final Color primary;
+  final Color onPrimary;
+  final Color bg;
+  final Color card;
+  final Color border;
+  final Color subtitle;
+  final Color gold;
+
+  const _Pal._({
+    required this.isDark,
+    required this.primary,
+    required this.onPrimary,
+    required this.bg,
+    required this.card,
+    required this.border,
+    required this.subtitle,
+    required this.gold,
+  });
+
+  factory _Pal.of(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primary = theme.colorScheme.primary;
+    return _Pal._(
+      isDark: isDark,
+      primary: primary,
+      onPrimary: theme.colorScheme.onPrimary,
+      bg: theme.scaffoldBackgroundColor,
+      card: theme.colorScheme.surface,
+      border: isDark
+          ? Colors.white.withValues(alpha: 0.08)
+          : const Color(0xFFEFEAE2),
+      subtitle: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+      gold: const Color(0xFFC9A24B),
+    );
+  }
+
+  /// ظلال (تُلغى في الوضع الليلي)
+  List<BoxShadow>? shadow({
+    double alpha = 0.06,
+    double blur = 18,
+    double dy = 8,
+  }) {
+    if (isDark) return null;
+    return [
+      BoxShadow(
+        color: primary.withValues(alpha: alpha),
+        blurRadius: blur,
+        offset: Offset(0, dy),
+      ),
+    ];
   }
 }

@@ -1,8 +1,7 @@
 // screens/profile/avatar_picker_screen.dart
 import 'package:flutter/material.dart';
 
-/// شيت اختيار/تبديل الأفاتار — بنفس ستايل AvatarSelectionScreen، لكن
-/// كـ modal bottom sheet فوق نفس الصفحة (بلا Navigator.push لصفحة جديدة).
+/// شيت اختيار/تبديل الأفاتار — modal bottom sheet فوق نفس الصفحة.
 ///
 /// الاستعمال:
 /// ```dart
@@ -39,10 +38,6 @@ class _AvatarPickerSheet extends StatefulWidget {
 }
 
 class _AvatarPickerSheetState extends State<_AvatarPickerSheet> {
-  static const Color darkGreen = Color(0xFF0F3D2E);
-  static const Color gold = Color(0xFFC9A24B);
-  static const Color bg = Color(0xFFFAF7F2);
-
   int? _selectedIndex;
 
   final List<_AvatarOption> _femaleAvatars = const [
@@ -135,6 +130,9 @@ class _AvatarPickerSheetState extends State<_AvatarPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final p = _Pal.of(context);
+    final canSave = _selectedIndex != null;
+
     return DraggableScrollableSheet(
       initialChildSize: 0.82,
       minChildSize: 0.5,
@@ -142,9 +140,9 @@ class _AvatarPickerSheetState extends State<_AvatarPickerSheet> {
       expand: false,
       builder: (context, scrollController) {
         return Container(
-          decoration: const BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          decoration: BoxDecoration(
+            color: p.bg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: SingleChildScrollView(
             controller: scrollController,
@@ -158,7 +156,7 @@ class _AvatarPickerSheetState extends State<_AvatarPickerSheet> {
                     height: 4,
                     margin: const EdgeInsets.only(bottom: 10),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
+                      color: p.handle,
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -166,13 +164,13 @@ class _AvatarPickerSheetState extends State<_AvatarPickerSheet> {
                 Row(
                   children: [
                     const SizedBox(width: 34),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'تغيير الصورة',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: darkGreen,
+                          color: p.primary,
                           fontSize: 17,
                         ),
                       ),
@@ -183,19 +181,21 @@ class _AvatarPickerSheetState extends State<_AvatarPickerSheet> {
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: p.card,
                           shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: darkGreen.withValues(alpha: 0.06),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
+                          boxShadow: p.isDark
+                              ? null
+                              : [
+                                  BoxShadow(
+                                    color: p.primary.withValues(alpha: 0.06),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.close_rounded,
-                          color: darkGreen,
+                          color: p.primary,
                           size: 18,
                         ),
                       ),
@@ -205,21 +205,21 @@ class _AvatarPickerSheetState extends State<_AvatarPickerSheet> {
 
                 const SizedBox(height: 18),
 
-                const Text(
+                Text(
                   'اختاري الأفاتار متاعك',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
-                    color: darkGreen,
+                    color: p.primary,
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
+                Text(
                   'هاذ الأفاتار غادي يبان فـ ملفك الشخصي',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: Colors.black45,
+                    color: p.subtitle,
                     fontSize: 13,
                     height: 1.5,
                   ),
@@ -260,15 +260,15 @@ class _AvatarPickerSheetState extends State<_AvatarPickerSheet> {
                                   shape: BoxShape.circle,
                                   color: avatar.bgColor,
                                   border: Border.all(
-                                    color: selected ? gold : Colors.white,
+                                    color: selected ? p.gold : p.card,
                                     width: selected ? 4 : 3,
                                   ),
                                   boxShadow: [
                                     BoxShadow(
                                       color: selected
-                                          ? gold.withValues(alpha: 0.40)
+                                          ? p.gold.withValues(alpha: 0.40)
                                           : Colors.black.withValues(
-                                              alpha: 0.08,
+                                              alpha: p.isDark ? 0.30 : 0.08,
                                             ),
                                       blurRadius: selected ? 16 : 8,
                                       spreadRadius: selected ? 1.5 : 0,
@@ -282,18 +282,18 @@ class _AvatarPickerSheetState extends State<_AvatarPickerSheet> {
                                       avatar.assetPath,
                                       fit: BoxFit.cover,
                                       alignment: Alignment.topCenter,
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                            return Container(
-                                              color: avatar.bgColor,
-                                              alignment: Alignment.center,
-                                              child: const Icon(
-                                                Icons.person,
-                                                size: 36,
-                                                color: darkGreen,
-                                              ),
-                                            );
-                                          },
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Container(
+                                          color: avatar.bgColor,
+                                          alignment: Alignment.center,
+                                          // الخلفية باستيل دايماً → أيقونة غامقة ثابتة
+                                          child: const Icon(
+                                            Icons.person,
+                                            size: 36,
+                                            color: Color(0xFF0F3D2E),
+                                          ),
+                                        );
+                                      },
                                     ),
                                   ),
                                 ),
@@ -306,17 +306,14 @@ class _AvatarPickerSheetState extends State<_AvatarPickerSheet> {
                                     width: 24,
                                     height: 24,
                                     decoration: BoxDecoration(
-                                      color: darkGreen,
+                                      color: p.primary,
                                       shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.white,
-                                        width: 2,
-                                      ),
+                                      border: Border.all(color: p.bg, width: 2),
                                     ),
-                                    child: const Icon(
+                                    child: Icon(
                                       Icons.check,
                                       size: 14,
-                                      color: Colors.white,
+                                      color: p.onPrimary,
                                     ),
                                   ),
                                 ),
@@ -334,14 +331,12 @@ class _AvatarPickerSheetState extends State<_AvatarPickerSheet> {
                   duration: const Duration(milliseconds: 300),
                   height: 54,
                   decoration: BoxDecoration(
-                    color: _selectedIndex != null
-                        ? darkGreen
-                        : Colors.grey.shade300,
+                    color: canSave ? p.primary : p.disabled,
                     borderRadius: BorderRadius.circular(18),
-                    boxShadow: _selectedIndex != null
+                    boxShadow: canSave && !p.isDark
                         ? [
                             BoxShadow(
-                              color: darkGreen.withValues(alpha: 0.25),
+                              color: p.primary.withValues(alpha: 0.25),
                               blurRadius: 12,
                               offset: const Offset(0, 5),
                             ),
@@ -351,7 +346,7 @@ class _AvatarPickerSheetState extends State<_AvatarPickerSheet> {
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      onTap: _selectedIndex != null ? _confirm : null,
+                      onTap: canSave ? _confirm : null,
                       borderRadius: BorderRadius.circular(18),
                       child: Center(
                         child: Text(
@@ -359,9 +354,7 @@ class _AvatarPickerSheetState extends State<_AvatarPickerSheet> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: _selectedIndex != null
-                                ? Colors.white
-                                : Colors.grey.shade600,
+                            color: canSave ? p.onPrimary : p.disabledText,
                           ),
                         ),
                       ),
@@ -387,4 +380,50 @@ class _AvatarOption {
     required this.assetPath,
     required this.bgColor,
   });
+}
+
+// ---------------------------------------------------------------------------
+// ألوان مشتقة من الـ Theme الحالي (نهاري / ليلي) — خاصة بهذا الملف
+// ---------------------------------------------------------------------------
+class _Pal {
+  final bool isDark;
+  final Color primary;
+  final Color onPrimary;
+  final Color bg;
+  final Color card;
+  final Color subtitle;
+  final Color handle;
+  final Color disabled;
+  final Color disabledText;
+  final Color gold;
+
+  const _Pal._({
+    required this.isDark,
+    required this.primary,
+    required this.onPrimary,
+    required this.bg,
+    required this.card,
+    required this.subtitle,
+    required this.handle,
+    required this.disabled,
+    required this.disabledText,
+    required this.gold,
+  });
+
+  factory _Pal.of(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    return _Pal._(
+      isDark: isDark,
+      primary: theme.colorScheme.primary,
+      onPrimary: theme.colorScheme.onPrimary,
+      bg: theme.scaffoldBackgroundColor,
+      card: theme.colorScheme.surface,
+      subtitle: isDark ? Colors.grey.shade400 : Colors.black45,
+      handle: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+      disabled: isDark ? const Color(0xFF2A3A33) : Colors.grey.shade300,
+      disabledText: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
+      gold: const Color(0xFFC9A24B),
+    );
+  }
 }

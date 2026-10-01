@@ -13,13 +13,9 @@ class FormulaireInfo extends StatefulWidget {
 
 class _FormulaireInfoState extends State<FormulaireInfo>
     with SingleTickerProviderStateMixin {
-  static const Color darkGreen = Color(0xFF0F3D2E);
-  static const Color gold = Color(0xFFC9A24B);
-  static const Color bg = Color(0xFFFAF7F2);
-  static const Color cardBorder = Color(0xFFEFEAE2);
-
   final _nameController = TextEditingController();
   final _occupationController = TextEditingController();
+  final _birthDateController = TextEditingController();
 
   DateTime? _birthDate;
   String? _educationLevel;
@@ -81,11 +77,16 @@ class _FormulaireInfoState extends State<FormulaireInfo>
     _animationController.dispose();
     _nameController.dispose();
     _occupationController.dispose();
+    _birthDateController.dispose();
     super.dispose();
   }
 
+  String _formatDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')} / ${d.month.toString().padLeft(2, '0')} / ${d.year}';
+
   Future<void> _pickBirthDate() async {
     final now = DateTime.now();
+    final p = _Pal.of(context);
     final picked = await showDatePicker(
       context: context,
       initialDate: DateTime(now.year - 25),
@@ -94,20 +95,26 @@ class _FormulaireInfoState extends State<FormulaireInfo>
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: darkGreen,
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Colors.black87,
-            ),
-            dialogBackgroundColor: Colors.white,
+            colorScheme:
+                (p.isDark
+                        ? const ColorScheme.dark()
+                        : const ColorScheme.light())
+                    .copyWith(
+                      primary: p.primary,
+                      onPrimary: p.onPrimary,
+                      surface: p.card,
+                      onSurface: p.isDark ? Colors.white : Colors.black87,
+                    ),
           ),
           child: child!,
         );
       },
     );
     if (picked != null) {
-      setState(() => _birthDate = picked);
+      setState(() {
+        _birthDate = picked;
+        _birthDateController.text = _formatDate(picked);
+      });
     }
   }
 
@@ -168,29 +175,30 @@ class _FormulaireInfoState extends State<FormulaireInfo>
   }
 
   InputDecoration _buildDecoration({
+    required _Pal p,
     required String hint,
     required IconData icon,
     Widget? suffix,
   }) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13.5),
-      prefixIcon: Icon(icon, color: darkGreen, size: 19),
+      hintStyle: TextStyle(color: p.muted, fontSize: 13.5),
+      prefixIcon: Icon(icon, color: p.primary, size: 19),
       suffixIcon: suffix,
       filled: true,
-      fillColor: bg.withValues(alpha: 0.6),
+      fillColor: p.field,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: cardBorder),
+        borderSide: BorderSide(color: p.border),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: cardBorder),
+        borderSide: BorderSide(color: p.border),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: darkGreen, width: 1.6),
+        borderSide: BorderSide(color: p.primary, width: 1.6),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
@@ -199,7 +207,7 @@ class _FormulaireInfoState extends State<FormulaireInfo>
     );
   }
 
-  Widget _buildLabel(String text) {
+  Widget _buildLabel(_Pal p, String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 7, top: 16),
       child: Row(
@@ -208,8 +216,8 @@ class _FormulaireInfoState extends State<FormulaireInfo>
           Text(
             text,
             textAlign: TextAlign.right,
-            style: const TextStyle(
-              color: darkGreen,
+            style: TextStyle(
+              color: p.primary,
               fontSize: 13.5,
               fontWeight: FontWeight.w700,
             ),
@@ -219,34 +227,64 @@ class _FormulaireInfoState extends State<FormulaireInfo>
     );
   }
 
-  Widget _buildSectionDivider(String label) {
+  Widget _buildSectionDivider(_Pal p, String label) {
     return Padding(
       padding: const EdgeInsets.only(top: 22, bottom: 6),
       child: Row(
         children: [
-          Expanded(child: Container(height: 1, color: cardBorder)),
+          Expanded(child: Container(height: 1, color: p.border)),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Text(
               label,
               style: TextStyle(
-                color: gold,
+                color: p.gold,
                 fontSize: 11.5,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.4,
               ),
             ),
           ),
-          Expanded(child: Container(height: 1, color: cardBorder)),
+          Expanded(child: Container(height: 1, color: p.border)),
         ],
       ),
     );
   }
 
+  Widget _dropdown({
+    required _Pal p,
+    required String? value,
+    required String hint,
+    required String decoHint,
+    required IconData icon,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return DropdownButtonFormField<String>(
+      value: value,
+      isExpanded: true,
+      dropdownColor: p.card,
+      hint: Text(hint, style: TextStyle(color: p.muted, fontSize: 13.5)),
+      icon: Icon(Icons.keyboard_arrow_down_rounded, color: p.primary),
+      decoration: _buildDecoration(p: p, hint: decoHint, icon: icon),
+      items: items
+          .map(
+            (e) => DropdownMenuItem(
+              value: e,
+              child: Text(e, style: const TextStyle(fontSize: 13.5)),
+            ),
+          )
+          .toList(),
+      onChanged: onChanged,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final p = _Pal.of(context);
+
     return Scaffold(
-      backgroundColor: bg,
+      backgroundColor: p.bg,
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeAnimation,
@@ -257,39 +295,39 @@ class _FormulaireInfoState extends State<FormulaireInfo>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // ==================================================
-                  // الترويسة وشريط التقدم
-                  // ==================================================
+                  // ===== الترويسة وشريط التقدم =====
                   const SizedBox(height: 12),
                   Row(
                     children: [
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: p.card,
                           shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.grey.withValues(alpha: 0.10),
-                              blurRadius: 10,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
+                          boxShadow: p.isDark
+                              ? null
+                              : [
+                                  BoxShadow(
+                                    color: Colors.grey.withValues(alpha: 0.10),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
                         ),
                         child: IconButton(
                           onPressed: () => Navigator.maybePop(context),
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.arrow_back_ios_new_rounded,
-                            color: darkGreen,
+                            color: p.primary,
                             size: 18,
                           ),
                         ),
                       ),
                       const SizedBox(width: 4),
-                      const Text(
+                      Text(
                         'TAWAFUQ',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: darkGreen,
+                          color: p.primary,
                           letterSpacing: 1.8,
                           fontSize: 15,
                         ),
@@ -301,10 +339,8 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                           child: LinearProgressIndicator(
                             value: 0.4,
                             minHeight: 7,
-                            backgroundColor: Colors.grey.shade200,
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                              gold,
-                            ),
+                            backgroundColor: p.track,
+                            valueColor: AlwaysStoppedAnimation<Color>(p.gold),
                           ),
                         ),
                       ),
@@ -315,11 +351,11 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: gold,
+                          color: p.gold,
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: gold.withValues(alpha: 0.3),
+                              color: p.gold.withValues(alpha: 0.3),
                               blurRadius: 6,
                               offset: const Offset(0, 2),
                             ),
@@ -338,9 +374,7 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                   ),
                   const SizedBox(height: 26),
 
-                  // ==================================================
-                  // أيقونة القسم
-                  // ==================================================
+                  // ===== أيقونة القسم =====
                   Center(
                     child: Container(
                       width: 76,
@@ -351,34 +385,32 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            gold.withValues(alpha: 0.16),
-                            gold.withValues(alpha: 0.05),
+                            p.gold.withValues(alpha: 0.16),
+                            p.gold.withValues(alpha: 0.05),
                           ],
                         ),
                         border: Border.all(
-                          color: gold.withValues(alpha: 0.35),
+                          color: p.gold.withValues(alpha: 0.35),
                           width: 1.6,
                         ),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.person_outline_rounded,
-                        color: darkGreen,
+                        color: p.primary,
                         size: 36,
                       ),
                     ),
                   ),
                   const SizedBox(height: 18),
 
-                  // ==================================================
-                  // العنوان والوصف
-                  // ==================================================
-                  const Text(
+                  // ===== العنوان والوصف =====
+                  Text(
                     'معلومات أساسية',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 25,
                       fontWeight: FontWeight.bold,
-                      color: darkGreen,
+                      color: p.primary,
                     ),
                   ),
                   const SizedBox(height: 7),
@@ -387,58 +419,46 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 13.5,
-                      color: Colors.grey.shade600,
+                      color: p.subtitle,
                       height: 1.6,
                     ),
                   ),
                   const SizedBox(height: 26),
 
-                  // ==================================================
-                  // بطاقة الحقول
-                  // ==================================================
+                  // ===== بطاقة الحقول =====
                   Container(
                     padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: p.card,
                       borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: cardBorder),
-                      boxShadow: [
-                        BoxShadow(
-                          color: darkGreen.withValues(alpha: 0.06),
-                          blurRadius: 24,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
+                      border: Border.all(color: p.border),
+                      boxShadow: p.shadow(alpha: 0.06, blur: 24, dy: 10),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _buildSectionDivider('البيانات الشخصية'),
+                        _buildSectionDivider(p, 'البيانات الشخصية'),
 
-                        // الاسم الكامل
-                        _buildLabel('الاسم الكامل'),
+                        _buildLabel(p, 'الاسم الكامل'),
                         TextField(
                           controller: _nameController,
                           textAlign: TextAlign.right,
                           decoration: _buildDecoration(
+                            p: p,
                             hint: 'أدخل اسمك الكامل',
                             icon: Icons.person_outline_rounded,
                           ),
                         ),
 
-                        // تاريخ الميلاد
-                        _buildLabel('تاريخ الميلاد'),
+                        _buildLabel(p, 'تاريخ الميلاد'),
                         GestureDetector(
                           onTap: _pickBirthDate,
                           child: AbsorbPointer(
                             child: TextField(
                               textAlign: TextAlign.right,
-                              controller: TextEditingController(
-                                text: _birthDate == null
-                                    ? ''
-                                    : '${_birthDate!.day.toString().padLeft(2, '0')} / ${_birthDate!.month.toString().padLeft(2, '0')} / ${_birthDate!.year}',
-                              ),
+                              controller: _birthDateController,
                               decoration: _buildDecoration(
+                                p: p,
                                 hint: 'اختر تاريخ ميلادك',
                                 icon: Icons.calendar_today_outlined,
                                 suffix: const Icon(
@@ -450,9 +470,8 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                           ),
                         ),
 
-                        _buildSectionDivider('المسار المهني والتعليمي'),
+                        _buildSectionDivider(p, 'المسار المهني والتعليمي'),
 
-                        // المهنة والمستوى التعليمي
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -460,11 +479,12 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  _buildLabel('المهنة'),
+                                  _buildLabel(p, 'المهنة'),
                                   TextField(
                                     controller: _occupationController,
                                     textAlign: TextAlign.right,
                                     decoration: _buildDecoration(
+                                      p: p,
                                       hint: 'مهنتك',
                                       icon: Icons.work_outline,
                                     ),
@@ -477,36 +497,14 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  _buildLabel('المستوى التعليمي'),
-                                  DropdownButtonFormField<String>(
+                                  _buildLabel(p, 'المستوى التعليمي'),
+                                  _dropdown(
+                                    p: p,
                                     value: _educationLevel,
-                                    isExpanded: true,
-                                    hint: Text(
-                                      'اختر',
-                                      style: TextStyle(
-                                        color: Colors.grey.shade400,
-                                        fontSize: 13.5,
-                                      ),
-                                    ),
-                                    icon: const Icon(
-                                      Icons.keyboard_arrow_down_rounded,
-                                      color: darkGreen,
-                                    ),
-                                    decoration: _buildDecoration(
-                                      hint: 'المستوى',
-                                      icon: Icons.school_outlined,
-                                    ),
-                                    items: _educationLevels.map((e) {
-                                      return DropdownMenuItem(
-                                        value: e,
-                                        child: Text(
-                                          e,
-                                          style: const TextStyle(
-                                            fontSize: 13.5,
-                                          ),
-                                        ),
-                                      );
-                                    }).toList(),
+                                    hint: 'اختر',
+                                    decoHint: 'المستوى',
+                                    icon: Icons.school_outlined,
+                                    items: _educationLevels,
                                     onChanged: (v) =>
                                         setState(() => _educationLevel = v),
                                   ),
@@ -516,78 +514,34 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                           ],
                         ),
 
-                        _buildSectionDivider('بيانات إضافية'),
+                        _buildSectionDivider(p, 'بيانات إضافية'),
 
-                        // المدينة
-                        _buildLabel('المدينة'),
-                        DropdownButtonFormField<String>(
+                        _buildLabel(p, 'المدينة'),
+                        _dropdown(
+                          p: p,
                           value: _city,
-                          isExpanded: true,
-                          hint: Text(
-                            'اختر مدينتك',
-                            style: TextStyle(
-                              color: Colors.grey.shade400,
-                              fontSize: 13.5,
-                            ),
-                          ),
-                          icon: const Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            color: darkGreen,
-                          ),
-                          decoration: _buildDecoration(
-                            hint: 'المدينة',
-                            icon: Icons.location_city_outlined,
-                          ),
-                          items: _cities.map((c) {
-                            return DropdownMenuItem(
-                              value: c,
-                              child: Text(
-                                c,
-                                style: const TextStyle(fontSize: 13.5),
-                              ),
-                            );
-                          }).toList(),
+                          hint: 'اختر مدينتك',
+                          decoHint: 'المدينة',
+                          icon: Icons.location_city_outlined,
+                          items: _cities,
                           onChanged: (v) => setState(() => _city = v),
                         ),
 
-                        // الحالة الاجتماعية
-                        _buildLabel('الحالة الاجتماعية'),
-                        DropdownButtonFormField<String>(
+                        _buildLabel(p, 'الحالة الاجتماعية'),
+                        _dropdown(
+                          p: p,
                           value: _maritalStatus,
-                          isExpanded: true,
-                          hint: Text(
-                            'اختر حالتك الاجتماعية',
-                            style: TextStyle(
-                              color: Colors.grey.shade400,
-                              fontSize: 13.5,
-                            ),
-                          ),
-                          icon: const Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            color: darkGreen,
-                          ),
-                          decoration: _buildDecoration(
-                            hint: 'الحالة الاجتماعية',
-                            icon: Icons.people_outline,
-                          ),
-                          items: _maritalStatuses.map((m) {
-                            return DropdownMenuItem(
-                              value: m,
-                              child: Text(
-                                m,
-                                style: const TextStyle(fontSize: 13.5),
-                              ),
-                            );
-                          }).toList(),
+                          hint: 'اختر حالتك الاجتماعية',
+                          decoHint: 'الحالة الاجتماعية',
+                          icon: Icons.people_outline,
+                          items: _maritalStatuses,
                           onChanged: (v) => setState(() => _maritalStatus = v),
                         ),
                       ],
                     ),
                   ),
 
-                  // ==================================================
-                  // رسالة الخطأ
-                  // ==================================================
+                  // ===== رسالة الخطأ =====
                   if (_errorMessage != null) ...[
                     const SizedBox(height: 16),
                     Container(
@@ -629,14 +583,12 @@ class _FormulaireInfoState extends State<FormulaireInfo>
 
                   const SizedBox(height: 24),
 
-                  // ==================================================
-                  // زر المتابعة
-                  // ==================================================
+                  // ===== زر المتابعة =====
                   SizedBox(
                     width: double.infinity,
                     height: 56,
                     child: Material(
-                      color: darkGreen,
+                      color: p.primary,
                       borderRadius: BorderRadius.circular(18),
                       elevation: 0,
                       child: InkWell(
@@ -645,40 +597,34 @@ class _FormulaireInfoState extends State<FormulaireInfo>
                         child: Container(
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(18),
-                            boxShadow: [
-                              BoxShadow(
-                                color: darkGreen.withValues(alpha: 0.25),
-                                blurRadius: 14,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
+                            boxShadow: p.shadow(alpha: 0.25, blur: 14, dy: 6),
                           ),
                           child: Center(
                             child: _isLoading
-                                ? const SizedBox(
+                                ? SizedBox(
                                     width: 24,
                                     height: 24,
                                     child: CircularProgressIndicator(
-                                      color: Colors.white,
+                                      color: p.onPrimary,
                                       strokeWidth: 2.4,
                                     ),
                                   )
                                 : Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
-                                    children: const [
+                                    children: [
                                       Text(
                                         'متابعة',
                                         style: TextStyle(
                                           fontSize: 16.5,
                                           fontWeight: FontWeight.w700,
-                                          color: Colors.white,
+                                          color: p.onPrimary,
                                         ),
                                       ),
-                                      SizedBox(width: 8),
+                                      const SizedBox(width: 8),
                                       Icon(
                                         Icons.arrow_back_ios_new_rounded,
                                         size: 14,
-                                        color: Colors.white,
+                                        color: p.onPrimary,
                                       ),
                                     ],
                                   ),
@@ -690,26 +636,17 @@ class _FormulaireInfoState extends State<FormulaireInfo>
 
                   const SizedBox(height: 16),
 
-                  // ==================================================
-                  // ملاحظة الخصوصية
-                  // ==================================================
+                  // ===== ملاحظة الخصوصية =====
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(
-                        Icons.shield_outlined,
-                        size: 14,
-                        color: darkGreen,
-                      ),
+                      Icon(Icons.shield_outlined, size: 14, color: p.primary),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           'جميع بياناتك محمية ولا تظهر لأي مستخدم آخر',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 12,
-                          ),
+                          style: TextStyle(color: p.subtitle, fontSize: 12),
                         ),
                       ),
                     ],
@@ -723,5 +660,77 @@ class _FormulaireInfoState extends State<FormulaireInfo>
         ),
       ),
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ألوان مشتقة من الـ Theme الحالي (نهاري / ليلي) — خاصة بهذا الملف
+// ---------------------------------------------------------------------------
+class _Pal {
+  final bool isDark;
+  final Color primary;
+  final Color onPrimary;
+  final Color bg;
+  final Color card;
+  final Color border;
+  final Color field;
+  final Color track;
+  final Color subtitle;
+  final Color muted;
+  final Color gold;
+
+  const _Pal._({
+    required this.isDark,
+    required this.primary,
+    required this.onPrimary,
+    required this.bg,
+    required this.card,
+    required this.border,
+    required this.field,
+    required this.track,
+    required this.subtitle,
+    required this.muted,
+    required this.gold,
+  });
+
+  factory _Pal.of(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primary = theme.colorScheme.primary;
+    return _Pal._(
+      isDark: isDark,
+      primary: primary,
+      onPrimary: theme.colorScheme.onPrimary,
+      bg: theme.scaffoldBackgroundColor,
+      card: theme.colorScheme.surface,
+      border: isDark
+          ? Colors.white.withValues(alpha: 0.08)
+          : const Color(0xFFEFEAE2),
+      field: isDark
+          ? const Color(0xFF1C2A24)
+          : const Color(0xFFFAF7F2).withValues(alpha: 0.6),
+      track: isDark
+          ? Colors.white.withValues(alpha: 0.10)
+          : Colors.grey.shade200,
+      subtitle: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+      muted: isDark ? Colors.grey.shade500 : Colors.grey.shade400,
+      gold: const Color(0xFFC9A24B),
+    );
+  }
+
+  /// ظلال (تُلغى في الوضع الليلي)
+  List<BoxShadow>? shadow({
+    double alpha = 0.06,
+    double blur = 18,
+    double dy = 8,
+  }) {
+    if (isDark) return null;
+    return [
+      BoxShadow(
+        color: primary.withValues(alpha: alpha),
+        blurRadius: blur,
+        offset: Offset(0, dy),
+      ),
+    ];
   }
 }
