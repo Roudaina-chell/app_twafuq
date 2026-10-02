@@ -11,6 +11,7 @@ import '../settings/security_privacy_screen.dart';
 import '../auth/login_screen.dart';
 import '../../services/likes_service.dart';
 
+// محتفظ بها للتوافق مع ملفات أخرى قد تستوردها
 const Color kDarkGreen = Color(0xFF0F3D2E);
 const Color kDarkGreenLight = Color(0xFF1A6B4A);
 const Color kGold = Color(0xFFC9A24B);
@@ -25,21 +26,14 @@ class ProfileEditScreen extends StatefulWidget {
 }
 
 class _ProfileEditScreenState extends State<ProfileEditScreen> {
-  // ============================================================
-  // 🗄️ CACHE بسيط على مستوى الـ class (static) — كيبقى محفوظ
-  // طول ما التطبيق خدام، باش كي نرجعو لـ "حسابي" مرة أخرى، الاسم
-  // والأفاتار يبانو دغيا (بلا فلاش أبيض / بلا سبينر) وقت لي
-  // Firestore كيرفريشي البيانات فالخلفية.
-  // ============================================================
+  // cache على مستوى الـ class: الاسم والأفاتار يبانو دغيا
   static String? _cachedName;
   static String? _cachedAvatarAsset;
 
   late String _name = _cachedName ?? '';
   late String? _avatarAsset = _cachedAvatarAsset;
 
-  // ✅ ماكاينش "isLoading" كيخبي الصفحة كاملها دابا. هاد الفلاغ
-  // كيتحكم غير فـ الهيدر (اسم/أفاتار) — الباقي (settings + bottom
-  // nav) يبان مباشرة، حتى قبل ما توصل البيانات.
+  // الـ loading محدود فـ الهيدر بَرك
   bool _isHeaderLoading = true;
 
   int _pendingInvitationsCount = 0;
@@ -52,7 +46,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   @override
   void initState() {
     super.initState();
-    // إلا كان عندنا cache من قبل، الهيدر يبان مباشرة بلا "تحميل".
     _isHeaderLoading = _cachedName == null;
     _loadAccount();
     _attachLiveBadges();
@@ -82,7 +75,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       final avatar =
           (data['avatarAsset'] as String?) ?? (data['avatarPath'] as String?);
 
-      // نحدّثو الـ cache باش المرة الجاية يبان مباشرة.
       _cachedName = name;
       _cachedAvatarAsset = avatar;
 
@@ -124,13 +116,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   }
 
   Widget _buildAvatar({double size = 46}) {
+    final p = _Pal.of(context);
+    final fallback = Icon(Icons.person, size: size, color: p.primary);
     if (_avatarAsset == null || _avatarAsset!.trim().isEmpty) {
-      return Icon(Icons.person, size: size, color: kDarkGreen);
+      return fallback;
     }
     final isNetwork =
         _avatarAsset!.startsWith('http://') ||
         _avatarAsset!.startsWith('https://');
-    final fallback = Icon(Icons.person, size: size, color: kDarkGreen);
     final image = isNetwork
         ? Image.network(
             _avatarAsset!,
@@ -173,15 +166,12 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     );
   }
 
-  // ============================================================
-  // 🏗️ BUILD — دابا كترجع الصفحة كاملة (header + settings +
-  // bottom nav) من أول فريم، بلا "if (_isLoading) return Scaffold
-  // فارغ". الـ loading بقى محدود فـ الهيدر بَرك.
-  // ============================================================
   @override
   Widget build(BuildContext context) {
+    final p = _Pal.of(context);
+
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: p.bg,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.zero,
@@ -257,19 +247,24 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   }
 
   Widget _buildBottomNav() {
+    final p = _Pal.of(context);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       padding: const EdgeInsets.symmetric(vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: p.card,
         borderRadius: BorderRadius.circular(40),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.15),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        border: p.isDark ? Border.all(color: p.border) : null,
+        boxShadow: p.isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.grey.withValues(alpha: 0.15),
+                  blurRadius: 24,
+                  offset: const Offset(0, 10),
+                ),
+              ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -314,6 +309,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     bool isProfile = false,
     int badgeCount = 0,
   }) {
+    final p = _Pal.of(context);
+    final inactive = p.isDark ? Colors.grey.shade600 : Colors.grey.shade400;
+
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -330,7 +328,11 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: selected ? kGold : Colors.grey.shade300,
+                          color: selected
+                              ? p.gold
+                              : (p.isDark
+                                    ? Colors.grey.shade700
+                                    : Colors.grey.shade300),
                           width: 2,
                         ),
                       ),
@@ -338,7 +340,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                     )
                   : Icon(
                       icon,
-                      color: selected ? kDarkGreen : Colors.grey.shade400,
+                      color: selected ? p.primary : inactive,
                       size: 24,
                     ),
               if (badgeCount > 0)
@@ -363,7 +365,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                       borderRadius: badgeCount > 9
                           ? BorderRadius.circular(9)
                           : null,
-                      border: Border.all(color: Colors.white, width: 1.6),
+                      border: Border.all(color: p.card, width: 1.6),
                     ),
                     child: Center(
                       child: Text(
@@ -386,20 +388,15 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
             style: TextStyle(
               fontSize: 10,
               fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
-              color: selected ? kDarkGreen : Colors.grey.shade400,
+              color: selected ? p.primary : inactive,
             ),
           ),
-          // ✅ النقطة الذهبية تبان تحت أي عنصر مفعّل، بما فيه "حسابي"
-          // (قبل، كانت مخبية غير على البروفايل بـ "!isProfile").
           if (selected)
             Container(
               margin: const EdgeInsets.only(top: 2),
               width: 6,
               height: 6,
-              decoration: const BoxDecoration(
-                color: kGold,
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: p.gold, shape: BoxShape.circle),
             ),
         ],
       ),
@@ -408,8 +405,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 }
 
 // ============================================================
-// 🧩 HEADER — دابا كيقبل isLoading باش يبين skeleton خفيف
-// (دائرة + خط رمادي) بلا ما يخبي الصفحة كاملها ولا bottom nav.
+// HEADER
 // ============================================================
 class _AccountHeader extends StatelessWidget {
   final String name;
@@ -424,6 +420,8 @@ class _AccountHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = _Pal.of(context);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 36),
       child: Column(
@@ -437,25 +435,25 @@ class _AccountHeader extends StatelessWidget {
                 padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: kGold, width: 2.6),
+                  border: Border.all(color: p.gold, width: 2.6),
                 ),
                 child: Container(
                   padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white,
+                    color: p.card,
                   ),
                   child: Container(
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.white,
+                      color: p.card,
                     ),
                     child: isLoading
-                        ? const Padding(
-                            padding: EdgeInsets.all(28),
+                        ? Padding(
+                            padding: const EdgeInsets.all(28),
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: kGold,
+                              color: p.gold,
                             ),
                           )
                         : avatar,
@@ -472,7 +470,7 @@ class _AccountHeader extends StatelessWidget {
                             width: 140,
                             height: 22,
                             decoration: BoxDecoration(
-                              color: kDarkGreen.withValues(alpha: 0.08),
+                              color: p.primary.withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(6),
                             ),
                           )
@@ -480,10 +478,10 @@ class _AccountHeader extends StatelessWidget {
                             name.isEmpty ? '—' : name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 25,
                               fontWeight: FontWeight.w800,
-                              color: kDarkGreen,
+                              color: p.primary,
                               letterSpacing: -0.5,
                             ),
                           ),
@@ -494,16 +492,12 @@ class _AccountHeader extends StatelessWidget {
                           'استمتع برحلتك معنا',
                           style: TextStyle(
                             fontSize: 13.5,
-                            color: kDarkGreen.withValues(alpha: 0.75),
+                            color: p.primary.withValues(alpha: 0.75),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                         const SizedBox(width: 6),
-                        const Icon(
-                          Icons.favorite_rounded,
-                          size: 14,
-                          color: kGold,
-                        ),
+                        Icon(Icons.favorite_rounded, size: 14, color: p.gold),
                       ],
                     ),
                   ],
@@ -538,12 +532,13 @@ class _SettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color accent = isDanger ? const Color(0xFFE0637A) : kDarkGreen;
+    final p = _Pal.of(context);
+    final Color accent = isDanger ? const Color(0xFFE0637A) : p.primary;
 
     return Padding(
       padding: EdgeInsets.only(bottom: isLast ? 0 : 14),
       child: Material(
-        color: Colors.white,
+        color: p.card,
         borderRadius: BorderRadius.circular(22),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -553,15 +548,16 @@ class _SettingsTile extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(22),
               border: featured
-                  ? Border.all(color: kGold.withValues(alpha: 0.35), width: 1.3)
-                  : Border.all(color: Colors.black.withValues(alpha: 0.03)),
-              boxShadow: [
-                BoxShadow(
-                  color: kDarkGreen.withValues(alpha: featured ? 0.09 : 0.05),
-                  blurRadius: 18,
-                  offset: const Offset(0, 8),
-                ),
-              ],
+                  ? Border.all(
+                      color: p.gold.withValues(alpha: 0.35),
+                      width: 1.3,
+                    )
+                  : Border.all(
+                      color: p.isDark
+                          ? p.border
+                          : Colors.black.withValues(alpha: 0.03),
+                    ),
+              boxShadow: p.shadow(alpha: featured ? 0.09 : 0.05),
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -573,7 +569,7 @@ class _SettingsTile extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: isDanger
                           ? accent.withValues(alpha: 0.10)
-                          : kDarkGreen.withValues(alpha: 0.08),
+                          : p.primary.withValues(alpha: 0.08),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(icon, color: accent, size: 22),
@@ -588,7 +584,7 @@ class _SettingsTile extends StatelessWidget {
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 15,
-                            color: isDanger ? accent : kDarkGreen,
+                            color: accent,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -596,7 +592,9 @@ class _SettingsTile extends StatelessWidget {
                           subtitle,
                           style: TextStyle(
                             fontSize: 12.5,
-                            color: Colors.grey.shade500,
+                            color: p.isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade500,
                           ),
                         ),
                       ],
@@ -604,7 +602,9 @@ class _SettingsTile extends StatelessWidget {
                   ),
                   Icon(
                     Icons.chevron_right_rounded,
-                    color: Colors.grey.shade400,
+                    color: p.isDark
+                        ? Colors.grey.shade600
+                        : Colors.grey.shade400,
                     size: 22,
                   ),
                 ],
@@ -614,5 +614,58 @@ class _SettingsTile extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ألوان مشتقة من الـ Theme الحالي (نهاري / ليلي) — خاصة بهذا الملف
+// ---------------------------------------------------------------------------
+class _Pal {
+  final bool isDark;
+  final Color primary;
+  final Color bg;
+  final Color card;
+  final Color border;
+  final Color gold;
+
+  const _Pal._({
+    required this.isDark,
+    required this.primary,
+    required this.bg,
+    required this.card,
+    required this.border,
+    required this.gold,
+  });
+
+  factory _Pal.of(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primary = theme.colorScheme.primary;
+    return _Pal._(
+      isDark: isDark,
+      primary: primary,
+      bg: theme.scaffoldBackgroundColor,
+      card: theme.colorScheme.surface,
+      border: isDark
+          ? Colors.white.withValues(alpha: 0.08)
+          : const Color(0xFFEFEAE2),
+      gold: const Color(0xFFC9A24B),
+    );
+  }
+
+  /// ظلال (تُلغى في الوضع الليلي)
+  List<BoxShadow>? shadow({
+    double alpha = 0.06,
+    double blur = 18,
+    double dy = 8,
+  }) {
+    if (isDark) return null;
+    return [
+      BoxShadow(
+        color: primary.withValues(alpha: alpha),
+        blurRadius: blur,
+        offset: Offset(0, dy),
+      ),
+    ];
   }
 }

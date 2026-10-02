@@ -15,6 +15,7 @@ import 'package:flutter/services.dart';
 
 import 'avatar_picker_screen.dart';
 
+// الألوان الأصلية (نخليوها باش أي ملف آخر يستعملها ما يتكسرش)
 const Color kDarkGreen = Color(0xFF0F3D2E);
 const Color kMidGreen = Color(0xFF1A6B4A);
 const Color kGold = Color(0xFFC9A24B);
@@ -22,6 +23,103 @@ const Color kBg = Color(0xFFFAF7F2);
 const Color kMint = Color(0xFFE9F3EC);
 const Color kFieldFill = Color(0xFFF6F8F5);
 const Color kFieldBorder = Color(0xFFE2E7E1);
+
+// لون الكتابة في المظهر الليلي (كريمي ذهبي بدل الأبيض)
+const Color kDarkText = Color(0xFFE6D5A8);
+
+// ------------------------------------------------------------
+// لوحة الألوان: تتبدل تلقائياً حسب المظهر (نهاري / ليلي)
+// ------------------------------------------------------------
+class _P {
+  final bool isDark;
+  final Color bg; // خلفية الصفحة (أعلى)
+  final Color bgEnd; // خلفية الصفحة (أسفل)
+  final Color card; // البطاقات
+  final Color sheet; // الـ bottom sheet
+  final Color fieldFill; // خلفية الحقول
+  final Color fieldBorder; // حدود الحقول
+  final Color title; // العناوين والـ labels والاسم (ذهبي في الليلي)
+  final Color text; // قيم الحقول والنصوص العادية
+  final Color icon; // الأيقونات
+  final Color mint; // زر الرجوع
+  final Color hint; // النص الباهت
+  final Color subtitle; // النص الثانوي
+  final Color handle; // مقبض الـ sheet
+  final Color avatarRing; // إطار الأفاتار
+  final Color avatarInner; // داخل الأفاتار
+  final Color saveBtn; // زر الحفظ
+  final Color shadow;
+  final Color error;
+
+  const _P({
+    required this.isDark,
+    required this.bg,
+    required this.bgEnd,
+    required this.card,
+    required this.sheet,
+    required this.fieldFill,
+    required this.fieldBorder,
+    required this.title,
+    required this.text,
+    required this.icon,
+    required this.mint,
+    required this.hint,
+    required this.subtitle,
+    required this.handle,
+    required this.avatarRing,
+    required this.avatarInner,
+    required this.saveBtn,
+    required this.shadow,
+    required this.error,
+  });
+
+  static const _P light = _P(
+    isDark: false,
+    bg: kBg,
+    bgEnd: Color(0xFFEEF4EE),
+    card: Colors.white,
+    sheet: Colors.white,
+    fieldFill: Color(0xFFFAFAFA),
+    fieldBorder: Color(0xFFEEEEEE),
+    title: kDarkGreen,
+    text: kDarkGreen,
+    icon: kDarkGreen,
+    mint: kMint,
+    hint: Color(0xFFBDBDBD),
+    subtitle: Color(0xFF9E9E9E),
+    handle: Color(0xFFE0E0E0),
+    avatarRing: Color(0xFF8FA595),
+    avatarInner: Colors.white,
+    saveBtn: kDarkGreen,
+    shadow: Color(0x14000000),
+    error: Colors.red,
+  );
+
+  static const _P dark = _P(
+    isDark: true,
+    bg: Color(0xFF0E1512),
+    bgEnd: Color(0xFF121C17),
+    card: Color(0xFF17221D),
+    sheet: Color(0xFF17221D),
+    fieldFill: Color(0xFF1D2B25),
+    fieldBorder: Color(0xFF2A3A33),
+    title: kGold,
+    text: kDarkText, // <-- كان أبيض، وليا كريمي ذهبي
+    icon: kGold,
+    mint: Color(0xFF26261A),
+    hint: Color(0xFF6F8078),
+    subtitle: Color(0xFF8FA198),
+    handle: Color(0xFF3A4A43),
+    avatarRing: kGold,
+    avatarInner: Color(0xFF17221D),
+    saveBtn: kMidGreen,
+    shadow: Color(0x66000000),
+    error: Color(0xFFFF8A80),
+  );
+
+  static _P of(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? dark : light;
+}
 
 class PersonalInfoEditScreen extends StatefulWidget {
   const PersonalInfoEditScreen({super.key});
@@ -77,6 +175,8 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
   final List<String> _maritalStatuses = const ['أعزب', 'مطلق', 'أرمل'];
 
   String get _uid => FirebaseAuth.instance.currentUser?.uid ?? '';
+
+  _P get _p => _P.of(context);
 
   @override
   void initState() {
@@ -213,6 +313,7 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
   Future<void> _pickBirthDate() async {
     FocusScope.of(context).unfocus();
     final now = DateTime.now();
+    final p = _p;
     final picked = await showDatePicker(
       context: context,
       initialDate: _birthDate ?? DateTime(now.year - 25),
@@ -220,12 +321,19 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
       lastDate: DateTime(now.year - 18),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(
-            primary: kDarkGreen,
-            onPrimary: Colors.white,
-            surface: Colors.white,
-            onSurface: Colors.black87,
-          ),
+          colorScheme: p.isDark
+              ? ColorScheme.dark(
+                  primary: p.icon,
+                  onPrimary: const Color(0xFF0E1512),
+                  surface: p.card,
+                  onSurface: p.text,
+                )
+              : const ColorScheme.light(
+                  primary: kDarkGreen,
+                  onPrimary: Colors.white,
+                  surface: Colors.white,
+                  onSurface: Colors.black87,
+                ),
         ),
         child: child!,
       ),
@@ -242,71 +350,71 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
     FocusScope.of(context).unfocus();
     final selected = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: _p.sheet,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(4),
+      builder: (ctx) {
+        final p = _P.of(ctx);
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: p.handle,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: kDarkGreen,
+                  const SizedBox(height: 16),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: p.title,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Flexible(
-                  child: ListView(
-                    shrinkWrap: true,
-                    children: options.map((o) {
-                      final isSelected = o == current;
-                      return ListTile(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        title: Text(
-                          o,
-                          style: TextStyle(
-                            color: kDarkGreen,
-                            fontWeight: isSelected
-                                ? FontWeight.w800
-                                : FontWeight.w500,
+                  const SizedBox(height: 8),
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: options.map((o) {
+                        final isSelected = o == current;
+                        return ListTile(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                        ),
-                        trailing: isSelected
-                            ? const Icon(
-                                Icons.check_circle_rounded,
-                                color: kDarkGreen,
-                              )
-                            : null,
-                        onTap: () => Navigator.pop(ctx, o),
-                      );
-                    }).toList(),
+                          title: Text(
+                            o,
+                            style: TextStyle(
+                              color: isSelected ? p.title : p.text,
+                              fontWeight: isSelected
+                                  ? FontWeight.w800
+                                  : FontWeight.w500,
+                            ),
+                          ),
+                          trailing: isSelected
+                              ? Icon(Icons.check_circle_rounded, color: p.icon)
+                              : null,
+                          onTap: () => Navigator.pop(ctx, o),
+                        );
+                      }).toList(),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
     if (selected != null && mounted) onSelected(selected);
   }
@@ -382,10 +490,12 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
     }
   }
 
-  static Widget _buildAvatarImage({required String? source}) {
-    if (source == null || source.trim().isEmpty) {
-      return const Icon(Icons.person, size: 56, color: kDarkGreen);
-    }
+  static Widget _buildAvatarImage({
+    required String? source,
+    required Color iconColor,
+  }) {
+    final fallback = Icon(Icons.person, size: 56, color: iconColor);
+    if (source == null || source.trim().isEmpty) return fallback;
     final isNetwork =
         source.startsWith('http://') || source.startsWith('https://');
     return isNetwork
@@ -393,35 +503,30 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
             source,
             fit: BoxFit.cover,
             alignment: Alignment.topCenter,
-            errorBuilder: (context, error, stack) =>
-                const Icon(Icons.person, size: 56, color: kDarkGreen),
+            errorBuilder: (context, error, stack) => fallback,
           )
         : Image.asset(
             source,
             fit: BoxFit.cover,
             alignment: Alignment.topCenter,
-            errorBuilder: (context, error, stack) =>
-                const Icon(Icons.person, size: 56, color: kDarkGreen),
+            errorBuilder: (context, error, stack) => fallback,
           );
   }
 
   // ------------------------------------------------------------
   // الواجهة
   // ------------------------------------------------------------
-  static const _valueStyle = TextStyle(
-    fontSize: 15,
-    fontWeight: FontWeight.w600,
-    color: kDarkGreen,
-  );
+  TextStyle get _valueStyle =>
+      TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: _p.text);
 
-  TextStyle get _hintStyle =>
-      TextStyle(fontSize: 14, color: Colors.grey.shade400);
+  TextStyle get _hintStyle => TextStyle(fontSize: 14, color: _p.hint);
 
   InputDecoration _plainDecoration(String hint) => InputDecoration(
     hintText: hint,
     hintStyle: _hintStyle,
     border: InputBorder.none,
     isDense: true,
+    counterStyle: TextStyle(color: _p.subtitle),
     contentPadding: const EdgeInsets.symmetric(vertical: 12),
   );
 
@@ -432,10 +537,12 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final p = _p;
+
     if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: kBg,
-        body: Center(child: CircularProgressIndicator(color: kDarkGreen)),
+      return Scaffold(
+        backgroundColor: p.bg,
+        body: Center(child: CircularProgressIndicator(color: p.icon)),
       );
     }
 
@@ -445,13 +552,13 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
         behavior: HitTestBehavior.translucent,
         onTap: () => FocusScope.of(context).unfocus(),
         child: Scaffold(
-          backgroundColor: kBg,
+          backgroundColor: p.bg,
           body: Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [kBg, Color(0xFFEEF4EE)],
+                colors: [p.bg, p.bgEnd],
               ),
             ),
             child: SafeArea(
@@ -464,7 +571,10 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
                     _EditHeader(
                       onBack: () => Navigator.maybePop(context),
                       onTapAvatar: _changeAvatar,
-                      avatarChild: _buildAvatarImage(source: _avatarAsset),
+                      avatarChild: _buildAvatarImage(
+                        source: _avatarAsset,
+                        iconColor: p.icon,
+                      ),
                       name: _displayName,
                     ),
                     Padding(
@@ -485,6 +595,7 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
                                   controller: _nameController,
                                   focusNode: _nameFocus,
                                   textInputAction: TextInputAction.next,
+                                  cursorColor: p.icon,
                                   style: _valueStyle,
                                   decoration: _plainDecoration(
                                     'أدخل اسمك الكامل',
@@ -514,6 +625,7 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
                                   controller: _occupationController,
                                   focusNode: _occupationFocus,
                                   textInputAction: TextInputAction.next,
+                                  cursorColor: p.icon,
                                   style: _valueStyle,
                                   decoration: _plainDecoration('أدخل مهنتك'),
                                 ),
@@ -578,6 +690,7 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
                                   minLines: 2,
                                   maxLines: 4,
                                   maxLength: 300,
+                                  cursorColor: p.icon,
                                   style: _valueStyle,
                                   decoration: _plainDecoration(
                                     'اكتب نبذة عن نفسك',
@@ -602,6 +715,7 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
                                     controller: _ageMinController,
                                     focusNode: _ageMinFocus,
                                     keyboardType: TextInputType.number,
+                                    cursorColor: p.icon,
                                     inputFormatters: [
                                       FilteringTextInputFormatter.digitsOnly,
                                       LengthLimitingTextInputFormatter(2),
@@ -618,6 +732,7 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
                                     controller: _ageMaxController,
                                     focusNode: _ageMaxFocus,
                                     keyboardType: TextInputType.number,
+                                    cursorColor: p.icon,
                                     inputFormatters: [
                                       FilteringTextInputFormatter.digitsOnly,
                                       LengthLimitingTextInputFormatter(2),
@@ -647,16 +762,13 @@ class _PersonalInfoEditScreenState extends State<PersonalInfoEditScreen> {
                               margin: const EdgeInsets.only(bottom: 14),
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: Colors.red.withValues(alpha: 0.08),
+                                color: p.error.withValues(alpha: 0.10),
                                 borderRadius: BorderRadius.circular(14),
                               ),
                               child: Text(
                                 _errorMessage!,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Colors.red,
-                                  fontSize: 13,
-                                ),
+                                style: TextStyle(color: p.error, fontSize: 13),
                               ),
                             ),
                           ],
@@ -696,6 +808,7 @@ class _EditHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = _P.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 22),
       child: Column(
@@ -704,28 +817,28 @@ class _EditHeader extends StatelessWidget {
             children: [
               // في RTL: الأول يظهر على اليمين، لذلك الفراغ أولًا
               const SizedBox(width: 44),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'تعديل الملف الشخصي',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: kDarkGreen,
+                    color: p.title,
                     fontSize: 19,
                   ),
                 ),
               ),
               Material(
-                color: kMint,
+                color: p.mint,
                 shape: const CircleBorder(),
                 child: InkWell(
                   customBorder: const CircleBorder(),
                   onTap: onBack,
-                  child: const Padding(
-                    padding: EdgeInsets.all(10),
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
                     child: Icon(
                       Icons.arrow_back,
-                      color: kDarkGreen,
+                      color: p.icon,
                       size: 20,
                       textDirection: TextDirection.ltr,
                     ),
@@ -738,7 +851,7 @@ class _EditHeader extends StatelessWidget {
           Text(
             'قم بتحديث معلوماتك الشخصية',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+            style: TextStyle(fontSize: 13, color: p.subtitle),
           ),
           const SizedBox(height: 18),
           SizedBox(
@@ -756,13 +869,12 @@ class _EditHeader extends StatelessWidget {
                     padding: const EdgeInsets.all(3.2),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(
-                        color: const Color(0xFF8FA595),
-                        width: 2.6,
-                      ),
+                      border: Border.all(color: p.avatarRing, width: 2.6),
                       boxShadow: [
                         BoxShadow(
-                          color: kDarkGreen.withValues(alpha: 0.12),
+                          color: p.isDark
+                              ? Colors.black.withValues(alpha: 0.4)
+                              : kDarkGreen.withValues(alpha: 0.12),
                           blurRadius: 16,
                           offset: const Offset(0, 6),
                         ),
@@ -770,26 +882,27 @@ class _EditHeader extends StatelessWidget {
                     ),
                     child: Container(
                       padding: const EdgeInsets.all(3),
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white,
+                        color: p.avatarInner,
                       ),
                       child: ClipOval(
                         child: Container(
-                          color: kDarkGreen.withValues(alpha: 0.08),
+                          color: p.icon.withValues(alpha: 0.08),
                           child: avatarChild,
                         ),
                       ),
                     ),
                   ),
                 ),
+                // زر القلم: تحت الأفاتار جهة اليمين
                 Positioned(
-                  top: 0,
-                  right: 0,
+                  bottom: 2,
+                  right: 2,
                   child: Material(
-                    color: kDarkGreen,
-                    shape: const CircleBorder(
-                      side: BorderSide(color: Colors.white, width: 2.5),
+                    color: p.saveBtn,
+                    shape: CircleBorder(
+                      side: BorderSide(color: p.avatarInner, width: 2.5),
                     ),
                     elevation: 2,
                     shadowColor: Colors.black26,
@@ -813,10 +926,10 @@ class _EditHeader extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             name.isEmpty ? '—' : name,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w800,
               fontSize: 20,
-              color: kDarkGreen,
+              color: p.title,
               letterSpacing: -0.4,
             ),
           ),
@@ -840,14 +953,16 @@ class _FormCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = _P.of(context);
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: p.card,
         borderRadius: BorderRadius.circular(20),
+        border: p.isDark ? Border.all(color: p.fieldBorder) : null,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.08),
+            color: p.shadow,
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -862,18 +977,18 @@ class _FormCard extends StatelessWidget {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: kDarkGreen.withValues(alpha: 0.08),
+                  color: p.icon.withValues(alpha: 0.10),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, size: 18, color: kDarkGreen),
+                child: Icon(icon, size: 18, color: p.icon),
               ),
               const SizedBox(width: 10),
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 15.5,
-                  color: kDarkGreen,
+                  color: p.title,
                 ),
               ),
             ],
@@ -907,6 +1022,7 @@ class _FieldCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = _P.of(context);
     final radius = BorderRadius.circular(14);
 
     return Padding(
@@ -918,15 +1034,15 @@ class _FieldCard extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
               label,
-              style: const TextStyle(
-                color: kDarkGreen,
+              style: TextStyle(
+                color: p.title,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
           Material(
-            color: Colors.grey.shade50,
+            color: p.fieldFill,
             borderRadius: radius,
             child: InkWell(
               onTap: onTap,
@@ -936,7 +1052,7 @@ class _FieldCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
                   borderRadius: radius,
-                  border: Border.all(color: Colors.grey.shade200),
+                  border: Border.all(color: p.fieldBorder),
                 ),
                 child: Row(
                   crossAxisAlignment: multiline
@@ -945,7 +1061,7 @@ class _FieldCard extends StatelessWidget {
                   children: [
                     Padding(
                       padding: EdgeInsets.only(top: multiline ? 14 : 0),
-                      child: Icon(icon, color: kDarkGreen, size: 20),
+                      child: Icon(icon, color: p.icon, size: 20),
                     ),
                     const SizedBox(width: 12),
                     Expanded(child: child),
@@ -968,6 +1084,7 @@ class _SaveButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = _P.of(context);
     return Center(
       child: SizedBox(
         width: MediaQuery.of(context).size.width * 0.72,
@@ -975,8 +1092,9 @@ class _SaveButton extends StatelessWidget {
         child: ElevatedButton(
           onPressed: isSaving ? null : onPressed,
           style: ElevatedButton.styleFrom(
-            backgroundColor: kDarkGreen,
-            elevation: 4,
+            backgroundColor: p.saveBtn,
+            disabledBackgroundColor: p.saveBtn.withValues(alpha: 0.6),
+            elevation: p.isDark ? 0 : 4,
             shadowColor: kDarkGreen.withValues(alpha: 0.3),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(30),

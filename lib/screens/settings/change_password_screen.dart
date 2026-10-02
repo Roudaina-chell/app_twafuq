@@ -1,11 +1,6 @@
 // screens/settings/change_password_screen.dart
 //
-// شاشة "كلمة المرور". تدعم حالتين:
-// - الحساب لديه مزوّد "password" ← نموذج تعديل عادي (كلمة المرور
-//   الحالية + الجديدة + التأكيد) مع reauthenticate قبل updatePassword.
-// - الحساب سجّل الدخول عبر Google فقط (بدون مزوّد "password") ← نموذج
-//   إنشاء كلمة مرور (بدون حقل الكلمة الحالية) عبر linkWithCredential،
-//   وعند النجاح ينتقل تلقائيًا إلى نموذج التعديل العادي.
+// شاشة "كلمة المرور" — تدعم الوضع النهاري والليلي عبر Theme.
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +9,41 @@ class AppColors {
   static const darkGreen = Color(0xFF0F3D2E);
   static const background = Color(0xFFFAF7F2);
   static const gold = Color(0xFFC9A24B);
+}
+
+/// ألوان مشتقة من الـ Theme الحالي
+class _Pal {
+  final Color primary;
+  final Color onPrimary;
+  final Color bg;
+  final Color card;
+  final Color subtitle;
+  final Color noticeText;
+  final bool isDark;
+
+  const _Pal({
+    required this.primary,
+    required this.onPrimary,
+    required this.bg,
+    required this.card,
+    required this.subtitle,
+    required this.noticeText,
+    required this.isDark,
+  });
+
+  factory _Pal.of(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    return _Pal(
+      primary: theme.colorScheme.primary,
+      onPrimary: theme.colorScheme.onPrimary,
+      bg: theme.scaffoldBackgroundColor,
+      card: theme.colorScheme.surface,
+      subtitle: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+      noticeText: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+      isDark: isDark,
+    );
+  }
 }
 
 class ChangePasswordScreen extends StatefulWidget {
@@ -113,7 +143,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       if (!mounted) return;
       _showMessage('تم إنشاء كلمة المرور بنجاح');
 
-      // الحساب الآن لديه مزوّد "password" ← نبدّل إلى النموذج العادي
       setState(() {
         _hasPasswordProvider = true;
         _currentPasswordController.clear();
@@ -157,27 +186,27 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final pal = _Pal.of(context);
+
     if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(
-          child: CircularProgressIndicator(color: AppColors.darkGreen),
-        ),
+      return Scaffold(
+        backgroundColor: pal.bg,
+        body: Center(child: CircularProgressIndicator(color: pal.primary)),
       );
     }
 
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: pal.bg,
         body: SafeArea(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
             children: [
-              _Header(hasPasswordProvider: _hasPasswordProvider),
+              _Header(hasPasswordProvider: _hasPasswordProvider, pal: pal),
               const SizedBox(height: 6),
-              _Subtitle(hasPasswordProvider: _hasPasswordProvider),
-              if (!_hasPasswordProvider) const _GoogleAccountNotice(),
+              _Subtitle(hasPasswordProvider: _hasPasswordProvider, pal: pal),
+              if (!_hasPasswordProvider) _GoogleAccountNotice(pal: pal),
               const SizedBox(height: 22),
               Form(
                 key: _formKey,
@@ -185,6 +214,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   children: [
                     if (_hasPasswordProvider) ...[
                       _PasswordField(
+                        pal: pal,
                         label: 'كلمة المرور الحالية',
                         controller: _currentPasswordController,
                         obscure: _obscureCurrent,
@@ -197,6 +227,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       const SizedBox(height: 14),
                     ],
                     _PasswordField(
+                      pal: pal,
                       label: _hasPasswordProvider
                           ? 'كلمة المرور الجديدة'
                           : 'كلمة المرور',
@@ -216,6 +247,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                     ),
                     const SizedBox(height: 14),
                     _PasswordField(
+                      pal: pal,
                       label: _hasPasswordProvider
                           ? 'تأكيد كلمة المرور الجديدة'
                           : 'تأكيد كلمة المرور',
@@ -232,6 +264,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               ),
               const SizedBox(height: 24),
               _SubmitButton(
+                pal: pal,
                 isSaving: _isSaving,
                 hasPasswordProvider: _hasPasswordProvider,
                 onPressed: _hasPasswordProvider
@@ -248,8 +281,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
 class _Header extends StatelessWidget {
   final bool hasPasswordProvider;
+  final _Pal pal;
 
-  const _Header({required this.hasPasswordProvider});
+  const _Header({required this.hasPasswordProvider, required this.pal});
 
   @override
   Widget build(BuildContext context) {
@@ -260,15 +294,16 @@ class _Header extends StatelessWidget {
           child: Text(
             hasPasswordProvider ? 'كلمة المرور' : 'إنشاء كلمة مرور',
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w800,
-              color: AppColors.darkGreen,
+              color: pal.primary,
               letterSpacing: -0.4,
             ),
           ),
         ),
         _CircleIconButton(
+          pal: pal,
           icon: Icons.arrow_back,
           onTap: () => Navigator.maybePop(context),
         ),
@@ -279,8 +314,9 @@ class _Header extends StatelessWidget {
 
 class _Subtitle extends StatelessWidget {
   final bool hasPasswordProvider;
+  final _Pal pal;
 
-  const _Subtitle({required this.hasPasswordProvider});
+  const _Subtitle({required this.hasPasswordProvider, required this.pal});
 
   @override
   Widget build(BuildContext context) {
@@ -289,13 +325,15 @@ class _Subtitle extends StatelessWidget {
           ? 'حدّث كلمة مرورك للحفاظ على أمان حسابك'
           : 'أنشئ كلمة مرور لحسابك',
       textAlign: TextAlign.center,
-      style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+      style: TextStyle(fontSize: 13, color: pal.subtitle),
     );
   }
 }
 
 class _GoogleAccountNotice extends StatelessWidget {
-  const _GoogleAccountNotice();
+  final _Pal pal;
+
+  const _GoogleAccountNotice({required this.pal});
 
   @override
   Widget build(BuildContext context) {
@@ -303,22 +341,18 @@ class _GoogleAccountNotice extends StatelessWidget {
       margin: const EdgeInsets.only(top: 14),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.gold.withValues(alpha: 0.12),
+        color: AppColors.gold.withValues(alpha: pal.isDark ? 0.18 : 0.12),
         borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.info_outline_rounded,
-            color: AppColors.darkGreen,
-            size: 18,
-          ),
+          Icon(Icons.info_outline_rounded, color: pal.primary, size: 18),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               'سجّلتَ الدخول بحساب Google ولا تملك كلمة مرور بعد. '
               'أنشئ كلمة مرور لتتمكن من تسجيل الدخول بالبريد الإلكتروني وكلمة المرور أيضًا.',
-              style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700),
+              style: TextStyle(fontSize: 12.5, color: pal.noticeText),
             ),
           ),
         ],
@@ -328,11 +362,13 @@ class _GoogleAccountNotice extends StatelessWidget {
 }
 
 class _SubmitButton extends StatelessWidget {
+  final _Pal pal;
   final bool isSaving;
   final bool hasPasswordProvider;
   final VoidCallback onPressed;
 
   const _SubmitButton({
+    required this.pal,
     required this.isSaving,
     required this.hasPasswordProvider,
     required this.onPressed,
@@ -346,24 +382,25 @@ class _SubmitButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: isSaving ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.darkGreen,
+          backgroundColor: pal.primary,
+          disabledBackgroundColor: pal.primary.withValues(alpha: 0.6),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
         ),
         child: isSaving
-            ? const SizedBox(
+            ? SizedBox(
                 width: 22,
                 height: 22,
                 child: CircularProgressIndicator(
-                  color: Colors.white,
+                  color: pal.onPrimary,
                   strokeWidth: 2.4,
                 ),
               )
             : Text(
                 hasPasswordProvider ? 'حفظ التغييرات' : 'إنشاء كلمة المرور',
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: pal.onPrimary,
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),
@@ -374,6 +411,7 @@ class _SubmitButton extends StatelessWidget {
 }
 
 class _PasswordField extends StatelessWidget {
+  final _Pal pal;
   final String label;
   final TextEditingController controller;
   final bool obscure;
@@ -381,6 +419,7 @@ class _PasswordField extends StatelessWidget {
   final String? Function(String?) validator;
 
   const _PasswordField({
+    required this.pal,
     required this.label,
     required this.controller,
     required this.obscure,
@@ -393,31 +432,30 @@ class _PasswordField extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.darkGreen.withValues(alpha: 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        boxShadow: pal.isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: pal.primary.withValues(alpha: 0.05),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
       ),
       child: TextFormField(
         controller: controller,
         obscureText: obscure,
         validator: validator,
-        style: const TextStyle(
-          color: AppColors.darkGreen,
-          fontWeight: FontWeight.w600,
-        ),
+        style: TextStyle(color: pal.primary, fontWeight: FontWeight.w600),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: TextStyle(color: Colors.grey.shade500),
+          labelStyle: TextStyle(color: pal.subtitle),
           filled: true,
-          fillColor: Colors.white,
+          fillColor: pal.card,
           suffixIcon: IconButton(
             icon: Icon(
               obscure ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-              color: AppColors.darkGreen.withValues(alpha: 0.6),
+              color: pal.primary.withValues(alpha: 0.6),
             ),
             onPressed: onToggle,
           ),
@@ -436,15 +474,20 @@ class _PasswordField extends StatelessWidget {
 }
 
 class _CircleIconButton extends StatelessWidget {
+  final _Pal pal;
   final IconData icon;
   final VoidCallback onTap;
 
-  const _CircleIconButton({required this.icon, required this.onTap});
+  const _CircleIconButton({
+    required this.pal,
+    required this.icon,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: pal.card,
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
@@ -453,17 +496,19 @@ class _CircleIconButton extends StatelessWidget {
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.darkGreen.withValues(alpha: 0.08),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
+            boxShadow: pal.isDark
+                ? null
+                : [
+                    BoxShadow(
+                      color: pal.primary.withValues(alpha: 0.08),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
           ),
           child: Icon(
             icon,
-            color: AppColors.darkGreen,
+            color: pal.primary,
             size: 20,
             textDirection: TextDirection.ltr,
           ),

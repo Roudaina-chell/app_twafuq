@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+// محتفظ بها للتوافق مع ملفات أخرى قد تستوردها
 const Color kDarkGreen = Color(0xFF0F3D2E);
 const Color kGold = Color(0xFFC9A24B);
 const Color kBg = Color(0xFFFAF7F2);
@@ -137,9 +138,10 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
   }
 
   Future<OnlineDuration?> _pickDuration() {
+    final p = _Pal.of(context);
     return showModalBottomSheet<OnlineDuration>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: p.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -156,18 +158,20 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
+                    color: p.isDark
+                        ? Colors.grey.shade700
+                        : Colors.grey.shade300,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
               ),
-              const Text(
+              Text(
                 'مدة إظهار حالة الاتصال',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 16,
-                  color: kDarkGreen,
+                  color: p.primary,
                 ),
               ),
               const SizedBox(height: 16),
@@ -175,7 +179,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
                 (d) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: Material(
-                    color: kMint.withValues(alpha: 0.6),
+                    color: p.isDark ? p.mint : p.mint.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(14),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(14),
@@ -188,9 +192,9 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
                         child: Text(
                           d.label,
                           textAlign: TextAlign.right,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w600,
-                            color: kDarkGreen,
+                            color: p.primary,
                             fontSize: 14.5,
                           ),
                         ),
@@ -223,15 +227,17 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final p = _Pal.of(context);
+
     if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: kBg,
-        body: Center(child: CircularProgressIndicator(color: kDarkGreen)),
+      return Scaffold(
+        backgroundColor: p.bg,
+        body: Center(child: CircularProgressIndicator(color: p.primary)),
       );
     }
 
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: p.bg,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
@@ -254,22 +260,22 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
                       width: kSettingsBadgeSize,
                       height: kSettingsBadgeSize,
                       decoration: BoxDecoration(
-                        color: kDarkGreen.withValues(alpha: 0.08),
+                        color: p.primary.withValues(alpha: 0.08),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.privacy_tip_rounded,
-                        color: kDarkGreen,
+                        color: p.primary,
                         size: kSettingsBadgeIconSize,
                       ),
                     ),
                     const SizedBox(height: 14),
-                    const Text(
+                    Text(
                       'الخصوصية',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
-                        color: kDarkGreen,
+                        color: p.primary,
                         letterSpacing: -0.4,
                       ),
                     ),
@@ -278,7 +284,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
                       'تحكم فيما يمكن للآخرين رؤيته',
                       style: TextStyle(
                         fontSize: 13,
-                        color: kDarkGreen.withValues(alpha: 0.6),
+                        color: p.primary.withValues(alpha: 0.6),
                       ),
                     ),
                   ],
@@ -299,15 +305,15 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
                   alignment: Alignment.centerRight,
                   child: TextButton.icon(
                     onPressed: _saving ? null : _extend,
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.timer_outlined,
                       size: 18,
-                      color: kDarkGreen,
+                      color: p.primary,
                     ),
-                    label: const Text(
+                    label: Text(
                       'تمديد المدة',
                       style: TextStyle(
-                        color: kDarkGreen,
+                        color: p.primary,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -341,19 +347,17 @@ class _PrivacySwitchTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = _Pal.of(context);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: p.card,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.03)),
-        boxShadow: [
-          BoxShadow(
-            color: kDarkGreen.withValues(alpha: 0.06),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        border: Border.all(
+          color: p.isDark ? p.border : Colors.black.withValues(alpha: 0.03),
+        ),
+        boxShadow: p.shadow(),
       ),
       child: Row(
         children: [
@@ -361,10 +365,10 @@ class _PrivacySwitchTile extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: kDarkGreen.withValues(alpha: 0.08),
+              color: p.primary.withValues(alpha: 0.08),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: kDarkGreen, size: 20),
+            child: Icon(icon, color: p.primary, size: 20),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -374,10 +378,10 @@ class _PrivacySwitchTile extends StatelessWidget {
                 Text(
                   title,
                   textAlign: TextAlign.right,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 14.5,
-                    color: kDarkGreen,
+                    color: p.primary,
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -386,7 +390,7 @@ class _PrivacySwitchTile extends StatelessWidget {
                   textAlign: TextAlign.right,
                   style: TextStyle(
                     fontSize: 12,
-                    color: kDarkGreen.withValues(alpha: 0.55),
+                    color: p.primary.withValues(alpha: 0.55),
                   ),
                 ),
               ],
@@ -394,20 +398,20 @@ class _PrivacySwitchTile extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           if (saving)
-            const SizedBox(
+            SizedBox(
               width: 20,
               height: 20,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: kDarkGreen,
+                color: p.primary,
               ),
             )
           else
             Switch(
               value: value,
               onChanged: onChanged,
-              activeColor: kDarkGreen,
-              activeTrackColor: kMint,
+              activeColor: p.primary,
+              activeTrackColor: p.mint,
             ),
         ],
       ),
@@ -423,8 +427,10 @@ class _CircleIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = _Pal.of(context);
+
     return Material(
-      color: Colors.white,
+      color: p.card,
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
@@ -433,17 +439,64 @@ class _CircleIconButton extends StatelessWidget {
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: kDarkGreen.withValues(alpha: 0.08),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
+            boxShadow: p.shadow(alpha: 0.08, blur: 10, dy: 3),
           ),
-          child: Icon(icon, color: kDarkGreen, size: 20),
+          child: Icon(icon, color: p.primary, size: 20),
         ),
       ),
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ألوان مشتقة من الـ Theme الحالي (نهاري / ليلي) — خاصة بهذا الملف
+// ---------------------------------------------------------------------------
+class _Pal {
+  final bool isDark;
+  final Color primary;
+  final Color bg;
+  final Color card;
+  final Color border;
+  final Color mint;
+
+  const _Pal._({
+    required this.isDark,
+    required this.primary,
+    required this.bg,
+    required this.card,
+    required this.border,
+    required this.mint,
+  });
+
+  factory _Pal.of(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primary = theme.colorScheme.primary;
+    return _Pal._(
+      isDark: isDark,
+      primary: primary,
+      bg: theme.scaffoldBackgroundColor,
+      card: theme.colorScheme.surface,
+      border: isDark
+          ? Colors.white.withValues(alpha: 0.08)
+          : const Color(0xFFEFEAE2),
+      mint: isDark ? primary.withValues(alpha: 0.18) : const Color(0xFFE9F3EC),
+    );
+  }
+
+  /// ظلال (تُلغى في الوضع الليلي)
+  List<BoxShadow>? shadow({
+    double alpha = 0.06,
+    double blur = 18,
+    double dy = 8,
+  }) {
+    if (isDark) return null;
+    return [
+      BoxShadow(
+        color: primary.withValues(alpha: alpha),
+        blurRadius: blur,
+        offset: Offset(0, dy),
+      ),
+    ];
   }
 }

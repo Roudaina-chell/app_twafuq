@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+// محتفظ بها للتوافق مع ملفات أخرى قد تستوردها
 const Color kDarkGreen = Color(0xFF0F3D2E);
 const Color kGold = Color(0xFFC9A24B);
 const Color kBg = Color(0xFFFAF7F2);
@@ -29,8 +30,9 @@ class _BlockedUserInfo {
     final diff = DateTime.now().difference(blockedAt!.toDate());
     if (diff.inDays < 1) return 'تم الحظر اليوم';
     if (diff.inDays < 30) return 'تم الحظر منذ ${diff.inDays} يوم';
-    if (diff.inDays < 365)
+    if (diff.inDays < 365) {
       return 'تم الحظر منذ ${(diff.inDays / 30).floor()} شهر';
+    }
     return 'تم الحظر منذ ${(diff.inDays / 365).floor()} سنة';
   }
 }
@@ -48,28 +50,33 @@ class _BlockedListScreenState extends State<BlockedListScreen> {
   Future<void> _confirmUnblock(_BlockedUserInfo user) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: kBg,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Text(
-          'إلغاء الحظر',
-          style: TextStyle(color: kDarkGreen, fontWeight: FontWeight.bold),
-        ),
-        content: Text('متأكد بغيتي تلغي الحظر على "${user.name}"؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('إلغاء', style: TextStyle(color: Colors.grey.shade600)),
+      builder: (ctx) {
+        final p = _Pal.of(ctx);
+        return AlertDialog(
+          backgroundColor: p.card,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'إلغاء الحظر',
-              style: TextStyle(color: kDarkGreen, fontWeight: FontWeight.bold),
+          title: Text(
+            'إلغاء الحظر',
+            style: TextStyle(color: p.primary, fontWeight: FontWeight.bold),
+          ),
+          content: Text('متأكد بغيتي تلغي الحظر على "${user.name}"؟'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('إلغاء', style: TextStyle(color: p.subtitle)),
             ),
-          ),
-        ],
-      ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(
+                'إلغاء الحظر',
+                style: TextStyle(color: p.primary, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      },
     );
     if (confirmed == true) {
       await _unblockUser(user);
@@ -87,10 +94,14 @@ class _BlockedListScreenState extends State<BlockedListScreen> {
         .delete();
 
     if (mounted) {
+      final p = _Pal.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('تم إلغاء الحظر عن ${user.name}'),
-          backgroundColor: kDarkGreen,
+          content: Text(
+            'تم إلغاء الحظر عن ${user.name}',
+            style: TextStyle(color: p.onPrimary),
+          ),
+          backgroundColor: p.primary,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -102,15 +113,15 @@ class _BlockedListScreenState extends State<BlockedListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final p = _Pal.of(context);
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: kBg,
+        backgroundColor: p.bg,
         body: SafeArea(
           child: _uid.isEmpty
-              ? const Center(
-                  child: CircularProgressIndicator(color: kDarkGreen),
-                )
+              ? Center(child: CircularProgressIndicator(color: p.primary))
               : StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
                       .collection('users')
@@ -139,7 +150,7 @@ class _BlockedListScreenState extends State<BlockedListScreen> {
                             const SizedBox(width: 44),
                             const Expanded(
                               child: _GradientTitle(
-                                text: 'قائمة المستخدمين المحضورين',
+                                text: 'قائمة المستخدمين المحظورين',
                               ),
                             ),
                             _CircleIconButton(
@@ -152,18 +163,15 @@ class _BlockedListScreenState extends State<BlockedListScreen> {
                         Text(
                           'إدارة قائمة المستخدمين الذين قمت بحظرهم',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey.shade500,
-                          ),
+                          style: TextStyle(fontSize: 13, color: p.subtitle),
                         ),
                         const SizedBox(height: 26),
                         if (snapshot.connectionState == ConnectionState.waiting)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 40),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 40),
                             child: Center(
                               child: CircularProgressIndicator(
-                                color: kDarkGreen,
+                                color: p.primary,
                               ),
                             ),
                           )
@@ -175,12 +183,12 @@ class _BlockedListScreenState extends State<BlockedListScreen> {
                                 Icon(
                                   Icons.block_rounded,
                                   size: 48,
-                                  color: kDarkGreen.withValues(alpha: 0.25),
+                                  color: p.primary.withValues(alpha: 0.25),
                                 ),
                                 const SizedBox(height: 12),
                                 Text(
                                   'لا يوجد مستخدم محظور',
-                                  style: TextStyle(color: Colors.grey.shade500),
+                                  style: TextStyle(color: p.subtitle),
                                 ),
                               ],
                             ),
@@ -211,33 +219,27 @@ class _BlockedUserTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = _Pal.of(context);
+    final hasAvatar = user.avatarUrl != null && user.avatarUrl!.isNotEmpty;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: p.card,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.03)),
-        boxShadow: [
-          BoxShadow(
-            color: kDarkGreen.withValues(alpha: 0.05),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        border: Border.all(color: p.border),
+        boxShadow: p.shadow(alpha: 0.05),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CircleAvatar(
             radius: 23,
-            backgroundColor: kDarkGreen.withValues(alpha: 0.08),
-            backgroundImage:
-                (user.avatarUrl != null && user.avatarUrl!.isNotEmpty)
-                ? NetworkImage(user.avatarUrl!)
-                : null,
-            child: (user.avatarUrl == null || user.avatarUrl!.isEmpty)
-                ? const Icon(Icons.person_rounded, color: kDarkGreen, size: 21)
-                : null,
+            backgroundColor: p.primary.withValues(alpha: 0.08),
+            backgroundImage: hasAvatar ? NetworkImage(user.avatarUrl!) : null,
+            child: hasAvatar
+                ? null
+                : Icon(Icons.person_rounded, color: p.primary, size: 21),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -246,16 +248,16 @@ class _BlockedUserTile extends StatelessWidget {
               children: [
                 Text(
                   user.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 15,
-                    color: kDarkGreen,
+                    color: p.primary,
                   ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   user.blockedAtLabel,
-                  style: TextStyle(fontSize: 11.5, color: Colors.grey.shade400),
+                  style: TextStyle(fontSize: 11.5, color: p.muted),
                 ),
                 const SizedBox(height: 10),
                 GestureDetector(
@@ -266,15 +268,15 @@ class _BlockedUserTile extends StatelessWidget {
                       vertical: 7,
                     ),
                     decoration: BoxDecoration(
-                      color: kDarkGreen.withValues(alpha: 0.08),
+                      color: p.primary.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Text(
+                    child: Text(
                       'إلغاء الحظر',
                       style: TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.bold,
-                        color: kDarkGreen,
+                        color: p.primary,
                       ),
                     ),
                   ),
@@ -301,7 +303,7 @@ class _GradientTitle extends StatelessWidget {
       style: TextStyle(
         fontSize: fontSize,
         fontWeight: FontWeight.w800,
-        color: kDarkGreen,
+        color: _Pal.of(context).primary,
       ),
     );
   }
@@ -315,8 +317,10 @@ class _CircleIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = _Pal.of(context);
+
     return Material(
-      color: Colors.white,
+      color: p.card,
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
@@ -325,22 +329,74 @@ class _CircleIconButton extends StatelessWidget {
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: kDarkGreen.withValues(alpha: 0.08),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
+            boxShadow: p.shadow(alpha: 0.08, blur: 10, dy: 3),
           ),
           child: Icon(
             icon,
-            color: kDarkGreen,
+            color: p.primary,
             size: 20,
             textDirection: TextDirection.ltr,
           ),
         ),
       ),
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ألوان مشتقة من الـ Theme الحالي (نهاري / ليلي) — خاصة بهذا الملف
+// ---------------------------------------------------------------------------
+class _Pal {
+  final bool isDark;
+  final Color primary;
+  final Color onPrimary;
+  final Color bg;
+  final Color card;
+  final Color border;
+  final Color subtitle;
+  final Color muted;
+
+  const _Pal._({
+    required this.isDark,
+    required this.primary,
+    required this.onPrimary,
+    required this.bg,
+    required this.card,
+    required this.border,
+    required this.subtitle,
+    required this.muted,
+  });
+
+  factory _Pal.of(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    return _Pal._(
+      isDark: isDark,
+      primary: theme.colorScheme.primary,
+      onPrimary: theme.colorScheme.onPrimary,
+      bg: theme.scaffoldBackgroundColor,
+      card: theme.colorScheme.surface,
+      border: isDark
+          ? Colors.white.withValues(alpha: 0.08)
+          : Colors.black.withValues(alpha: 0.03),
+      subtitle: isDark ? Colors.grey.shade400 : Colors.grey.shade500,
+      muted: isDark ? Colors.grey.shade500 : Colors.grey.shade400,
+    );
+  }
+
+  /// ظلال (تُلغى في الوضع الليلي)
+  List<BoxShadow>? shadow({
+    double alpha = 0.06,
+    double blur = 18,
+    double dy = 8,
+  }) {
+    if (isDark) return null;
+    return [
+      BoxShadow(
+        color: primary.withValues(alpha: alpha),
+        blurRadius: blur,
+        offset: Offset(0, dy),
+      ),
+    ];
   }
 }

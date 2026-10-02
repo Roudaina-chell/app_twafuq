@@ -3,6 +3,89 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+// ------------------------------------------------------------
+// لوحة الألوان: تتبدل تلقائياً حسب المظهر (نهاري / ليلي)
+// ------------------------------------------------------------
+const Color _kDarkGreen = Color(0xFF0F3D2E);
+const Color _kMidGreen = Color(0xFF1A6B4A);
+const Color _kGold = Color(0xFFC9A24B);
+const Color _kCream = Color(0xFFE6D5A8);
+
+class _P {
+  final bool isDark;
+  final Color bg;
+  final Color card;
+  final Color title;
+  final Color text;
+  final Color subtitle;
+  final Color icon;
+  final Color iconBg;
+  final Color border;
+  final Color selectedBorder;
+  final Color selectedFill;
+  final Color unselectedIcon;
+  final Color shadow;
+  final Color error;
+  final Color primaryBtn;
+
+  const _P({
+    required this.isDark,
+    required this.bg,
+    required this.card,
+    required this.title,
+    required this.text,
+    required this.subtitle,
+    required this.icon,
+    required this.iconBg,
+    required this.border,
+    required this.selectedBorder,
+    required this.selectedFill,
+    required this.unselectedIcon,
+    required this.shadow,
+    required this.error,
+    required this.primaryBtn,
+  });
+
+  static const _P light = _P(
+    isDark: false,
+    bg: Color(0xFFFAF7F2),
+    card: Colors.white,
+    title: _kDarkGreen,
+    text: _kDarkGreen,
+    subtitle: Color(0xFF757575),
+    icon: _kDarkGreen,
+    iconBg: Color(0x140F3D2E),
+    border: Color(0xFFEEEEEE),
+    selectedBorder: _kDarkGreen,
+    selectedFill: Color(0x0F0F3D2E),
+    unselectedIcon: Color(0xFFE0E0E0),
+    shadow: Color(0x0D0F3D2E),
+    error: Color(0xFFD32F2F),
+    primaryBtn: _kDarkGreen,
+  );
+
+  static const _P dark = _P(
+    isDark: true,
+    bg: Color(0xFF0E1512),
+    card: Color(0xFF17221D),
+    title: _kGold,
+    text: _kCream,
+    subtitle: Color(0xFF8FA198),
+    icon: _kGold,
+    iconBg: Color(0x1AC9A24B),
+    border: Color(0xFF2A3A33),
+    selectedBorder: _kGold,
+    selectedFill: Color(0x1AC9A24B),
+    unselectedIcon: Color(0xFF3A4A43),
+    shadow: Color(0x66000000),
+    error: Color(0xFFFF8A80),
+    primaryBtn: _kMidGreen,
+  );
+
+  static _P of(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? dark : light;
+}
+
 class ReportUserScreen extends StatefulWidget {
   final String userId;
   final String userName;
@@ -18,18 +101,16 @@ class ReportUserScreen extends StatefulWidget {
 }
 
 class _ReportUserScreenState extends State<ReportUserScreen> {
-  static const Color darkGreen = Color(0xFF0F3D2E);
-  static const Color gold = Color(0xFFC9A24B);
-  static const Color bg = Color(0xFFFAF7F2);
-
   final TextEditingController _detailsController = TextEditingController();
   bool _isSubmitting = false;
   bool _isBlocked = false;
 
+  _P get _p => _P.of(context);
+
   String get _myUid => FirebaseAuth.instance.currentUser?.uid ?? '';
 
   // ============================================================
-  // ✅ أسباب الإبلاغ (بحال الصورة المرجعية)
+  // أسباب الإبلاغ
   // ============================================================
   static const List<_ReportReason> _reasons = [
     _ReportReason(
@@ -149,37 +230,35 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
 
       if (_isBlocked) {
         await ref.delete();
+        if (!mounted) return;
         setState(() => _isBlocked = false);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('تم إلغاء حظر المستخدم'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم إلغاء حظر المستخدم'),
+            backgroundColor: Colors.green,
+          ),
+        );
       } else {
+        final p = _p;
         final confirm = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
+            backgroundColor: p.card,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            title: const Text(
+            title: Text(
               'حظر المستخدم',
-              style: TextStyle(color: darkGreen, fontWeight: FontWeight.bold),
+              style: TextStyle(color: p.title, fontWeight: FontWeight.bold),
             ),
-            content: const Text(
+            content: Text(
               'عند حظر هذا المستخدم، لن يتمكن من مراسلتك أو رؤية معلوماتك. متأكد؟',
-              style: TextStyle(fontSize: 13),
+              style: TextStyle(fontSize: 13, color: p.text),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: const Text(
-                  'إلغاء',
-                  style: TextStyle(color: Colors.grey),
-                ),
+                child: Text('إلغاء', style: TextStyle(color: p.subtitle)),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(ctx, true),
@@ -200,18 +279,15 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
           'blockedUserId': widget.userId,
           'blockedAt': FieldValue.serverTimestamp(),
         });
+        if (!mounted) return;
         setState(() => _isBlocked = true);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('تم حظر المستخدم بنجاح'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          Navigator.pop(
-            context,
-          ); // ✅ pop وحدة برك — نرجعو لي دار push (المحادثة أو profile view)
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم حظر المستخدم بنجاح'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        Navigator.pop(context);
       }
     } catch (e) {
       debugPrint('❌ Block toggle failed: $e');
@@ -230,12 +306,13 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final p = _p;
     return Scaffold(
-      backgroundColor: bg,
+      backgroundColor: p.bg,
       appBar: AppBar(
-        backgroundColor: bg,
+        backgroundColor: p.bg,
         elevation: 0,
-        iconTheme: const IconThemeData(color: darkGreen),
+        iconTheme: IconThemeData(color: p.icon),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -244,32 +321,25 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 8),
-              // ============================================================
-              // ✅ رأس الصفحة: شارة دائرية خضراء (بحال الصورة المرجعية)
-              // ============================================================
               Center(
                 child: Container(
                   width: 72,
                   height: 72,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: darkGreen.withValues(alpha: 0.08),
+                    color: p.iconBg,
                   ),
-                  child: const Icon(
-                    Icons.shield_rounded,
-                    color: darkGreen,
-                    size: 34,
-                  ),
+                  child: Icon(Icons.shield_rounded, color: p.icon, size: 34),
                 ),
               ),
               const SizedBox(height: 16),
               Text(
                 'الإبلاغ عن ${widget.userName}',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 19,
                   fontWeight: FontWeight.bold,
-                  color: darkGreen,
+                  color: p.title,
                 ),
               ),
               const SizedBox(height: 8),
@@ -278,27 +348,23 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12.5,
-                  color: Colors.grey.shade600,
+                  color: p.subtitle,
                   height: 1.5,
                 ),
               ),
               const SizedBox(height: 22),
-              const Align(
+              Align(
                 alignment: Alignment.centerRight,
                 child: Text(
                   'اختر سبب الإبلاغ',
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 13.5,
-                    color: darkGreen,
+                    color: p.title,
                   ),
                 ),
               ),
               const SizedBox(height: 10),
-              // ============================================================
-              // ✅ كارطات الأسباب: أيقونة فدائرة خفيفة + عنوان + وصف
-              // الكارطة المختارة عندها حدود خضراء واضحة (بحال الصورة المرجعية)
-              // ============================================================
               ..._reasons.map(
                 (reason) => _ReasonTile(
                   reason: reason,
@@ -307,25 +373,26 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
                 ),
               ),
               const SizedBox(height: 18),
-              const Align(
+              Align(
                 alignment: Alignment.centerRight,
                 child: Text(
                   'تفاصيل إضافية (اختياري)',
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
-                    color: darkGreen,
+                    color: p.title,
                   ),
                 ),
               ),
               const SizedBox(height: 8),
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: p.card,
                   borderRadius: BorderRadius.circular(18),
+                  border: p.isDark ? Border.all(color: p.border) : null,
                   boxShadow: [
                     BoxShadow(
-                      color: darkGreen.withValues(alpha: 0.05),
+                      color: p.shadow,
                       blurRadius: 10,
                       offset: const Offset(0, 3),
                     ),
@@ -335,9 +402,12 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
                   controller: _detailsController,
                   maxLines: 3,
                   textAlign: TextAlign.right,
-                  decoration: const InputDecoration(
+                  cursorColor: p.icon,
+                  style: TextStyle(color: p.text),
+                  decoration: InputDecoration(
                     hintText: 'اكتب أي تفاصيل إضافية هنا...',
-                    contentPadding: EdgeInsets.all(14),
+                    hintStyle: TextStyle(color: p.subtitle),
+                    contentPadding: const EdgeInsets.all(14),
                     border: InputBorder.none,
                   ),
                 ),
@@ -348,7 +418,10 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
                 child: ElevatedButton.icon(
                   onPressed: _isSubmitting ? null : _submitReport,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: darkGreen,
+                    backgroundColor: p.primaryBtn,
+                    disabledBackgroundColor: p.primaryBtn.withValues(
+                      alpha: 0.6,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                     ),
@@ -361,7 +434,14 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
                           size: 18,
                         ),
                   label: _isSubmitting
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2.4,
+                          ),
+                        )
                       : const Text(
                           'إرسال الإبلاغ',
                           style: TextStyle(
@@ -378,7 +458,7 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
                 child: OutlinedButton(
                   onPressed: _isSubmitting ? null : _toggleBlock,
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: Colors.red.shade300),
+                    side: BorderSide(color: p.error.withValues(alpha: 0.6)),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                     ),
@@ -386,7 +466,7 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
                   child: Text(
                     _isBlocked ? 'إلغاء حظر المستخدم' : 'حظر المستخدم',
                     style: TextStyle(
-                      color: Colors.red.shade600,
+                      color: p.error,
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
                     ),
@@ -397,7 +477,7 @@ class _ReportUserScreenState extends State<ReportUserScreen> {
               Text(
                 'عند حظر هذا المستخدم، لن يتمكن من مراسلتك أو رؤية معلوماتك.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
+                style: TextStyle(color: p.subtitle, fontSize: 11),
               ),
               const SizedBox(height: 20),
             ],
@@ -423,9 +503,7 @@ class _ReportReason {
 }
 
 // ============================================================
-// كارطة سبب الإبلاغ — بنفس ستايل الصورة المرجعية:
-// أيقونة داخل دائرة خضراء خفيفة + عنوان + وصف.
-// عند الاختيار: خلفية خضراء فاتحة + حدود خضراء واضحة + علامة صح.
+// كارطة سبب الإبلاغ
 // ============================================================
 class _ReasonTile extends StatelessWidget {
   final _ReportReason reason;
@@ -438,14 +516,13 @@ class _ReasonTile extends StatelessWidget {
     required this.onTap,
   });
 
-  static const Color darkGreen = Color(0xFF0F3D2E);
-
   @override
   Widget build(BuildContext context) {
+    final p = _P.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
-        color: selected ? darkGreen.withValues(alpha: 0.06) : Colors.white,
+        color: selected ? Color.alphaBlend(p.selectedFill, p.card) : p.card,
         borderRadius: BorderRadius.circular(20),
         child: InkWell(
           onTap: onTap,
@@ -455,14 +532,16 @@ class _ReasonTile extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: selected ? darkGreen : Colors.transparent,
+                color: selected
+                    ? p.selectedBorder
+                    : (p.isDark ? p.border : Colors.transparent),
                 width: 1.4,
               ),
-              boxShadow: selected
+              boxShadow: selected || p.isDark
                   ? []
                   : [
                       BoxShadow(
-                        color: darkGreen.withValues(alpha: 0.05),
+                        color: p.shadow,
                         blurRadius: 10,
                         offset: const Offset(0, 3),
                       ),
@@ -473,10 +552,10 @@ class _ReasonTile extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(9),
                   decoration: BoxDecoration(
-                    color: darkGreen.withValues(alpha: 0.08),
+                    color: p.iconBg,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(reason.icon, color: darkGreen, size: 19),
+                  child: Icon(reason.icon, color: p.icon, size: 19),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -485,19 +564,16 @@ class _ReasonTile extends StatelessWidget {
                     children: [
                       Text(
                         reason.title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 13.5,
-                          color: darkGreen,
+                          color: p.title,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         reason.subtitle,
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          color: Colors.grey.shade500,
-                        ),
+                        style: TextStyle(fontSize: 11.5, color: p.subtitle),
                       ),
                     ],
                   ),
@@ -506,7 +582,7 @@ class _ReasonTile extends StatelessWidget {
                   selected
                       ? Icons.check_circle_rounded
                       : Icons.radio_button_unchecked_rounded,
-                  color: selected ? darkGreen : Colors.grey.shade300,
+                  color: selected ? p.icon : p.unselectedIcon,
                   size: 20,
                 ),
               ],

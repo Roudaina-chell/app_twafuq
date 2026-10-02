@@ -4,6 +4,34 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 enum AppAppearanceMode { day, night }
 
+// ============================================================
+// الثيمات (نهاري / ليلي) — هنا مباشرة، بلا ملف خارجي
+// ============================================================
+class AppTheme {
+  AppTheme._();
+
+  static final ThemeData light = ThemeData(
+    brightness: Brightness.light,
+    scaffoldBackgroundColor: const Color(0xFFFAF7F2),
+    colorScheme: const ColorScheme.light(
+      primary: Color(0xFF0F3D2E),
+      onPrimary: Colors.white,
+      surface: Colors.white,
+    ),
+  );
+
+  // في الليلي: primary أفتح باش يبان على الخلفية الغامقة
+  static final ThemeData dark = ThemeData(
+    brightness: Brightness.dark,
+    scaffoldBackgroundColor: const Color(0xFF0E1512),
+    colorScheme: const ColorScheme.dark(
+      primary: Color(0xFF7FD1A8),
+      onPrimary: Color(0xFF0E1512),
+      surface: Color(0xFF16211C),
+    ),
+  );
+}
+
 class AppThemeController {
   AppThemeController._();
 
@@ -209,7 +237,9 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
     required Color cardColor,
   }) {
     final bool selected = _selectedMode == mode;
-    final Color textOnCard = statusBarDark ? darkGreen : Colors.white;
+    final Color textOnCard = statusBarDark
+        ? const Color(0xFF0F3D2E)
+        : Colors.white;
 
     return GestureDetector(
       onTap: () => _selectMode(mode),
@@ -239,11 +269,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
           children: [
             Stack(
               children: [
-                _buildPhonePreview(
-                  cardBg: cardBg,
-                  textOnCard: textOnCard,
-                  darkGreen: darkGreen,
-                ),
+                _buildPhonePreview(cardBg: cardBg, textOnCard: textOnCard),
                 Positioned(
                   top: 4,
                   right: 4,
@@ -262,7 +288,11 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                       ),
                     ),
                     child: selected
-                        ? const Icon(Icons.check, size: 14, color: Colors.white)
+                        ? Icon(
+                            Icons.check,
+                            size: 14,
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          )
                         : null,
                   ),
                 ),
@@ -308,13 +338,12 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
   Widget _buildPhonePreview({
     required Color cardBg,
     required Color textOnCard,
-    required Color darkGreen,
   }) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),
       child: Container(
         height: 120,
-        padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(color: cardBg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -373,7 +402,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
           ),
         ),
         const SizedBox(width: 6),
-        Expanded(child: _previewLine(color, widthFactor: 1, filled: false)),
+        Expanded(child: _previewLine(color)),
       ],
     );
   }
